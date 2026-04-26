@@ -29,6 +29,7 @@ import { FORMAT_INSTRUCTIONS } from '@/lib/prompts';
 import { logWarning, logError, logInfo } from '@/lib/system-logger';
 import type { ReasoningGraph } from './reasoning-graph';
 import { buildSequentialPath, extractPatternWarningDirectives } from './reasoning-graph';
+import { buildActivePhaseGraphSection } from './phase-graph';
 import { retryWithValidation, validateBeatPlan, validateBeatProseMap } from './validation';
 import { sanitizeSystemDelta, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
 
@@ -300,6 +301,8 @@ ${threads ? `  <threads-to-activate>\n${threads}\n  </threads-to-activate>` : ''
   if (worldBuildFocusBlock) inputBlocks.push(`  ${worldBuildFocusBlock.replace(/\n/g, '\n  ')}`);
   inputBlocks.push(`  <continuation-point hint="Scenes continue from this point in the story.">after scene index ${currentIndex + 1}</continuation-point>`);
   if (sequencePrompt) inputBlocks.push(`  <pacing-sequence>\n${sequencePrompt}\n  </pacing-sequence>`);
+  const phaseGraphSection = buildActivePhaseGraphSection(narrative);
+  if (phaseGraphSection) inputBlocks.push(`  ${phaseGraphSection.replace(/\n/g, '\n  ')}`);
 
   const povRestrictedHint = storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0
     ? ` — RESTRICTED: ${storySettings.povCharacterIds.join(', ')}`
@@ -616,6 +619,10 @@ ${threads ? `  <threads-to-activate>\n${threads}\n  </threads-to-activate>` : ''
         initialCharacterLocations: {},
         directionVector,
         worldState,
+        // Stamp the active Phase Reasoning Graph (PRG) at arc-creation time
+        // so the working-model-of-reality the arc was built under is preserved
+        // even after the user later switches or clears the active PRG.
+        phaseGraphId: narrative.currentPhaseGraphId,
       };
 
   if (!existingArc && scenes.length > 0) {
@@ -877,6 +884,8 @@ ${slotXml}
 ${proseProfileBlock}
   </prose-profile>`);
   if (beatSlotsBlock) inputBlocks.push(`  ${beatSlotsBlock.replace(/\n/g, '\n  ')}`);
+  const planPhaseGraphSection = buildActivePhaseGraphSection(narrative);
+  if (planPhaseGraphSection) inputBlocks.push(`  ${planPhaseGraphSection.replace(/\n/g, '\n  ')}`);
   if (completedBeatsBlock) inputBlocks.push(`  <completed-beats>\n${completedBeatsBlock}\n  </completed-beats>`);
   if (adjacentBlock) inputBlocks.push(`  <previous-scene-tail>${adjacentBlock}</previous-scene-tail>`);
   inputBlocks.push(`  <scene-summary>${scene.summary}</scene-summary>`);
@@ -1595,6 +1604,8 @@ ${b.propositions.map(p => `      <proposition>${p.content}</proposition>`).join(
 
   const inputBlocks: string[] = [];
   if (profileSection.trim()) inputBlocks.push(`  <prose-profile hint="The story's authorial voice. Always law — rules in <instructions> apply only when this is silent on a given dimension.">${profileSection}\n  </prose-profile>`);
+  const proseProsePhaseGraphSection = buildActivePhaseGraphSection(narrative);
+  if (proseProsePhaseGraphSection) inputBlocks.push(`  ${proseProsePhaseGraphSection.replace(/\n/g, '\n  ')}`);
   if (adjacentProseBlock) inputBlocks.push(`  ${adjacentProseBlock.replace(/\n/g, '\n  ')}`);
   if (planBlock) inputBlocks.push(`  ${planBlock.replace(/\n/g, '\n  ')}`);
   inputBlocks.push(`  <scene>${sceneBlock}\n  </scene>`);

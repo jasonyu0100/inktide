@@ -29,6 +29,7 @@ const EDGE_COLORS: Record<ReasoningEdgeType, string> = {
   reveals: "#a855f7",
   develops: "#06b6d4",
   resolves: "#10b981",
+  supersedes: "#ec4899",
 };
 
 // Node dimensions for dagre layout
@@ -501,7 +502,7 @@ export function ReasoningGraphModal({
         {/* Header */}
         <h2 className="text-sm font-semibold text-text-primary mb-1">{graph.arcName}</h2>
         <p className="text-[10px] text-text-dim uppercase tracking-wider mb-3">
-          Reasoning Graph · {graph.nodes.length} nodes · {graph.edges.length} connections
+          Causal · {graph.nodes.length} nodes · {graph.edges.length} connections
         </p>
 
         {/* Summary */}

@@ -73,3 +73,29 @@ export const REASONING_NODE_COLOR_UNKNOWN: ReasoningNodePalette = {
   stroke: "#94a3b8",
   text: "#f1f5f9",
 };
+
+/**
+ * Phase Reasoning Graph (PRG) node palette. Distinct hue per type — and
+ * deliberately distinct from the causal palette so the two graphs read
+ * differently at a glance even though they share the dagre rendering.
+ *
+ *   Pattern      teal           — recurring configuration · currently-active
+ *   Convention   warm taupe     — procedural default · currently-followed
+ *   Attractor    saffron        — what's being aimed at · future-pointing
+ *   Agent        deep emerald   — entity with stance · currently-driving
+ *   Rule         indigo (matches causal's `system` since rules ARE system) · currently-binding
+ *   Pressure     burnt sienna   — accumulated tension · accumulating-toward-discharge
+ *   Landmark     deep violet    — discharged event with persistent influence · past-but-anchoring
+ */
+export const PHASE_NODE_COLORS: Record<
+  "pattern" | "convention" | "attractor" | "agent" | "rule" | "pressure" | "landmark",
+  ReasoningNodePalette
+> = {
+  pattern: { fill: "#0d9488", stroke: "#5eead4", text: "#ccfbf1" },
+  convention: { fill: "#78716c", stroke: "#d6d3d1", text: "#f5f5f4" },
+  attractor: { fill: "#ca8a04", stroke: "#fde047", text: "#fef9c3" },
+  agent: { fill: "#047857", stroke: "#6ee7b7", text: "#d1fae5" },
+  rule: { fill: "#4338ca", stroke: "#818cf8", text: "#e0e7ff" },
+  pressure: { fill: "#9a3412", stroke: "#fb923c", text: "#ffedd5" },
+  landmark: { fill: "#6d28d9", stroke: "#c4b5fd", text: "#ede9fe" },
+};

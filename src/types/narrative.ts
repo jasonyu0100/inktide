@@ -960,6 +960,15 @@ export type Arc = {
   worldState?: string;
   /** Reasoning graph used to plan this arc's scenes — stored for canvas viewing */
   reasoningGraph?: ReasoningGraphSnapshot;
+  /**
+   * Phase graph that was current when this arc was generated. Reference
+   * (id only) into NarrativeState.phaseGraphs — phase graphs are immutable
+   * and never deleted, so a stable id reference preserves the working
+   * model of reality the arc was built under, even if the user later
+   * regenerates a new current phase graph or clears the active one.
+   * Undefined = no phase graph was active when this arc was generated.
+   */
+  phaseGraphId?: string;
 };
 
 /** Stored reasoning graph snapshot — decoupled from the ai module for type safety */
@@ -1007,7 +1016,7 @@ export type ReasoningEdgeSnapshot = {
   id: string;
   from: string;
   to: string;
-  type: "enables" | "constrains" | "risks" | "requires" | "causes" | "reveals" | "develops" | "resolves";
+  type: "enables" | "constrains" | "risks" | "requires" | "causes" | "reveals" | "develops" | "resolves" | "supersedes";
   label?: string;
 };
 
@@ -1016,6 +1025,97 @@ export type ReasoningEdgeSnapshot = {
  * `chaos` agent that explicitly authorises world expansion — introducing
  * new characters, locations, artifacts, or threads to fuel the arc.
  */
+
+// ── Phase Graph ──────────────────────────────────────────────────────────────
+// A working model of reality the narrative is currently operating under.
+// Distinct from CRG (which delivers per-arc causal reasoning): Phase Graphs
+// capture the *current state* of the system — what patterns are active, what
+// pressures are accumulating, what conventions are followed, what attractors
+// the cast aims at, what landmarks anchor the past, what rules bind, what
+// agents are driving. Mined from narrative context with optional user
+// guidance, opt-in, and passed downstream into CRG / scene / plan / prose
+// generation as the working state of reality.
+//
+// Phase graphs are IMMUTABLE once generated. To change the working model, a
+// new PRG is generated (optionally seeded by an existing one via basedOn).
+// The "current" PRG is the one downstream generation reads from; it can be
+// cleared (no active phase graph), in which case generation falls back to
+// a historical viewpoint of the narrative context.
+//
+// STORAGE LIFECYCLE: PRGs are user-managed via the Phase tab — switch
+// current, name, use as basis for a new PRG, or delete explicitly. Arcs
+// hold an `arc.phaseGraphId` reference to the PRG that was current at
+// arc generation time, preserving the model the arc was built under.
+// `prunePhaseGraphs` (reference-counted helper) is exposed for opt-in
+// cleanup, but the canonical lifecycle is explicit user management.
+
+/**
+ * Phase Graph node types. The temporal stance is implicit in the type:
+ *   - pattern    : recurring configuration · currently-active
+ *   - convention : procedural default · currently-followed
+ *   - attractor  : what's being aimed at · future-pointing
+ *   - agent      : entity with stance · currently-driving
+ *   - rule       : foreground constraint · currently-binding
+ *   - pressure   : accumulated tension · accumulating-toward-discharge
+ *   - landmark   : discharged event with persistent influence · past-but-anchoring
+ */
+export type PhaseNodeType =
+  | "pattern"
+  | "convention"
+  | "attractor"
+  | "agent"
+  | "rule"
+  | "pressure"
+  | "landmark";
+
+export type PhaseNodeSnapshot = {
+  id: string;
+  /** Presentation / causal order — used for display and sequential walks. */
+  index: number;
+  /** Generation order — the order the AI emitted this node (JSON position). May differ from `index` in backward modes. */
+  order?: number;
+  type: PhaseNodeType;
+  label: string;
+  detail?: string;
+  /** Optional anchor — entity / thread / system-node id this phase claim is grounded in (when applicable). */
+  entityId?: string;
+  threadId?: string;
+  systemNodeId?: string;
+};
+
+/** Phase graph edges reuse the CRG edge ontology — same nine types. */
+export type PhaseEdgeSnapshot = {
+  id: string;
+  from: string;
+  to: string;
+  type: "enables" | "constrains" | "risks" | "requires" | "causes" | "reveals" | "develops" | "resolves" | "supersedes";
+  label?: string;
+};
+
+/**
+ * Stored Phase Reasoning Graph (PRG) — the working model of reality.
+ * Immutable once stored; regeneration produces a new PRG (optionally seeded
+ * by an existing one via `basedOn`). Arcs reference these by id via
+ * `Arc.phaseGraphId`. Users manage the collection in the Phase tab: name,
+ * switch current, use as basis, or delete explicitly.
+ */
+export type PhaseGraph = {
+  id: string;
+  /**
+   * Display name shown in the Phase tab list. User-editable; defaults to a
+   * timestamp or the LLM-generated summary's first clause when not set.
+   */
+  name?: string;
+  /** 1-2 sentence summary of the working model this PRG asserts. */
+  summary: string;
+  nodes: PhaseNodeSnapshot[];
+  edges: PhaseEdgeSnapshot[];
+  /** PRG this one was seeded from (regeneration with a basis). Undefined = mined fresh from narrative context. */
+  basedOn?: string;
+  /** User guidance / hypothesis given at generation time (optional). */
+  guidance?: string;
+  createdAt: number;
+};
 
 // ── Coordination Plan ────────────────────────────────────────────────────────
 
@@ -1229,6 +1329,20 @@ export type NarrativeState = {
   surveys?: Record<string, Survey>;
   /** Research interviews — many questions for one subject; see Interview types below. */
   interviews?: Record<string, Interview>;
+  /**
+   * Phase graphs — historical collection of working models of reality. Keyed
+   * by phase-graph id. Immutable once stored; new phase graphs are added
+   * (optionally seeded from an existing one), never mutated. Arcs reference
+   * these by id. Empty / undefined = no phase graph has ever been generated.
+   */
+  phaseGraphs?: Record<string, PhaseGraph>;
+  /**
+   * Id of the currently-active phase graph that downstream generation reads
+   * from. Undefined = no active phase graph (generation falls back to a
+   * historical viewpoint of the narrative context). Setting / clearing this
+   * field is the only mutation users perform on phase-graph state.
+   */
+  currentPhaseGraphId?: string;
   createdAt: number;
   updatedAt: number;
 };
@@ -1886,6 +2000,7 @@ export type SystemLogEntry = {
     | "audio-generation"
     | "ingest"
     | "api"
+    | "phase-graph"
     | "other";
   /** Current operation */
   operation?: string;
@@ -2054,7 +2169,8 @@ export type InspectorContext =
   | { type: "artifact"; artifactId: string }
   | { type: "world"; entityId: string; nodeId: string }
   | { type: "threadLog"; threadId: string; nodeId: string }
-  | { type: "reasoning"; arcId?: string; worldBuildId?: string; nodeId: string };
+  | { type: "reasoning"; arcId?: string; worldBuildId?: string; nodeId: string }
+  | { type: "phase"; phaseGraphId: string; nodeId: string };
 
 export type WizardStep = "form" | "details" | "generate";
 
@@ -2099,7 +2215,8 @@ export type GraphViewMode =
   | "search"
   | "reasoning"
   | "network"
-  | "market";
+  | "market"
+  | "phase";
 
 // ── Chat Threads ──────────────────────────────────────────────────────────────
 export type ChatMessage = {

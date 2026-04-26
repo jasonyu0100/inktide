@@ -23,6 +23,7 @@ import SceneDetail from "./SceneDetail";
 import ThreadDetail from "./ThreadDetail";
 import ThreadLogNodeDetail from "./ThreadLogNodeDetail";
 import ReasoningNodeDetail from "./ReasoningNodeDetail";
+import PhaseNodeDetail from "./PhaseNodeDetail";
 
 type Tab = "inspector" | "chat" | "notes" | "surveys" | "interviews" | "eval";
 
@@ -135,6 +136,10 @@ export default function SidePanel() {
       case "reasoning":
         return (
           <ReasoningNodeDetail arcId={ctx.arcId} worldBuildId={ctx.worldBuildId} nodeId={ctx.nodeId} />
+        );
+      case "phase":
+        return (
+          <PhaseNodeDetail phaseGraphId={ctx.phaseGraphId} nodeId={ctx.nodeId} />
         );
       default:
         return <EmptyState />;

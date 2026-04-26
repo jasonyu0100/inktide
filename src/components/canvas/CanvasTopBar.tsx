@@ -66,7 +66,7 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
 
 export const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads', 'network']);
 
-type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'game' | 'search' | 'reasoning' | 'market';
+type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'game' | 'search' | 'reasoning' | 'market' | 'phase';
 type ScenePrimaryMode = 'reasoning' | 'plan' | 'prose' | 'audio' | 'game';
 const SCENE_MODES: ScenePrimaryMode[] = ['reasoning', 'plan', 'prose', 'audio', 'game'];
 
@@ -262,6 +262,7 @@ function resolveCanvasMode(graphViewMode: GraphViewMode): CanvasMode {
   if (graphViewMode === 'search') return 'search';
   if (graphViewMode === 'reasoning') return 'reasoning';
   if (graphViewMode === 'market') return 'market';
+  if (graphViewMode === 'phase') return 'phase';
   return 'graph';
 }
 
@@ -478,6 +479,12 @@ export function CanvasTopBar() {
   // ── Regenerate Embeddings modal ────────────────────────────────────────
   const [showEmbeddingsModal, setShowEmbeddingsModal] = useState(false);
   const [reasoningCopied, setReasoningCopied] = useState(false);
+  const [phaseCopied, setPhaseCopied] = useState(false);
+
+  const activePhaseGraph = useMemo(() => {
+    const id = narrative?.currentPhaseGraphId;
+    return id ? narrative?.phaseGraphs?.[id] : undefined;
+  }, [narrative?.currentPhaseGraphId, narrative?.phaseGraphs]);
 
   useEffect(() => {
     if (editField) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 30);
@@ -765,36 +772,34 @@ export function CanvasTopBar() {
       )}
 
       {canvasMode === 'reasoning' && (currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph) && (
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-cyan-400/60">
-            {currentWorldBuildData.worldBuild?.reasoningGraph ? "Expansion" : "Reasoning"}
-          </span>
-          <span className="text-[9px] text-text-dim/50 font-mono tabular-nums">
-            {(currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph)!.nodes.length} nodes &middot; {(currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph)!.edges.length} edges
-          </span>
-          <span className="text-[9px] text-text-dim/40 truncate max-w-50" title={(currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph)!.summary}>
-            {(currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph)!.summary}
-          </span>
-          <div className="w-px h-3 bg-border" />
-          <button
-            onClick={() => {
-              const graph = currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph;
-              if (graph) {
-                navigator.clipboard.writeText(buildSequentialPath(graph));
-                setReasoningCopied(true);
-                setTimeout(() => setReasoningCopied(false), 2000);
-              }
-            }}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] text-text-dim/60 hover:text-text-dim transition-colors"
-            title="Copy sequential reasoning path"
-          >
-            <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-            </svg>
-            <span>{reasoningCopied ? "Copied!" : "Copy"}</span>
-          </button>
-        </div>
+        <GraphInfoStrip
+          graph={(currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph)!}
+          copied={reasoningCopied}
+          onCopy={() => {
+            const graph = currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph;
+            if (graph) {
+              navigator.clipboard.writeText(buildSequentialPath(graph));
+              setReasoningCopied(true);
+              setTimeout(() => setReasoningCopied(false), 2000);
+            }
+          }}
+          onExport={() => {
+            const graph = currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph;
+            if (graph) downloadGraphAsJson(graph, currentArcData.arc?.name ?? 'causal-graph');
+          }}
+        />
+      )}
+      {canvasMode === 'phase' && activePhaseGraph && (
+        <GraphInfoStrip
+          graph={activePhaseGraph}
+          copied={phaseCopied}
+          onCopy={() => {
+            navigator.clipboard.writeText(buildSequentialPath({ nodes: activePhaseGraph.nodes, edges: activePhaseGraph.edges }));
+            setPhaseCopied(true);
+            setTimeout(() => setPhaseCopied(false), 2000);
+          }}
+          onExport={() => downloadGraphAsJson(activePhaseGraph, activePhaseGraph.name ?? 'phase-graph')}
+        />
       )}
 
       {/* Spacer */}
@@ -867,7 +872,7 @@ export function CanvasTopBar() {
         {inSceneMode && currentScene && (
           <div className="flex items-center rounded-md overflow-hidden border border-white/10">
             {[
-              { mode: 'reasoning' as ScenePrimaryMode, Icon: IconReasoning, label: 'Reasoning', hidden: !currentArcData.hasReasoningGraph && !currentWorldBuildData.hasReasoningGraph },
+              { mode: 'reasoning' as ScenePrimaryMode, Icon: IconReasoning, label: 'Causal', hidden: !currentArcData.hasReasoningGraph && !currentWorldBuildData.hasReasoningGraph },
               { mode: 'plan' as ScenePrimaryMode, Icon: IconNotepad, label: 'Plan', hidden: false },
               { mode: 'prose' as ScenePrimaryMode, Icon: IconDocument, label: 'Prose', hidden: false },
               { mode: 'audio' as ScenePrimaryMode, Icon: IconWaveform, label: 'Audio', hidden: false },
@@ -902,6 +907,7 @@ export function CanvasTopBar() {
           {[
             { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', condition: 'always' as const, activeWhen: canvasMode === 'graph' },
             { mode: 'market' as CanvasMode, Icon: IconMarket, label: 'Market', condition: 'always' as const, activeWhen: canvasMode === 'market' },
+            { mode: 'phase' as CanvasMode, Icon: IconReasoning, label: 'Phase', condition: 'always' as const, activeWhen: canvasMode === 'phase' },
             { mode: 'scene' as const, Icon: IconNotepad, label: 'Scene', condition: 'sceneOnly' as const, activeWhen: inSceneMode },
             { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', condition: 'always' as const, activeWhen: canvasMode === 'search' },
           ]
@@ -942,4 +948,76 @@ export function CanvasTopBar() {
       )}
     </div>
   );
+}
+
+// ── Shared graph info strip ─────────────────────────────────────────────────
+// Renders the compact "N nodes · M edges · summary | Copy | Export" cluster
+// shown in the top bar for both Causal (CRG) and Phase (PRG) modes. No
+// leading label — the active tab already tells the user which graph.
+type GraphLike = {
+  nodes: { id: string; index: number; order?: number; type: string; label: string; detail?: string }[];
+  edges: { id: string; from: string; to: string; type: string; label?: string }[];
+  summary: string;
+};
+function GraphInfoStrip({
+  graph,
+  copied,
+  onCopy,
+  onExport,
+}: {
+  graph: GraphLike;
+  copied: boolean;
+  onCopy: () => void;
+  onExport: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[9px] text-text-dim/50 font-mono tabular-nums">
+        {graph.nodes.length} nodes &middot; {graph.edges.length} edges
+      </span>
+      <span className="text-[9px] text-text-dim/40 truncate max-w-50" title={graph.summary}>
+        {graph.summary}
+      </span>
+      <div className="w-px h-3 bg-border" />
+      <button
+        onClick={onCopy}
+        className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] text-text-dim/60 hover:text-text-dim transition-colors"
+        title="Copy sequential reasoning path"
+      >
+        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+        <span>{copied ? "Copied!" : "Copy"}</span>
+      </button>
+      <button
+        onClick={onExport}
+        className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] text-text-dim/60 hover:text-text-dim transition-colors"
+        title="Export graph as JSON"
+      >
+        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Export</span>
+      </button>
+    </div>
+  );
+}
+
+// Download a graph snapshot as a JSON file. The filename uses the supplied
+// label (arc name / PRG name) sanitised for filesystem safety.
+function downloadGraphAsJson(graph: object, label: string) {
+  if (typeof window === "undefined") return;
+  const safe = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "graph";
+  const blob = new Blob([JSON.stringify(graph, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${safe}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

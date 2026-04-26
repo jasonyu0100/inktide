@@ -88,7 +88,8 @@ type RGEdgeType =
   | "causes"
   | "reveals"
   | "develops"
-  | "resolves";
+  | "resolves"
+  | "supersedes";
 
 const RG_EDGE_COLORS: Record<RGEdgeType, string> = {
   enables: "#22c55e",
@@ -99,6 +100,7 @@ const RG_EDGE_COLORS: Record<RGEdgeType, string> = {
   reveals: "#a855f7",
   develops: "#06b6d4",
   resolves: "#10b981",
+  supersedes: "#ec4899",
 };
 
 const RG_NODES: Array<{ id: string; idx: number; type: RGNodeType; label: string }> = [

@@ -37,6 +37,8 @@ export type CoordinationPlanArgs = {
   nodeGuidance: CoordPlanNodeGuidance;
   forcePreferenceBlockText: string;
   reasoningModeBlockText: string;
+  /** Pre-rendered <phase-graph> block (or "" when no phase graph is active). */
+  phaseGraphSection: string;
 };
 
 export function buildCoordinationPlanPrompt(args: CoordinationPlanArgs): string {
@@ -59,6 +61,7 @@ export function buildCoordinationPlanPrompt(args: CoordinationPlanArgs): string 
     nodeGuidance,
     forcePreferenceBlockText,
     reasoningModeBlockText,
+    phaseGraphSection,
   } = args;
 
   return `<inputs>
@@ -82,6 +85,7 @@ ${artifacts ? `    <key-artifacts>\n${artifacts}\n    </key-artifacts>` : ""}
 ${recentScenes ? `    <recent-story hint="What just happened.">\n${recentScenes}\n    </recent-story>` : ""}
   </narrative-state>
 
+${phaseGraphSection ? `  ${phaseGraphSection.replace(/\n/g, '\n  ')}` : ""}
 ${patternsSection ? `  <patterns hint="Positive commandments.">\n${patternsSection}\n  </patterns>` : ""}
 ${antiPatternsSection ? `  <anti-patterns hint="Pitfalls to avoid.">\n${antiPatternsSection}\n  </anti-patterns>` : ""}
 
@@ -96,6 +100,13 @@ ${reasoningModeBlockText ? `    ${reasoningModeBlockText.replace(/\n/g, '\n    '
 </inputs>
 
 <task>Build a COORDINATION PLAN using BACKWARD INDUCTION, organised around the narrative's STRUCTURAL SPINE.</task>
+
+<integration-hierarchy hint="When inputs conflict, this is the priority order for plan-level decisions.">
+  <priority rank="1">DIRECTION / CONSTRAINTS / THREAD TARGETS — explicit user guidance; the plan must serve these directly.</priority>
+  <priority rank="2">NARRATIVE STATE — active threads, key characters/locations, system knowledge, recent scenes; the substrate the plan operates on.</priority>
+  <priority rank="3">PHASE GRAPH (PRG) — ambient working model; arc anchors and force composition stay coherent with this phase, but explicit user direction wins where they tension.</priority>
+  <priority rank="4">FORCE PREFERENCE / REASONING MODE — engine tilt applied within the constraints above.</priority>
+</integration-hierarchy>
 
 <spine-doctrine>
   The spine = peaks (forces converge, threads culminate, story commits) and valleys (tension seeded, arc pivots). Complementary: peaks land, valleys launch. All-peaks is exhausting; all-valleys is all-setup-no-payoff.
@@ -234,9 +245,12 @@ Return a JSON object with RICH, DIVERSE nodes.
   <edge name="requires">A depends on B (direction matters — A needs B, not B needs A; reversing corrupts the graph silently).</edge>
   <edge name="enables">A makes B possible (B could exist without A, but not here).</edge>
   <edge name="constrains">A limits B.</edge>
+  <edge name="risks">A creates danger for B.</edge>
   <edge name="causes">A leads to B (B would not exist without A).</edge>
+  <edge name="reveals">A exposes information in B.</edge>
   <edge name="develops">A deepens B (use for character/thread arcs only, not generic logic steps).</edge>
   <edge name="resolves">A concludes B.</edge>
+  <edge name="supersedes">A replaces/overrides B — the older claim, rule, plan, or commitment is no longer load-bearing; A is what the plan now operates on. Use when a new arc's anchor displaces an earlier one, when a system rule overrides a prior one, when a chaos event makes a prior reasoning step obsolete. Direction: A is the new/current, B is the old/displaced.</edge>
 </edge-types>
 
 <requirements>

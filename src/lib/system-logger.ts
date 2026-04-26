@@ -47,6 +47,7 @@ export type LogContext = {
     | "audio-generation"
     | "ingest"
     | "api"
+    | "phase-graph"
     | "other";
   /** Current operation when error occurred */
   operation?: string;

@@ -5,6 +5,7 @@ import type {
   ReasoningGraphSnapshot,
   ReasoningNodeSnapshot,
   ReasoningEdgeSnapshot,
+  InspectorContext,
 } from "@/types/narrative";
 import * as d3 from "d3";
 import dagre from "dagre";
@@ -13,6 +14,11 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 // ── Styling Constants ────────────────────────────────────────────────────────
 
 type ReasoningEdgeType = ReasoningEdgeSnapshot["type"];
+
+/** Per-node-type colour palette. Default = causal-graph palette. Phase
+ *  graphs pass their own palette via the `nodeColors` prop. */
+type NodePalette = { fill: string; stroke: string; text: string };
+type NodeColorResolver = (type: string) => NodePalette;
 
 function ordinalSuffix(n: number): string {
   const j = n % 10;
@@ -41,6 +47,7 @@ const EDGE_COLORS: Record<ReasoningEdgeType, string> = {
   reveals: "#a855f7",
   develops: "#06b6d4",
   resolves: "#10b981",
+  supersedes: "#ec4899",
 };
 
 const NODE_WIDTH = 200;
@@ -75,9 +82,34 @@ type Props = {
   arcId?: string;
   /** World build ID when viewing expansion reasoning */
   worldBuildId?: string;
+  /**
+   * Optional override of the per-type node colour resolver. Phase Reasoning
+   * Graphs (PRGs) pass their own palette so the same dagre rendering serves
+   * both causal and phase views with distinct hues. Default = the existing
+   * causal palette.
+   */
+  nodeColors?: NodeColorResolver;
+  /**
+   * Optional override of the inspector context built when a node is clicked.
+   * Default builds a `reasoning` context (causal). Phase view passes a
+   * builder that emits `phase` contexts.
+   */
+  buildInspectorContext?: (nodeId: string) => InspectorContext;
+  /** Type discriminator used to match the active inspector context against this view. */
+  inspectorContextType?: "reasoning" | "phase";
+  /** When inspectorContextType === "phase", the phase graph id we're rendering. */
+  phaseGraphId?: string;
 };
 
-export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
+export function ReasoningGraphView({
+  graph,
+  arcId,
+  worldBuildId,
+  nodeColors,
+  buildInspectorContext,
+  inspectorContextType = "reasoning",
+  phaseGraphId,
+}: Props) {
   const { state, dispatch } = useStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -87,25 +119,33 @@ export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
   const [layoutEdges, setLayoutEdges] = useState<LayoutEdge[]>([]);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
+  const resolveNodeColor: NodeColorResolver = useCallback(
+    (type: string) => (nodeColors ? nodeColors(type) : getNodeColor(type)),
+    [nodeColors],
+  );
+
   // Track selected node from inspector context
   const selectedNodeId = useMemo(() => {
     const ctx = state.viewState.inspectorContext;
-    if (ctx?.type === "reasoning") {
-      // Match either by arcId or worldBuildId
+    if (!ctx) return null;
+    if (inspectorContextType === "phase" && ctx.type === "phase") {
+      return ctx.phaseGraphId === phaseGraphId ? ctx.nodeId : null;
+    }
+    if (inspectorContextType === "reasoning" && ctx.type === "reasoning") {
       if ((arcId && ctx.arcId === arcId) || (worldBuildId && ctx.worldBuildId === worldBuildId)) {
         return ctx.nodeId;
       }
     }
     return null;
-  }, [state.viewState.inspectorContext, arcId, worldBuildId]);
+  }, [state.viewState.inspectorContext, arcId, worldBuildId, inspectorContextType, phaseGraphId]);
 
   // Handle clicking a node to open inspector
   const handleNodeClick = useCallback((node: ReasoningNodeSnapshot) => {
-    dispatch({
-      type: "SET_INSPECTOR",
-      context: { type: "reasoning", arcId, worldBuildId, nodeId: node.id },
-    });
-  }, [dispatch, arcId, worldBuildId]);
+    const context: InspectorContext = buildInspectorContext
+      ? buildInspectorContext(node.id)
+      : { type: "reasoning", arcId, worldBuildId, nodeId: node.id };
+    dispatch({ type: "SET_INSPECTOR", context });
+  }, [dispatch, arcId, worldBuildId, buildInspectorContext]);
 
   // Watch for container size changes
   useEffect(() => {
@@ -275,8 +315,8 @@ export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
       .attr("height", (d) => d.height)
       .attr("rx", 8)
       .attr("ry", 8)
-      .attr("fill", (d) => getNodeColor(d.data.type).fill)
-      .attr("stroke", (d) => getNodeColor(d.data.type).stroke)
+      .attr("fill", (d) => resolveNodeColor(d.data.type).fill)
+      .attr("stroke", (d) => resolveNodeColor(d.data.type).stroke)
       .attr("stroke-width", 2);
 
     // Index badge (top-left)
@@ -358,7 +398,7 @@ export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
       .attr("dominant-baseline", "middle")
       .attr("font-size", "9px")
       .attr("font-weight", "500")
-      .attr("fill", (d) => getNodeColor(d.data.type).text)
+      .attr("fill", (d) => resolveNodeColor(d.data.type).text)
       .attr("text-transform", "uppercase")
       .attr("letter-spacing", "0.5px")
       .text((d) => d.data.type.slice(0, 9));
@@ -372,7 +412,7 @@ export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
       .attr("dominant-baseline", "middle")
       .attr("font-size", "11px")
       .attr("font-weight", "500")
-      .attr("fill", (d) => getNodeColor(d.data.type).text)
+      .attr("fill", (d) => resolveNodeColor(d.data.type).text)
       .attr("pointer-events", "none")
       .text((d) => {
         const label = d.data.label;
@@ -428,7 +468,7 @@ export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
 
       g.select("rect.node-rect")
         .attr("stroke-width", isSelected ? 4 : 2)
-        .attr("stroke", isSelected ? ACTIVE_NODE_COLOR : getNodeColor(d.data.type).stroke);
+        .attr("stroke", isSelected ? ACTIVE_NODE_COLOR : resolveNodeColor(d.data.type).stroke);
     });
   }, [selectedNodeId]);
 

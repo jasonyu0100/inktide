@@ -20,6 +20,7 @@ const EDGE_COLORS: Record<ReasoningEdgeType, string> = {
   reveals: "#a855f7",
   develops: "#06b6d4",
   resolves: "#10b981",
+  supersedes: "#ec4899",
 };
 
 function ordinalSuffix(n: number): string {

@@ -34,6 +34,8 @@ export type ArcReasoningGraphArgs = {
   coordinationPlanContext: CoordinationPlanContextForPrompt | undefined;
   direction: string;
   priorGraphSection: string;
+  /** Pre-rendered <phase-graph> block (or "" when no phase graph is active). */
+  phaseGraphSection: string;
   forcePreferenceBlockText: string;
   reasoningModeBlockText: string;
   networkBiasBlockText: string;
@@ -59,6 +61,7 @@ export function buildArcReasoningGraphPrompt(args: ArcReasoningGraphArgs): strin
     coordinationPlanContext,
     direction,
     priorGraphSection,
+    phaseGraphSection,
     forcePreferenceBlockText,
     reasoningModeBlockText,
     networkBiasBlockText,
@@ -107,13 +110,22 @@ ${coordinationPlanContext.directive}
       <additional-direction hint="Layer on top of the plan.">${direction}</additional-direction>` : ''}
     </coordination-plan>` : `    <direction>${direction}</direction>`}
   </arc-brief>
+${phaseGraphSection ? `\n  ${phaseGraphSection.replace(/\n/g, '\n  ')}\n` : ''}
 ${priorGraphSection ? `\n  ${priorGraphSection.replace(/\n/g, '\n  ')}\n` : ''}
 ${forcePreferenceBlockText ? `  ${forcePreferenceBlockText.replace(/\n/g, '\n  ')}\n` : ''}
 ${reasoningModeBlockText ? `  ${reasoningModeBlockText.replace(/\n/g, '\n  ')}\n` : ''}
 ${networkBiasBlockText ? `  ${networkBiasBlockText.replace(/\n/g, '\n  ')}\n` : ''}
 </inputs>
 
-<task>Build a REASONING GRAPH for "${arcName}" to guide ${sceneCount} scene(s).</task>
+<task>Build a REASONING GRAPH (CRG) for "${arcName}" to guide ${sceneCount} scene(s).</task>
+
+<integration-hierarchy hint="When inputs conflict, this is the priority order. Higher-rank inputs override lower-rank ones; lower-rank inputs are still always relevant.">
+  <priority rank="1">DIRECTION / ARC BRIEF — the user's explicit ask, or the coordination-plan directive when one exists. The graph delivers what the brief commits to.</priority>
+  <priority rank="2">PRIOR ARC GRAPH — divergence pressure; the new graph must NOT replicate the prior spine.</priority>
+  <priority rank="3">PHASE GRAPH (PRG) — ambient working model. Plan the chain so it stays coherent with this phase, but the brief overrides where they conflict.</priority>
+  <priority rank="4">NARRATIVE CONTEXT — entities, threads, system rules; the substrate the chain stands on.</priority>
+  <priority rank="5">FORCE PREFERENCE / REASONING MODE / NETWORK BIAS — engine tilt applied within the constraints above.</priority>
+</integration-hierarchy>
 
 <reasoning-doctrine hint="Foundational principles guiding how the graph is constructed.">
   <principle name="threads-are-influence">Fate threads are INFLUENCE, not anchors. The signal per thread (LEANS / ACTIVE / CONTESTED / VOLATILE / FADING) is the force field — like characters, locations, system rules. LEANS pulls toward the leading outcome unless you're staging a twist. CONTESTED leaves room; ending more contested than started is legitimate. VOLATILE = where twists land. FADING = don't force evidence unless deliberately resurrecting.</principle>
@@ -145,6 +157,7 @@ ${networkBiasBlockText ? `  ${networkBiasBlockText.replace(/\n/g, '\n  ')}\n` : 
   <edge name="reveals">A exposes information in B.</edge>
   <edge name="develops">A deepens B (use for character/thread arcs only, not generic logic steps).</edge>
   <edge name="resolves">A concludes/answers B.</edge>
+  <edge name="supersedes">A replaces/overrides B — the older claim, rule, plan, commitment, or state is no longer load-bearing; A is what the graph now operates on. Use when a new system rule overrides a prior one, when a fate commitment subverts an earlier expectation, when a character's revised model displaces their old model, or when a chaos event makes a prior reasoning step obsolete. Direction: A is the new/current, B is the old/displaced.</edge>
 </edge-types>
 
 <requirements>

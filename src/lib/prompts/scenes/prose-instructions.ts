@@ -44,6 +44,13 @@ ${args.instruction}`;
 export function buildProseInstructionsWithPlan(args: { wordsPerBeat: number }): string {
   const { wordsPerBeat } = args;
   return `<instructions>
+  <integration-hierarchy hint="When inputs tension, this is the priority order for prose decisions.">
+    <priority rank="1">BEAT PLAN — structural backbone; render every beat's propositions in the assigned mechanism, in the assigned order.</priority>
+    <priority rank="2">PROSE PROFILE — authorial voice; rules below apply only when the profile is silent on a given dimension.</priority>
+    <priority rank="3">SCENE CONTEXT — POV, setting, participants, deltas to land; the substrate the beats render.</priority>
+    <priority rank="4">PHASE GRAPH (PRG) — atmospheric layer. Surface the ambient model in subtext: rules visibly bind the action, accumulated pressures audibly weight choices, currently-active patterns appear as recognisable shapes. Don't narrate the PRG; let it colour what the prose foregrounds.</priority>
+  </integration-hierarchy>
+
   <step name="follow-plan">Follow the beat plan sequence — each beat maps to a passage of prose. The mechanism defines the delivery MODE (dialogue, thought, action, etc). The propositions define STORY WORLD FACTS TO TRANSMIT. Weave both into compelling, voiced prose.</step>
 
   <step name="beat-boundary-markers" hint="After completing the prose for each beat, insert a marker line on its own. These markers track which prose came from which beat and will be stripped from the final output. Place markers BETWEEN beats, not within paragraphs. Do NOT include a marker after the final beat.">
@@ -127,6 +134,12 @@ PROSE PROFILE COMPLIANCE: every sentence conforms to the voice, register, device
 export function buildProseInstructionsFreeform(args: { wordsPerBeat: number }): string {
   const { wordsPerBeat } = args;
   return `<instructions>
+  <integration-hierarchy hint="No beat plan in this mode — priority order for prose decisions:">
+    <priority rank="1">PROSE PROFILE — authorial voice; rules below apply only when the profile is silent on a given dimension.</priority>
+    <priority rank="2">SCENE CONTEXT — POV, setting, participants, deltas; the substrate to render.</priority>
+    <priority rank="3">PHASE GRAPH (PRG) — atmospheric layer. Surface the ambient model in subtext: rules visibly bind, pressures audibly weight, active patterns appear as recognisable shapes. Don't narrate the PRG; let it colour what the prose foregrounds.</priority>
+  </integration-hierarchy>
+
   <reference name="craft-doctrine" hint="The craft rules. The prose profile is always law; rules below apply only when the profile is silent.">
 
 RHYTHM & VOICE — the prose profile is law; the defaults below apply only when the profile is silent:

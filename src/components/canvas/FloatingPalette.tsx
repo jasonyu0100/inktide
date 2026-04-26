@@ -227,6 +227,7 @@ export default function FloatingPalette({
     graphViewMode === "prose" ||
     graphViewMode === "audio" ||
     graphViewMode === "game";
+  const isPhaseMode = graphViewMode === "phase";
 
   // Branch context for version resolution
   const branchId = state.viewState.activeBranchId;
@@ -300,6 +301,304 @@ export default function FloatingPalette({
     setRewriteOpen(false);
     setRewriteText("");
   }, [rewriteText, graphViewMode]);
+
+  // ── Phase mode state ─────────────────────────────────────────────────
+  // Generation work and loading UI live in PhaseGraphCanvas (mirroring the
+  // ScenePlanView pattern); the palette only dispatches a submit event.
+  type PhasePaletteMode = "idle" | "generate" | "history";
+  const [phaseMode, setPhaseMode] = useState<PhasePaletteMode>("idle");
+  const [phaseGuidance, setPhaseGuidance] = useState("");
+  const [phaseBasisId, setPhaseBasisId] = useState<string | null>(null);
+  const [phaseEditingNameFor, setPhaseEditingNameFor] = useState<string | null>(null);
+  const [phaseNameDraft, setPhaseNameDraft] = useState("");
+  const phaseGuidanceRef = useRef<HTMLTextAreaElement>(null);
+
+  const phaseGraphs = useMemo(
+    () => Object.values(narrative?.phaseGraphs ?? {}).sort((a, b) => b.createdAt - a.createdAt),
+    [narrative?.phaseGraphs],
+  );
+  const activePhaseId = narrative?.currentPhaseGraphId;
+  const activePhaseGraph = activePhaseId ? narrative?.phaseGraphs?.[activePhaseId] : undefined;
+
+  const phaseClose = useCallback(() => {
+    setPhaseMode("idle");
+    setPhaseGuidance("");
+    setPhaseBasisId(null);
+    setPhaseEditingNameFor(null);
+    setPhaseNameDraft("");
+  }, []);
+
+  useEffect(() => {
+    if (phaseMode === "generate") setTimeout(() => phaseGuidanceRef.current?.focus(), 50);
+  }, [phaseMode]);
+
+  // Empty-state CTA / external triggers can dispatch this to open the
+  // generate overlay without selecting a basis.
+  useEffect(() => {
+    const handler = () => setPhaseMode("generate");
+    window.addEventListener("canvas:phase-generate", handler);
+    return () => window.removeEventListener("canvas:phase-generate", handler);
+  }, []);
+
+  const phaseSubmitGenerate = useCallback(() => {
+    window.dispatchEvent(
+      new CustomEvent("canvas:phase-generate-submit", {
+        detail: {
+          guidance: phaseGuidance.trim() || undefined,
+          basisId: phaseBasisId ?? undefined,
+        },
+      }),
+    );
+    phaseClose();
+  }, [phaseGuidance, phaseBasisId, phaseClose]);
+
+  const phaseSetActive = useCallback((id: string | null) => {
+    dispatch({ type: "SET_CURRENT_PHASE_GRAPH", phaseGraphId: id });
+  }, [dispatch]);
+
+  const phaseRenameGraph = useCallback((id: string, name: string) => {
+    dispatch({ type: "RENAME_PHASE_GRAPH", phaseGraphId: id, name });
+    setPhaseEditingNameFor(null);
+    setPhaseNameDraft("");
+  }, [dispatch]);
+
+  const phaseDeleteGraph = useCallback((id: string) => {
+    if (!window.confirm("Delete this phase graph? Arcs that referenced it lose their working-model anchor.")) return;
+    dispatch({ type: "DELETE_PHASE_GRAPH", phaseGraphId: id });
+  }, [dispatch]);
+
+  // ── Phase mode palette — same chevrons + search + glass-pill convention
+  //    as the editing palette below. Generate / Regenerate / Clear share
+  //    the same icon language; clicking the active indicator opens history.
+  if (isPhaseMode) {
+    const activeLabel = activePhaseGraph
+      ? (activePhaseGraph.name ?? activePhaseGraph.summary.slice(0, 28))
+      : "No active phase";
+    return (
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
+        {/* Generate guidance overlay */}
+        {phaseMode === "generate" && (
+          <div
+            className="w-96 flex flex-col rounded-xl border border-white/10 overflow-hidden"
+            style={{ background: "#1a1a1a", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
+          >
+            <div className="px-3 py-2 border-b border-white/5 flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-wider text-world">
+                {phaseBasisId ? "Regenerate from basis" : "Generate Phase Graph"}
+              </span>
+              <button onClick={phaseClose} className="text-[10px] text-text-dim/40 hover:text-text-dim transition">
+                &times;
+              </button>
+            </div>
+            <div className="p-3 space-y-2.5">
+              {phaseBasisId && (
+                <div className="text-[10px] text-text-dim/70">
+                  Seeding from <span className="text-text-secondary">{narrative?.phaseGraphs?.[phaseBasisId]?.name ?? narrative?.phaseGraphs?.[phaseBasisId]?.summary.slice(0, 40) ?? phaseBasisId}</span>
+                </div>
+              )}
+              <textarea
+                ref={phaseGuidanceRef}
+                value={phaseGuidance}
+                onChange={(e) => setPhaseGuidance(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") phaseClose();
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) phaseSubmitGenerate();
+                }}
+                placeholder='Optional hypothesis... e.g. "the world is shifting from clan-rule toward sect-rule"'
+                className="w-full h-20 bg-black/20 border border-white/5 rounded text-[11px] text-text-secondary p-2 resize-none outline-none focus:border-white/15 placeholder:text-text-dim/30"
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] text-text-dim/30">&#x2318;Enter to submit</span>
+                <button
+                  onClick={phaseSubmitGenerate}
+                  className="text-[10px] px-3 py-1 rounded transition bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/15"
+                >
+                  Generate
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* History overlay */}
+        {phaseMode === "history" && (
+          <div
+            className="w-md max-h-[60vh] flex flex-col rounded-xl border border-white/10 overflow-hidden"
+            style={{ background: "#1a1a1a", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
+          >
+            <div className="px-3 py-2 border-b border-white/5 flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-wider text-text-secondary">Phase Graph History</span>
+              <button onClick={phaseClose} className="text-[10px] text-text-dim/40 hover:text-text-dim transition">
+                &times;
+              </button>
+            </div>
+            <div className="overflow-y-auto divide-y divide-white/5">
+              {phaseGraphs.length === 0 ? (
+                <div className="p-4 text-[11px] text-text-dim text-center">No phase graphs generated yet.</div>
+              ) : (
+                phaseGraphs.map((g) => {
+                  const isActive = g.id === activePhaseId;
+                  const isEditing = phaseEditingNameFor === g.id;
+                  return (
+                    <div key={g.id} className="px-3 py-2 flex items-start gap-2 group">
+                      <span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? "bg-emerald-400" : "bg-white/10"}`} />
+                      <div className="flex-1 min-w-0">
+                        {isEditing ? (
+                          <input
+                            autoFocus
+                            value={phaseNameDraft}
+                            onChange={(e) => setPhaseNameDraft(e.target.value)}
+                            onBlur={() => phaseRenameGraph(g.id, phaseNameDraft.trim() || (g.name ?? "Untitled PRG"))}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") phaseRenameGraph(g.id, phaseNameDraft.trim() || (g.name ?? "Untitled PRG"));
+                              if (e.key === "Escape") { setPhaseEditingNameFor(null); setPhaseNameDraft(""); }
+                            }}
+                            className="w-full bg-black/20 border border-white/5 rounded px-1.5 py-0.5 text-[11px] text-text-primary outline-none"
+                          />
+                        ) : (
+                          <button
+                            onClick={() => { setPhaseEditingNameFor(g.id); setPhaseNameDraft(g.name ?? ""); }}
+                            className="text-[12px] text-text-primary hover:text-text-secondary text-left truncate w-full"
+                            title="Click to rename"
+                          >
+                            {g.name ?? g.summary.slice(0, 60)}
+                          </button>
+                        )}
+                        <p className="text-[10px] text-text-dim/70 line-clamp-2 mt-0.5">{g.summary}</p>
+                        <div className="flex items-center gap-3 mt-1 text-[9px] text-text-dim/60 font-mono tabular-nums">
+                          <span>{g.nodes.length} nodes</span>
+                          <span>{g.edges.length} edges</span>
+                          <span>{new Date(g.createdAt).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</span>
+                          {g.basedOn && <span title="Seeded from a prior PRG">seeded</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {!isActive && (
+                          <button
+                            onClick={() => phaseSetActive(g.id)}
+                            className="text-[9px] px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300"
+                          >
+                            Activate
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { setPhaseBasisId(g.id); setPhaseMode("generate"); }}
+                          className="text-[9px] px-2 py-1 rounded text-text-dim hover:text-text-secondary hover:bg-white/5"
+                          title="Use as basis for a new PRG"
+                        >
+                          Basis
+                        </button>
+                        <button
+                          onClick={() => phaseDeleteGraph(g.id)}
+                          className="text-[9px] px-2 py-1 rounded text-rose-400/70 hover:text-rose-300 hover:bg-rose-500/10"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Pill — matches plan/prose layout: chevrons + search + actions */}
+        <div className={`glass-pill px-3 py-1.5 flex items-center gap-2 ${wrapperClasses}`}>
+          {/* Scene nav (consistency with plan/prose) */}
+          <button
+            type="button"
+            className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
+            onClick={() => dispatch({ type: "PREV_SCENE" })}
+            aria-label="Previous scene"
+          >
+            <IconChevronLeft size={14} />
+          </button>
+          <button
+            type="button"
+            className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-secondary hover:text-text-primary hover:bg-white/6"
+            onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'search' })}
+            aria-label="Search narrative"
+            title="Search narrative"
+          >
+            <IconSearch size={12} />
+          </button>
+          <button
+            type="button"
+            className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
+            onClick={() => dispatch({ type: "NEXT_SCENE" })}
+            aria-label="Next scene"
+          >
+            <IconChevronRight size={14} />
+          </button>
+
+          <div className="w-px h-4 bg-white/12 mx-1" />
+
+          {/* Generate (text, world color) */}
+          <button
+            type="button"
+            className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${
+              phaseMode === "generate"
+                ? "text-world bg-world/20"
+                : "text-world bg-world/10 hover:bg-world/20"
+            }`}
+            onClick={() => {
+              setPhaseBasisId(null);
+              setPhaseMode(phaseMode === "generate" ? "idle" : "generate");
+            }}
+            title="Generate a new phase graph from canon"
+          >
+            Generate
+          </button>
+
+          {/* Regenerate (only when active) — opens generate overlay seeded by active */}
+          {activePhaseGraph && (
+            <button
+              type="button"
+              className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+              onClick={() => { setPhaseBasisId(activePhaseGraph.id); setPhaseMode("generate"); }}
+              aria-label="Regenerate from active basis"
+              title="Regenerate using active as basis"
+            >
+              <IconRefresh size={14} />
+            </button>
+          )}
+
+          {/* Clear (only when active) */}
+          {activePhaseGraph && (
+            <button
+              type="button"
+              className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
+              onClick={() => phaseSetActive(null)}
+              aria-label="Clear active phase"
+              title="Clear active phase"
+            >
+              <IconClose size={14} />
+            </button>
+          )}
+
+          <div className="w-px h-4 bg-white/12 mx-1" />
+
+          {/* Active indicator — clickable; opens history overlay */}
+          <button
+            type="button"
+            className={`flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-md transition-colors ${
+              phaseMode === "history" ? "bg-white/10" : "hover:bg-white/6"
+            }`}
+            onClick={() => setPhaseMode(phaseMode === "history" ? "idle" : "history")}
+            aria-label="Phase graph history"
+            title={`Open history (${phaseGraphs.length})`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${activePhaseGraph ? "bg-emerald-400" : "bg-white/15"}`} />
+            <span className="text-text-dim truncate max-w-32">{activeLabel}</span>
+            {phaseGraphs.length > 0 && (
+              <span className="text-[9px] text-text-dim/40 tabular-nums">{phaseGraphs.length}</span>
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ── Editing mode palette (plan / prose) ───────────────────────────────
   if (isEditingMode) {
@@ -611,14 +910,12 @@ export default function FloatingPalette({
                   <>
                     <button
                       type="button"
-                      className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${hasPlan || hasProse ? "text-world bg-world/10 hover:bg-world/20" : "text-text-dim/30 bg-white/3 cursor-not-allowed"}`}
+                      className="text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider text-world bg-world/10 hover:bg-world/20"
                       onClick={() =>
-                        (hasPlan || hasProse) &&
                         window.dispatchEvent(
                           new CustomEvent("canvas:generate-game"),
                         )
                       }
-                      title={hasPlan || hasProse ? undefined : "Generate a plan or prose first"}
                     >
                       Generate
                     </button>
@@ -645,7 +942,7 @@ export default function FloatingPalette({
                           new CustomEvent("canvas:bulk-game"),
                         )
                       }
-                      title="Analyse all scenes with plans or prose (sliding-window parallel)"
+                      title="Analyse all scenes (sliding-window parallel)"
                     >
                       <IconAutoLoop size={14} />
                     </button>

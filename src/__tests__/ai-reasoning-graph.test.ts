@@ -169,7 +169,7 @@ describe('ReasoningGraph structure', () => {
 
   it('should have valid edge types', () => {
     const graph = createReasoningGraph();
-    const validTypes = ['enables', 'constrains', 'risks', 'requires', 'causes', 'reveals', 'develops', 'resolves'];
+    const validTypes = ['enables', 'constrains', 'risks', 'requires', 'causes', 'reveals', 'develops', 'resolves', 'supersedes'];
 
     for (const edge of graph.edges) {
       expect(validTypes).toContain(edge.type);

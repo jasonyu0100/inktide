@@ -42,6 +42,13 @@ export function buildGenerateScenesPrompt(args: GenerateScenesPromptArgs): strin
 ${inputBlocks}
 </inputs>
 
+<integration-hierarchy hint="When inputs conflict, this is the priority order for scene structure.">
+  <priority rank="1">BRIEF — the reasoning graph (CRG) / coordination-plan directive / direction. Scenes execute the brief; threads/entities/rules from the brief land here.</priority>
+  <priority rank="2">PACING SEQUENCE — per-scene mode + force band targets; the rhythm budget the structure must hit.</priority>
+  <priority rank="3">PHASE GRAPH (PRG) — ambient working model. Scenes stay coherent with the phase (active patterns surface, current rules bind, accumulated pressures find expression) unless the brief explicitly overrides.</priority>
+  <priority rank="4">NARRATIVE CONTEXT — characters, threads, system knowledge, recent history; the substrate scenes draw from.</priority>
+</integration-hierarchy>
+
 <procedure name="per-scene" hint="The summary is your DELTA BUDGET — richer summary supports richer extraction. Under-tagging is the dominant failure.">
   <step index="1" name="draft">Draft the summary in rich prose using NAMES not IDs.</step>
   <step index="2" name="enumerate">Per sentence, list: which entity changed, which rule surfaced, which thread moved, which off-screen party would receive news. Usually multiple answers.</step>

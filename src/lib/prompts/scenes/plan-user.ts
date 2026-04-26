@@ -23,6 +23,14 @@ export function buildScenePlanUserPrompt(args: {
 ${args.inputBlocks}
 </inputs>
 
+<integration-hierarchy hint="When inputs conflict, this is the priority order for beat-plan decisions.">
+  <priority rank="1">SCENE STRUCTURE — every delta becomes a compulsory proposition; coverage is non-negotiable. The plan exists to package these.</priority>
+  <priority rank="2">BEAT SLOTS — sampler-determined fn/mechanism; the story's voice. Copy verbatim, don't override.</priority>
+  <priority rank="3">PROSE PROFILE — voice rules; beats inherit voice from the profile, not from prompt instructions.</priority>
+  <priority rank="4">SCENE GROUNDING — visual + continuity per participant; bridge propositions glue to these where the moment naturally calls them up.</priority>
+  <priority rank="5">PHASE GRAPH (PRG) — ambient working model. When the scene has slack (multiple compulsory orderings serve, mechanisms admit choice), let the phase shape what the beats foreground (active patterns surface as bridge props, current rules constrain visibly, accumulated pressures find subtext).</priority>
+</integration-hierarchy>
+
 <beat-sizing hint="Each beat is a ~${WORDS_PER_BEAT}-word chunk. Consistent rhythm: no bloated paragraphs, no thin lines.">
   <density>A beat carries 2-6 propositions in standard fiction, more in dense registers.</density>
   <coverage>Pack each beat with the most propositions it carries at ~${WORDS_PER_BEAT} words, then roll overflow into a new beat. Every compulsory proposition and every structural delta MUST land in at least one beat — beats are cheap, lost claims are not.</coverage>

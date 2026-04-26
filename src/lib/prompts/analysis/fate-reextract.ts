@@ -99,51 +99,53 @@ export function buildFateReextractPrompt(opts: {
     rationale: ${d.rationale}`;
       }).join('\n');
 
-  return `═══ SCENE CONTEXT ═══
-Position: ${position} (scene ${sceneIndex + 1} of ${totalScenes})
-${povName ? `POV: ${povName}\n` : ''}${locationName ? `Location: ${locationName}\n` : ''}
-SUMMARY:
-${sceneSummary}
+  return `<inputs>
+  <scene-context position="${position}" index="${sceneIndex + 1}" total="${totalScenes}"${povName ? ` pov="${povName}"` : ''}${locationName ? ` location="${locationName}"` : ''}>
+    <summary>${sceneSummary}</summary>
+  </scene-context>
 
-═══ CANONICAL MARKETS (full-story view) ═══
+  <canonical-markets hint="Full-story view — the resolutions the corpus actually lands on.">
 ${marketBlock}
+  </canonical-markets>
 
-═══ FIRST-PASS EVIDENCE (local-only, may be mispriced) ═══
+  <first-pass-evidence hint="Local-only extraction; may be mispriced because each scene was scored blind to endings.">
 ${priorBlock}
+  </first-pass-evidence>
 
-═══ TASK ═══
-
-Re-emit threadDeltas for THIS SCENE using lifecycle awareness. The first pass didn't know which outcome would win each thread; you do. The market principles below are the universal discipline; the hindsight-specific rules after them apply this pass's extra context.
-
+  <market-principles>
 ${PROMPT_MARKET_PRINCIPLES}
+  </market-principles>
 
+  <evidence-scale>
 ${PROMPT_MARKET_EVIDENCE_SCALE}
+  </evidence-scale>
 
+  <logtype-table>
 ${PROMPT_MARKET_LOGTYPE_TABLE}
+  </logtype-table>
+</inputs>
 
-HINDSIGHT-SPECIFIC RULES (this pass, not the first):
+<instructions>
+  <task>Re-emit threadDeltas for THIS SCENE using lifecycle awareness. The first pass didn't know which outcome would win each thread; you do.</task>
 
-1. SEEDS TOWARD THE WINNER. Scenes that set up, enable, or plant the eventual winning outcome deserve honest positive evidence — not pulses because "nothing decisive happened locally." A quiet setup scene that genuinely leans toward the winner should emit setup (+1) or small escalation (+1..+2), not evidence=0. Under-priced seeds are the main reason the first pass never reverses late.
+  <hindsight-rules hint="This pass, not the first.">
+    <rule index="1" name="seeds-toward-winner">Scenes that set up, enable, or plant the eventual winning outcome deserve honest positive evidence — not pulses because "nothing decisive happened locally." A quiet setup scene that genuinely leans toward the winner should emit setup (+1) or small escalation (+1..+2), not evidence=0. Under-priced seeds are the main reason the first pass never reverses late.</rule>
+    <rule index="2" name="misdirection-deflation">Scenes that locally LOOKED like they advanced a non-winning outcome should be priced conservatively in hindsight. Pulse or very small evidence; do NOT reward POV momentum that the arc contradicts.</rule>
+    <rule index="3" name="resolution-scenes">If THIS scene is at or near the thread's resolution index, the resolving events deserve decisive evidence (|e| ≥ 3, logType payoff or twist). The first pass often under-prices these because the resolving event is structurally small but narratively huge.</rule>
+    <rule index="4" name="twists-against-leaders">If the scene reverses what earlier evidence suggested, score it as a twist (|e| ≥ 3 on the newly-favoured outcome). Don't soften to preserve the local lead.</rule>
+    <rule index="5" name="preserve-valid">If the first-pass delta was already lifecycle-consistent, keep it. Only rewrite where hindsight changes the read.</rule>
+    <rule index="6" name="canonical-outcomes">Every update.outcome must match an entry from canonical-markets verbatim.</rule>
+    <rule index="7" name="omit-untouched">If a scene doesn't meaningfully touch a thread, OMIT it — don't pad pulses.</rule>
+  </hindsight-rules>
+</instructions>
 
-2. MISDIRECTION DEFLATION. Scenes that locally LOOKED like they advanced a non-winning outcome should be priced conservatively in hindsight. Pulse or very small evidence; do NOT reward POV momentum that the arc contradicts.
+<output-format>
+Return JSON with this exact shape — and ONLY this object. Do not touch worldDeltas, systemDeltas, entities, relationships, movements, or any other field; only threadDeltas are re-extracted here.
 
-3. RESOLUTION SCENES. If THIS scene is at or near the thread's resolution index, the resolving events deserve decisive evidence (|e| ≥ 3, logType payoff or twist). The first pass often under-prices these because the resolving event is structurally small but narratively huge.
-
-4. TWISTS AGAINST LEADERS. If the scene reverses what earlier evidence suggested, score it as a twist (|e| ≥ 3 on the newly-favoured outcome). Don't soften to preserve the local lead.
-
-5. PRESERVE VALID PRIOR DELTAS. If the first-pass delta was already lifecycle-consistent, keep it. Only rewrite where hindsight changes the read.
-
-6. OUTCOMES MUST BE CANONICAL. Every update.outcome must match an entry from CANONICAL MARKETS verbatim.
-
-7. THREADS NOT MOVED. If a scene doesn't meaningfully touch a thread, OMIT it — don't pad pulses.
-
-═══ OUTPUT ═══
-
-Return JSON with this exact shape:
 {
   "threadDeltas": [
     {
-      "threadDescription": "exact canonical description from CANONICAL MARKETS",
+      "threadDescription": "exact canonical description from canonical-markets",
       "logType": "pulse|setup|escalation|payoff|twist|resistance|stall|callback|transition",
       "updates": [{"outcome": "exact canonical outcome", "evidence": -4..+4}],
       "volumeDelta": 0..3,
@@ -152,6 +154,5 @@ Return JSON with this exact shape:
     }
   ]
 }
-
-Return ONLY the JSON object. Do not touch worldDeltas, systemDeltas, entities, relationships, movements, or any other field — only threadDeltas are re-extracted here.`;
+</output-format>`;
 }

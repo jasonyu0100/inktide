@@ -28,7 +28,8 @@ export type ReasoningEdgeType =
   | "causes"       // A leads to B
   | "reveals"      // A exposes B
   | "develops"     // A deepens B (thread/character)
-  | "resolves";    // A concludes B
+  | "resolves"     // A concludes B
+  | "supersedes";  // A replaces/overrides B (new rule overrides old, new commitment overrides prior)
 
 export interface ReasoningNode {
   id: string;

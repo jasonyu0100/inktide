@@ -13,6 +13,14 @@ import { narrativeContext } from "@/lib/ai/context";
 import { FatalApiError } from "@/lib/ai/errors";
 import { parseJson } from "@/lib/ai/json";
 import { ANALYSIS_MODEL, ANALYSIS_TEMPERATURE } from "@/lib/constants";
+import {
+  buildCharacterPersona,
+  buildLocationPersona,
+  buildArtifactPersona,
+  buildSurveyUserPrompt,
+  buildSurveyProposalUserPrompt,
+  SURVEY_GEN_SYSTEM,
+} from "@/lib/prompts/surveys";
 import type {
   Artifact,
   Character,
@@ -83,126 +91,28 @@ export function resolveRespondents(
 // principle applies: the world graph is raw awareness, not a script to
 // recite. The persona answers the question through that filter.
 
-function continuityBlock(world: { nodes: Record<string, { type?: string; content: string }> } | undefined): string {
-  if (!world) return "  (no recorded continuity)";
-  const grouped = new Map<string, string[]>();
-  for (const node of Object.values(world.nodes)) {
-    const type = node.type ?? "other";
-    const bucket = grouped.get(type) ?? [];
-    bucket.push(node.content);
-    grouped.set(type, bucket);
-  }
-  if (grouped.size === 0) return "  (no recorded continuity)";
-  return Array.from(grouped.entries())
-    .map(([type, contents]) => `  ${type.toUpperCase()}:\n${contents.map((c) => `    - ${c}`).join("\n")}`)
-    .join("\n");
-}
-
-function characterPersona(narrative: NarrativeState, c: Character): string {
-  return `You ARE ${c.name}. Respond in first person.
-
-YOUR PRIVATE INNER CONTINUITY — raw self-knowledge, not a script to recite:
-${continuityBlock(c.world)}
-
-THE WORLD YOU LIVE IN:
-${narrative.worldSummary || "(no recorded setting)"}
-
-Speak in your own voice. Let traits become tone, history become understanding, beliefs surface only when the topic touches them.`;
-}
-
-function locationPersona(narrative: NarrativeState, l: Location): string {
-  return `You ARE the place known as ${l.name}. Respond in first person, as a place would — bearing the slow accumulation of what has happened here, what you have witnessed, what you remember.
-
-YOUR ACCUMULATED CONTINUITY — the raw awareness of this place:
-${continuityBlock(l.world)}
-
-THE WORLD YOU SIT WITHIN:
-${narrative.worldSummary || "(no recorded setting)"}
-
-Speak with the patience and weight of geography. Distances are felt; eras pass through you. You answer from the perspective only a place can offer.`;
-}
-
-function artifactPersona(narrative: NarrativeState, a: Artifact): string {
-  return `You ARE the object known as ${a.name}. Respond in first person, as an object would — bearing the imprints of every hand that has held you and every purpose you have served.
-
-YOUR ACCUMULATED CONTINUITY — provenance, properties, and the imprints you carry:
-${continuityBlock(a.world)}
-
-THE WORLD YOU EXIST WITHIN:
-${narrative.worldSummary || "(no recorded setting)"}
-
-Speak with the focused awareness of an instrument — your function, your history, the meaning you carry for those who hold you.`;
-}
+export { buildSurveyUserPrompt };
 
 export function buildRespondentPersona(narrative: NarrativeState, r: Respondent): string {
-  if (r.kind === "character") return characterPersona(narrative, r.entity);
-  if (r.kind === "location") return locationPersona(narrative, r.entity);
-  return artifactPersona(narrative, r.entity);
-}
-
-// ── User-prompt builder ────────────────────────────────────────────────────
-// Every question type produces a JSON-shaped response so parsing is uniform.
-// The persona prompt above carries the in-character framing; this prompt
-// just states the question and the response schema.
-
-export function buildSurveyUserPrompt(survey: Survey): string {
-  const { question, questionType, config } = survey;
-
-  switch (questionType) {
-    case "binary":
-      return `Question: ${question}
-
-Answer in JSON only:
-{
-  "answer": true | false,
-  "reasoning": "ONE short sentence in your own voice explaining why."
-}`;
-    case "likert": {
-      const scale = config?.scale ?? 5;
-      const anchors = scale === 3
-        ? "1 = disagree, 2 = neutral, 3 = agree"
-        : scale === 7
-        ? "1 = strongly disagree, 4 = neutral, 7 = strongly agree"
-        : "1 = strongly disagree, 3 = neutral, 5 = strongly agree";
-      return `Question: ${question}
-
-Answer on a ${scale}-point scale (${anchors}). Respond in JSON only:
-{
-  "answer": <integer 1..${scale}>,
-  "reasoning": "ONE short sentence in your own voice explaining why."
-}`;
-    }
-    case "estimate": {
-      const unit = config?.unit ? ` (in ${config.unit})` : "";
-      return `Question: ${question}${unit}
-
-Give your best honest guess as a NUMBER. Respond in JSON only:
-{
-  "answer": <number>,
-  "reasoning": "ONE short sentence in your own voice explaining how you arrived at it."
-}`;
-    }
-    case "choice": {
-      const options = (config?.options ?? []).map((o) => `"${o}"`).join(" | ");
-      return `Question: ${question}
-
-Pick exactly one of: ${options}
-
-Respond in JSON only:
-{
-  "answer": <one of the options above, exact string match>,
-  "reasoning": "ONE short sentence in your own voice explaining why."
-}`;
-    }
-    case "open":
-      return `Question: ${question}
-
-Respond in JSON only:
-{
-  "answer": "Your answer in your own voice — keep it under 3 sentences.",
-  "reasoning": "Optional ONE-sentence note on what shaped that answer; may be blank."
-}`;
+  if (r.kind === "character") {
+    return buildCharacterPersona({
+      characterName: r.entity.name,
+      worldGraph: r.entity.world,
+      worldSummary: narrative.worldSummary,
+    });
   }
+  if (r.kind === "location") {
+    return buildLocationPersona({
+      locationName: r.entity.name,
+      worldGraph: r.entity.world,
+      worldSummary: narrative.worldSummary,
+    });
+  }
+  return buildArtifactPersona({
+    artifactName: r.entity.name,
+    worldGraph: r.entity.world,
+    worldSummary: narrative.worldSummary,
+  });
 }
 
 // ── Response parser ────────────────────────────────────────────────────────
@@ -368,38 +278,6 @@ export type SurveyProposal = {
   suggestedFilter?: SurveyRespondentFilter;
 };
 
-const SURVEY_GEN_SYSTEM = `You are a research assistant helping a long-form fiction author probe their world through ONE sharp survey question at a time. You will read the full narrative continuity and propose a SINGLE question the author should pose to every character / location / artifact in the world.
-
-A strong question:
-- Probes something not already explicit — knowledge asymmetries, divergent beliefs, hidden tensions, predictions, perceptions of trust / power / threat / loyalty.
-- Is answerable IN CHARACTER. The respondent will answer privately from their world graph. No meta-narrative, no fourth-wall breaks.
-- Generates SIGNAL. Questions every respondent would answer the same way are useless; questions that split the cast are gold.
-- Picks the right TYPE for the shape of insight you want:
-    binary    — clean split
-    likert    — graduated stance (use 5-point unless the question genuinely needs 3 or 7)
-    estimate  — numeric guess; reveals knowledge asymmetries
-    choice    — forced rank among named alternatives
-    open      — only when the value is the individual voice, not the aggregate
-
-ASYMMETRY IS YOUR WEAPON. "Estimate the protagonist's age" reveals who has met them. "Do you trust the merchant?" reveals who has been burned. "Rank these three threats" reveals priorities.
-
-ALSO CHOOSE A SCOPE — who the question should be asked of. A well-scoped question reveals more than a carelessly-broad one: "do you trust the high priest?" makes sense across all characters; "how many li is it to the capital?" makes sense only to characters who might know; "have we been visited by a dragon here?" makes sense across locations, not characters.
-
-Pick the narrowest scope that still generates useful variance. Do NOT ask locations or artifacts when the question only makes sense to people. Do NOT ask transient characters about matters only anchors would know.
-
-OUTPUT FORMAT — JSON only, no preamble, EXACTLY ONE proposal:
-{
-  "question": "<question, addressed to the respondent in second person>",
-  "questionType": "binary" | "likert" | "estimate" | "choice" | "open",
-  "config": { "scale": 3|5|7 } | { "unit": "<short word>" } | { "options": ["A","B","C"] } | null,
-  "intent": "<one short sentence: what the author would learn>",
-  "suggestedFilter": {
-    "kinds": ["character"] | ["location"] | ["artifact"] | any combination,
-    "characterRoles": ["anchor", "recurring", "transient"],    // omit to include all
-    "locationProminence": ["domain", "place", "margin"],       // omit to include all
-    "artifactSignificance": ["key", "notable", "minor"]        // omit to include all
-  }
-}`;
 
 /** Generate ONE proposal tailored to the narrative — auto-populates the composer.
  *  An optional `category` tilts the question toward a specific lens
@@ -411,17 +289,7 @@ export async function generateSurveyProposal(
   category?: string,
 ): Promise<SurveyProposal | null> {
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
-  const trimmed = category?.trim();
-  const lens = !trimmed
-    ? ""
-    : trimmed === "General"
-    ? `\n\nLENS: General — pick the single most illuminating question for THIS world, no predetermined angle. Favour foundational probes (who the cast is, what this world actually is, what matters most here) and asymmetries between what's on the page and what the entities silently carry.`
-    : `\n\nLENS: probe the world through the lens of "${trimmed}". The single question you propose should illuminate this dimension across the cast.`;
-  const userPrompt = `Narrative continuity:
-
-${ctx}${lens}
-
-Propose ONE survey question tailored to THIS world and cast. Pick the question that would teach the author the MOST about their world — favour asymmetry-rich probes that split the cast.`;
+  const userPrompt = buildSurveyProposalUserPrompt({ narrativeContext: ctx, category });
 
   const raw = await callGenerate(
     userPrompt,

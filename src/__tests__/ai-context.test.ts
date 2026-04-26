@@ -594,8 +594,11 @@ describe('narrativeContext scene-history tiers', () => {
     expect(ctx).toMatch(/<entry[^>]*tier="near"[\s\S]*?<summary>summary-3<\/summary>/);
   });
 
-  it('renders a far-tier entry with only summary (no participants, threads, deltas)', () => {
-    // Push the first scene into far: need > NEAR + MID scenes total.
+  it('rolls far-tier scenes into a single arc-summary entry (no per-scene summaries)', () => {
+    // Push the first scenes into far: need > NEAR + MID scenes total. Far
+    // scenes no longer render individually — they collapse into one
+    // arc-summary entry per arc, carrying the arc's worldState (or fallback)
+    // as the compact memory.
     const count = NEAR_RECENCY_ZONE + MID_RECENCY_ZONE + 2;
     const scenes = makeSceneRun(count, { participantIds: ['c1', 'c2'] });
     const n = createMinimalNarrative({
@@ -608,11 +611,12 @@ describe('narrativeContext scene-history tiers', () => {
     });
     const keys = Object.keys(n.scenes);
     const ctx = narrativeContext(n, keys, keys.length - 1);
-    const farMatch = ctx.match(/<entry index="1"[\s\S]*?<\/entry>/);
-    expect(farMatch).not.toBeNull();
-    const entry = farMatch![0];
-    expect(entry).toContain('tier="far"');
-    expect(entry).toContain('<summary>summary-1</summary>');
+    const arcMatch = ctx.match(/<entry [^>]*type="arc-summary"[\s\S]*?<\/entry>/);
+    expect(arcMatch).not.toBeNull();
+    const entry = arcMatch![0];
+    // Arc-summary entries advertise compression and carry the arc body, not
+    // per-scene fields.
+    expect(entry).toContain('type="arc-summary"');
     expect(entry).not.toContain('<participants>');
     expect(entry).not.toContain('<threads>');
     expect(entry).not.toContain('<continuity>');
@@ -637,15 +641,17 @@ describe('narrativeContext scene-history tiers', () => {
     expect(midEntry![0]).not.toContain('<participants>');
   });
 
-  it('important scenes (thread transitions into critical/resolved) survive in higher tiers', () => {
-    // Place an important scene far back and verify its worldDeltas / relationships survive.
+  it('far-tier scenes (even with important thread transitions) roll into the arc-summary, not promoted to mid', () => {
+    // Importance promotion was removed — every scene beyond NEAR+MID rolls up
+    // into its arc summary, regardless of how dramatic its thread shifts were.
+    // The per-scene threadDeltas live inside the rolled-up arc, not as a
+    // standalone entry.
     const totalScenes = NEAR_RECENCY_ZONE + MID_RECENCY_ZONE + 5;
     const scenes: Record<string, Scene> = {};
     for (let i = 0; i < totalScenes; i++) {
       const id = `s${i + 1}`;
       scenes[id] = createScene(id, { povId: 'c1', locationId: 'loc1', summary: `summary-${i + 1}` });
     }
-    // Mark the first scene as important via a thread transition → critical.
     scenes.s1 = createScene('s1', {
       povId: 'c1',
       locationId: 'loc1',
@@ -660,14 +666,12 @@ describe('narrativeContext scene-history tiers', () => {
     });
     const keys = Object.keys(n.scenes);
     const ctx = narrativeContext(n, keys, keys.length - 1);
-    // Far by distance, but promoted to mid due to importance — so the entry
-    // must include thread transitions and the mid tier label.
-    const entryMatch = ctx.match(/<entry index="1"[\s\S]*?<\/entry>/);
-    expect(entryMatch).not.toBeNull();
-    const entry = entryMatch![0];
-    expect(entry).toContain('<summary>summary-1</summary>');
-    expect(entry).toContain('tier="mid"');
-    expect(entry).toContain('<threads>');
+    const arcMatch = ctx.match(/<entry [^>]*type="arc-summary"[\s\S]*?<\/entry>/);
+    expect(arcMatch).not.toBeNull();
+    const entry = arcMatch![0];
+    // Far-tier scene didn't get promoted; its detail collapses into the rollup.
+    expect(entry).toContain('type="arc-summary"');
+    expect(ctx).not.toMatch(/<entry index="1"[^>]*tier="mid"/);
   });
 });
 

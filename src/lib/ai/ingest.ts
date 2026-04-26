@@ -1,8 +1,13 @@
-import { callGenerate, SYSTEM_PROMPT } from './api';
+import { callGenerate } from './api';
 import { GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import type { NarrativeState, ProseProfile } from '@/types/narrative';
-import { buildIngestProseProfilePrompt, buildDeriveProseProfilePrompt } from '@/lib/prompts';
+import {
+  buildIngestProseProfilePrompt,
+  buildDeriveProseProfilePrompt,
+  INGEST_PROSE_PROFILE_SYSTEM,
+  DERIVE_PROSE_PROFILE_SYSTEM,
+} from '@/lib/prompts';
 import { logError, logInfo } from '@/lib/system-logger';
 
 /**
@@ -22,7 +27,7 @@ export async function ingestProseProfile(text: string, existing?: Partial<ProseP
 
   let raw: string;
   try {
-    raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'ingestProseProfile', GENERATE_MODEL);
+    raw = await callGenerate(prompt, INGEST_PROSE_PROFILE_SYSTEM, undefined, 'ingestProseProfile', GENERATE_MODEL);
   } catch (err) {
     logError('ingestProseProfile call failed', err, {
       source: 'ingest',
@@ -113,7 +118,7 @@ export async function deriveProseProfile(narrative: NarrativeState): Promise<Pro
 
   let raw: string;
   try {
-    raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'deriveProseProfile', GENERATE_MODEL);
+    raw = await callGenerate(prompt, DERIVE_PROSE_PROFILE_SYSTEM, undefined, 'deriveProseProfile', GENERATE_MODEL);
   } catch (err) {
     logError('deriveProseProfile call failed', err, {
       source: 'ingest',

@@ -516,7 +516,7 @@ describe('evaluatePlanQuality', () => {
     };
     await reviewPlanQuality(narrative, ['S-001'], 'main');
     const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
-    expect(promptArg).toContain('CHARACTER KNOWLEDGE');
+    expect(promptArg).toContain('<character-knowledge>');
     expect(promptArg).toContain('Alice');
     expect(promptArg).toContain('Knows the secret');
   });

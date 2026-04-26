@@ -8,7 +8,7 @@
 
 import { callGenerateStream } from "./api";
 import { parseJson } from "./json";
-import { buildGameTheorySystemPrompt } from "@/lib/prompts/scenes/game-theory";
+import { buildGameTheorySystemPrompt, buildGameTheoryUserPrompt } from "@/lib/prompts/scenes/game-theory";
 import { ANALYSIS_MODEL } from "@/lib/constants";
 import { logError, logInfo } from "@/lib/system-logger";
 import { resolvePlanForBranch, resolveProseForBranch } from "@/lib/narrative-utils";
@@ -404,7 +404,7 @@ export async function generateSceneGameAnalysis(
   });
 
   const systemPrompt = buildGameTheorySystemPrompt();
-  const userPrompt = buildSceneContext(narrative, scene, branchId);
+  const userPrompt = buildGameTheoryUserPrompt(buildSceneContext(narrative, scene, branchId));
 
   const reasoningBudget =
     REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? "low"] ||

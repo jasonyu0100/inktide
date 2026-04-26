@@ -58,4 +58,5 @@ export const VALID_EDGE_TYPES = new Set([
   "reveals",
   "develops",
   "resolves",
+  "supersedes",
 ]);

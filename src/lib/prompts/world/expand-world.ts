@@ -1,0 +1,234 @@
+/**
+ * World expansion prompt — adds characters, locations, threads, artifacts,
+ * and system rules to an existing narrative. Heavily templated with size,
+ * strategy, source-text, entity-filter, and computed metrics.
+ */
+
+export const EXPAND_WORLD_SYSTEM =
+  'You are a world-builder extending an established narrative. Honour the directive, the strategy, and the size budget; weave new entities into the existing fabric through relationships, location hierarchies, and shared threads. Match the world\'s cultural palette and naming conventions. Initialize every new character/location/artifact with at least one world node, and every new thread with a setup threadDelta. Return ONLY valid JSON matching the schema in the user prompt.';
+
+import { PROMPT_PORTFOLIO_PRINCIPLES } from '../core/market-calibration';
+import { PROMPT_ENTITY_INTEGRATION } from '../entities/integration';
+import type { ExpansionSizeConfig, WorldExpansionSize } from './expansion-suggestion';
+
+export type WorldExpansionStrategy = 'breadth' | 'depth' | 'dynamic';
+
+export const EXPANSION_SIZE_CONFIG: Record<WorldExpansionSize, ExpansionSizeConfig> = {
+  small:  { total: '3-6',   characters: '1-2',   locations: '1-2',   threads: '1-2',   label: 'a focused expansion (~5 total entities)' },
+  medium: { total: '10-15', characters: '3-5',   locations: '3-4',   threads: '3-5',   label: 'a moderate expansion (~12 total entities)' },
+  large:  { total: '20-35', characters: '8-15',  locations: '6-10',  threads: '8-12',  label: 'a large-scale expansion (~30 total entities)' },
+  exact:  { total: 'as specified', characters: 'as specified', locations: 'as specified', threads: 'as specified', label: 'exactly what is described in the directive — nothing more, nothing less' },
+  // Maintenance mode: counts are diagnostic-driven, not fixed. The prompt
+  // injects a health report and tells the LLM to add only what the deficits
+  // call for — minimum viable top-up, not bulk.
+  health: { total: 'diagnostic-driven', characters: 'as needed', locations: 'as needed', threads: 'as needed', label: 'a maintenance top-up (diagnostic-driven — adds only what the health report flags)' },
+};
+
+export const EXPANSION_STRATEGY_PROMPTS: Record<WorldExpansionStrategy, string> = {
+  breadth: `STRATEGY: BREADTH — widen the world. Introduce new regions, factions, and characters that open up unexplored areas of the map. Focus on geographic and social variety. New locations should be INDEPENDENT zones (new settlements, distant regions, rival territories) rather than sub-locations of existing places. New characters should come from different backgrounds than existing ones. New threads should introduce entirely new conflicts, not deepen existing ones.`,
+
+  depth: `STRATEGY: DEPTH — deepen the existing world. Do NOT add new top-level regions or distant factions. Instead:
+- Add sub-locations WITHIN existing locations (rooms inside buildings, districts inside cities, hidden areas within known places)
+- Add characters who are ALREADY embedded in existing social structures (subordinates, rivals, mentors, family members of existing characters)
+- Add threads that complicate EXISTING tensions rather than introducing new ones
+- Add rich knowledge per entity (3-4 per character, 2-3 per location) — secrets, hidden agendas, structural weaknesses, unexploited resources
+- Add artifacts that are locally relevant — tools, keys, resources that matter in the current sandbox
+- Focus system knowledge on the mechanics, economics, and power dynamics of the CURRENT setting
+The goal is to make the existing world feel richer, not bigger. One constrained sandbox with more detail beats a sprawling map.`,
+
+  dynamic: `STRATEGY: DYNAMIC — analyse the current world state and choose the right balance. If the world is broad but shallow (many locations, few details), go deep. If the world is deep but narrow (rich detail in one area, nothing beyond), go broad. If balanced, lean toward deepening the active area where scenes are happening while seeding one or two distant elements for future arcs. State your reasoning in a brief comment before generating.`,
+};
+
+export type ExpandWorldArgs = {
+  context: string;
+  directive: string;
+  sourceText?: string;
+  size: WorldExpansionSize;
+  /** Pre-built strategy block (with computed metrics for dynamic strategy). */
+  strategyBlock: string;
+  /** Pre-built entity-filter block (or empty when no types disabled). */
+  entityFilterBlock: string;
+  existingCharList: string;
+  existingLocList: string;
+  existingRelList: string;
+  nextCharId: string;
+  nextLocId: string;
+  nextThreadId: string;
+  nextArtifactId: string;
+  nextKId: string;
+};
+
+export function buildExpandWorldPrompt(args: ExpandWorldArgs): string {
+  const {
+    context,
+    directive,
+    sourceText,
+    size,
+    strategyBlock,
+    entityFilterBlock,
+    existingCharList,
+    existingLocList,
+    existingRelList,
+    nextCharId,
+    nextLocId,
+    nextThreadId,
+    nextArtifactId,
+    nextKId,
+  } = args;
+
+  const sizeConfig = EXPANSION_SIZE_CONFIG[size];
+
+  return `<inputs>
+  <narrative-context>
+${context}
+  </narrative-context>
+
+  <directive hint="${directive.trim() ? 'Primary creative brief — drive the expansion off this.' : 'No directive — analyze the current narrative state and add what would create the most interesting new possibilities based on existing tensions and unexplored areas.'}">
+${directive.trim() ? directive : 'EXPAND the world — analyze the current narrative state and add characters, locations, and threads that would create the most interesting new possibilities based on existing tensions and unexplored areas.'}
+  </directive>
+${sourceText ? `  <source-material hint="Verbatim from plan document — use as the authoritative guide. If the source names specific characters, places, or objects, create them with those exact names and roles. Source takes priority over generic expansion.">\n${sourceText}\n  </source-material>` : ''}
+
+  <strategy>
+${strategyBlock}
+  </strategy>
+
+${entityFilterBlock ? `  <entity-filter>\n${entityFilterBlock}\n  </entity-filter>` : ''}
+
+  <size-mode kind="${size}" label="${sizeConfig.label}" total="${sizeConfig.total}">
+${size === 'exact' ? `    <rule>EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra characters, locations, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive says "add a blacksmith named Torin", create exactly that character and nothing else. Every entity in your response must trace directly to something stated in the directive.</rule>` : size === 'health' ? `    <rule>HEALTH EXPANSION — diagnostic-driven portfolio repair, forward-looking. The directive contains a NARRATIVE HEALTH REPORT leading with a PORTFOLIO AUDIT — treat the portfolio as priority #1. Analysed works and long-idle narratives typically come in with a strong premise but no forward vision; the health expansion is where that forward vision is installed by filling portfolio gaps with markets and the rules / entities needed to support them.</rule>
+    <hierarchy hint="Work the FATE → SYSTEM → WORLD hierarchy. POSSIBILITY (fate) → ABSTRACT (system) → PHYSICAL (world). Major events propagate DOWN; rare revelations propagate UP.">
+      <step name="fate">Open markets that close the audit's gaps. For every DANGER in the portfolio audit, open (or re-shape) a thread that directly addresses it. For every WARNING, consider the same. New threads should weave existing under-used entities together first; introduce new entities only when the portfolio genuinely lacks them.</step>
+      <step name="system">Articulate the rules the new markets will resolve against. Every market needs a legible adjudication path; a market with no rule is a question with no closure mechanism. Emit systemDeltas that (a) give each new market its resolution rule, and (b) surface rules existing scenes have implied but left unstated.</step>
+      <step name="world">Add entities only if the new markets or rules genuinely require them to enact. Otherwise deepen existing characters / locations / artifacts via worldDeltas rather than spawning drop-ins. When an entity IS needed, its world graph must attach to a specific market (as a participant) or rule (as the body the rule acts on) — floating entities are decoration.</step>
+    </hierarchy>
+    <portfolio-principles>
+${PROMPT_PORTFOLIO_PRINCIPLES}
+    </portfolio-principles>
+    <minimum-viable hint="A health expansion that opens 2 missing markets, states 1 supporting rule, and deepens 3 existing anchors is correct when that's what the audit calls for. Bulk entity spawns without named markets are overreach, not maintenance. Think diagnostic → prevention → forward vision, not cure." />` : `    <target characters="${sizeConfig.characters}" locations="${sizeConfig.locations}" threads="${sizeConfig.threads}" />`}
+    <always-include>
+      <rule>relationshipDeltas connecting new characters to EXISTING characters (use valenceDelta as initial valence for new pairs).</rule>
+      <rule>Artifacts when the directive or narrative calls for them — objects that grant capabilities and drive acquisition, conflict, or discovery. Not every expansion needs artifacts.</rule>
+    </always-include>
+  </size-mode>
+
+  <existing-entities hint="You MUST reference these to integrate new content. Orphaned, disconnected entities are useless.">
+    <characters>${existingCharList}</characters>
+    <locations>${existingLocList}</locations>
+    <relationships>${existingRelList || 'none yet'}</relationships>
+  </existing-entities>
+</inputs>
+
+<output-format>
+Use sequential IDs continuing from the existing ones.
+
+Return JSON with this exact structure:
+{
+  "characters": [
+    {
+      "id": "${nextCharId}",
+      "name": "Full name matching the cultural palette of the world — rough, asymmetric, lived-in",
+      "role": "anchor|recurring|transient",
+      "threadIds": [],
+      "imagePrompt": "1-2 sentence LITERAL physical description: concrete traits like hair colour, build, clothing style. Never use metaphors, similes, or figurative language — image generators interpret them literally.",
+      "world": {
+        "nodes": [{"id": "${nextKId}", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this character — trait, belief, capability, state, secret, goal, or weakness"}]
+      }
+    }
+  ],
+  "locations": [
+    {
+      "id": "${nextLocId}",
+      "name": "Location name from geography, founders, or corrupted older words — concrete and specific",
+      "parentId": "REQUIRED: existing location ID (e.g. L-01) to nest under, or null ONLY for top-level regions",
+      "tiedCharacterIds": ["character IDs with a significant tie to this location — residents, employees, faction members, students. Ties represent gravity and belonging, not just presence"],
+      "threadIds": [],
+      "imagePrompt": "1-2 sentence LITERAL visual description: architecture, landscape, lighting, weather. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret them literally.",
+      "world": {
+        "nodes": [{"id": "K-next", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this location — history, rules, dangers, atmosphere, or properties"}]
+      }
+    }
+  ],
+  "threads": [
+    {
+      "id": "${nextThreadId}",
+      "participants": [{"id": "character or location ID", "type": "character|location|artifact"}],
+      "description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific conflict",
+      "outcomes": ["Named possibilities the market prices. Binary default: ['yes','no']. Multi-outcome when the resolution is N-way, e.g. 'Who claims the artifact?' → ['hero','villain','destroyed','lost']. Must be distinct and mutually exclusive; 2–6 entries."],
+      "dependents": ["T-XX (existing thread IDs this thread connects to, accelerates, or converges with — see THREAD CONVERGENCE below)"]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "${nextArtifactId}",
+      "name": "Artifact name — concrete and specific to its function or origin",
+      "significance": "key|notable|minor",
+      "parentId": "owner — a character or location ID, or null for world-owned (communally available to all)",
+      "world": {"nodes": [{"id": "K-next", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: what this artifact is, what it does, its history, powers, or limitations"}]},
+      "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"
+    }
+  ],
+  "systemDeltas": {
+    "addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}],
+    "addedEdges": [{"from": "SYS-GEN-001", "to": "existing-SYS-ID", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]
+  },
+  "threadDeltas": [{"threadId": "T-XX", "logType": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "updates": [{"outcome": "outcome name from thread.outcomes", "evidence": -4..+4 (decimals allowed, e.g. +1.5)}], "volumeDelta": 0..2, "addOutcomes": ["optional — new outcome names if this scene opens a possibility not previously in the market"], "rationale": "10-20 words, prose only — what happens in the scene in natural language. Do NOT quote outcome identifiers, mention evidence numbers, or reference logType."}],
+  "worldDeltas": [{"entityId": "existing C-XX, L-XX, or A-XX", "addedNodes": [{"id": "K-next", "content": "15-25 words, PRESENT tense: a stable fact about the entity — what they experienced, became, or now possess", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
+  "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
+  "ownershipDeltas": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
+  "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}]
+}
+</output-format>
+
+<id-rules>
+  <rule>Character IDs: continue sequentially from ${nextCharId} (e.g., ${nextCharId}, C-${String(parseInt(nextCharId.split('-').pop()!) + 1).padStart(2, '0')}, ...).</rule>
+  <rule>Location IDs: continue sequentially from ${nextLocId} (e.g., ${nextLocId}, L-${String(parseInt(nextLocId.split('-').pop()!) + 1).padStart(2, '0')}, ...).</rule>
+  <rule>Thread IDs: continue sequentially from ${nextThreadId} (e.g., ${nextThreadId}, T-${String(parseInt(nextThreadId.split('-').pop()!) + 1).padStart(2, '0')}, ...).</rule>
+  <rule>Artifact IDs: continue sequentially from ${nextArtifactId} (e.g., ${nextArtifactId}, A-${String(parseInt(nextArtifactId.split('-').pop()!) + 1).padStart(2, '0')}, ...).</rule>
+  <rule>Knowledge node IDs: continue sequentially from ${nextKId} (e.g., ${nextKId}, K-${String(parseInt(nextKId.split('-').pop()!) + 1).padStart(2, '0')}, ...).</rule>
+  <rule>ALL knowledge nodes (in both characters and locations) use the K- prefix and share one sequence.</rule>
+</id-rules>
+
+<entity-integration>
+${PROMPT_ENTITY_INTEGRATION}
+</entity-integration>
+
+<expansion-specific-rules>
+  <rule>Generate at MINIMUM ${sizeConfig.characters === '1-2' ? '2' : sizeConfig.characters === '3-5' ? '5' : '12'} relationshipDeltas total. Most should connect new→existing characters. Use valenceDelta as initial valence for new pairs. Include varied valences (allies, rivals, mentors, kin). At least one with tension.</rule>
+  <rule>Key artifacts should have 3-4 world nodes (what it does, its origin, its limitation). Only create artifacts when they meaningfully alter what characters can do.</rule>
+</expansion-specific-rules>
+
+<naming-rules>
+  <rule>All new names must match the cultural palette and naming conventions already established in the world. Study the existing character and location names and produce names from the same linguistic roots.</rule>
+  <rule>Source from real census records, historical obscurities, occupational surnames, or regional dialects. Names should feel rough, asymmetric, and lived-in — never smooth or melodic in a generic way.</rule>
+  <rule>Location names from geography, founders, or corrupted older words. Thread names concrete and specific.</rule>
+</naming-rules>
+
+<content-rules>
+  <rule>Characters should have meaningful knowledge (3-5 nodes). Give each character SECRETS or unique knowledge that only they possess — knowledge asymmetries drive narrative tension. Include at least one hidden or dangerous piece of knowledge per character.</rule>
+  <rule>Knowledge node types should be SPECIFIC and CONTEXTUAL — not generic labels. Examples: "cultivation_technique", "blood_pact", "hidden_treasury", "ancient_prophecy", "political_alliance", "forbidden_memory", "territorial_claim", "ancestral_grudge". Pick types that fit the narrative world.</rule>
+  <rule>New locations should CONTRAST with existing ones — if the story has been set in cities, add wilderness; if in palaces, add slums or ruins. Environmental variety drives scene variety.</rule>
+  <rule>Location knowledge should establish what makes each place narratively distinct (2-3 nodes per location — its defining atmosphere, a constraint or danger, and a resource or opportunity it offers).</rule>
+  <rule>Threads should introduce DIFFERENT types of open questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, or forbidden knowledge.</rule>
+  <rule>Every new thread declares its OUTCOMES up front — 2+ named, mutually-exclusive possibilities. Binary is default (["yes","no"]); multi-outcome when the resolution is genuinely N-way. Markets open at uniform priors (no outcome is pre-weighted).</rule>
+  <rule>New threads start with NO evidence — they're fresh markets. Initial scenes that seed them will emit setup/escalation evidence on the chosen outcome.</rule>
+  <rule>Generate the exact counts specified above (${sizeConfig.characters} characters, ${sizeConfig.locations} locations, ${sizeConfig.threads} threads).</rule>
+</content-rules>
+
+<thread-convergence hint="Critical for long-form narrative.">
+  <rule>The "dependents" field lists EXISTING thread IDs that this new thread connects to, accelerates, or converges with. This is how storylines collide.</rule>
+  <rule>A convergent thread is one whose activation or resolution forces multiple existing threads into new trajectories. Example: a resource thread (T-new) that depends on [T-03, T-07] means when this resource thread activates, it creates pressure on both T-03 and T-07 simultaneously.</rule>
+  <rule>At least ONE new thread should have 2+ dependents — this is a convergent bridge thread that forces collision between existing storylines.</rule>
+  <rule>Dependents should reference threads that are currently in different storylines or involve different characters — the whole point is to CREATE connections between threads that were previously parallel.</rule>
+  <rule>Think: shared resources both factions need, events that affect multiple storylines, secrets that connect separated characters, external forces that compress multiple conflicts.</rule>
+  <rule>Empty dependents [] is acceptable for truly independent new threads, but at least one thread per expansion MUST bridge existing threads.</rule>
+</thread-convergence>
+
+<system-knowledge-deltas hint="systemDeltas define the FOUNDATIONAL abstractions this expansion establishes — the rules, systems, concepts, and tensions that the new entities operate within. Intentional world-building, not incidental discovery.">
+  <rule>Use "principle" for fundamental truths, "system" for mechanisms/institutions, "concept" for abstract ideas, "tension" for contradictions, "event" for world-level occurrences, "structure" for organizations/factions, "environment" for geography/climate, "convention" for customs/norms, "constraint" for scarcities/limitations.</rule>
+  <rule>Node IDs should be SYS-GEN-001, SYS-GEN-002, etc. (they will be re-mapped to real IDs).</rule>
+  <rule>Edges can reference both new SYS-GEN-* IDs and existing system knowledge IDs already in the narrative.</rule>
+  <rule>Generate ${size === 'small' ? '4-6' : size === 'medium' ? '8-12' : size === 'exact' ? 'as many as the directive calls for' : '15-25'} system knowledge nodes with a comparable number of edges. Each must be a genuine structural rule or system that the new entities operate within. EDGES ARE CRITICAL — an isolated node contributes 1 to system, but an edge connecting it to an existing SYS node adds √1 more AND wires the expansion into the existing graph.</rule>
+  <rule>At least HALF of your edges should cross the new/existing boundary — use existing SYS IDs from the narrative context, not just SYS-GEN-* → SYS-GEN-*. This is how expansions deepen the foundation instead of floating free.</rule>
+  <rule>Focus on the structural WHY behind the expansion — what abstract rules, power structures, or tensions make these new entities meaningful?</rule>
+</system-knowledge-deltas>`;
+}

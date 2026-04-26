@@ -2,11 +2,11 @@
  * Review Prompts — branch-level editorial passes.
  */
 
-export { buildBranchReviewPrompt } from './branch';
+export { buildBranchReviewPrompt, BRANCH_REVIEW_SYSTEM } from './branch';
 export type { BranchReviewPromptParams } from './branch';
 
-export { buildProseReviewPrompt } from './prose';
+export { buildProseReviewPrompt, PROSE_REVIEW_SYSTEM } from './prose';
 export type { ProseReviewPromptParams } from './prose';
 
-export { buildPlanReviewPrompt } from './plan';
+export { buildPlanReviewPrompt, PLAN_REVIEW_SYSTEM } from './plan';
 export type { PlanReviewPromptParams } from './plan';

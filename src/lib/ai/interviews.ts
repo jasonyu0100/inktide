@@ -14,6 +14,12 @@ import { narrativeContext } from "@/lib/ai/context";
 import { FatalApiError } from "@/lib/ai/errors";
 import { parseJson } from "@/lib/ai/json";
 import { ANALYSIS_MODEL, ANALYSIS_TEMPERATURE } from "@/lib/constants";
+import { CATEGORY_GUIDANCE, RESEARCH_CATEGORIES, type ResearchCategory } from "@/lib/research-categories";
+import {
+  INTERVIEW_GEN_SYSTEM,
+  INTERVIEW_FRAME_FALLBACK,
+  buildInterviewUserPrompt,
+} from "@/lib/prompts/interviews";
 import {
   buildRespondentPersona,
   buildSurveyUserPrompt,
@@ -147,44 +153,14 @@ function asSurvey(q: InterviewQuestion): Survey {
 
 // ── AI question batch generator ───────────────────────────────────────────
 
-import { CATEGORY_GUIDANCE, RESEARCH_CATEGORIES, type ResearchCategory } from "@/lib/research-categories";
-
-const FRAME_FALLBACK = "Pick the mix of lenses most likely to surface what the author doesn't already know about THIS specific subject given their world-graph continuity.";
-
 function categoryGuidance(category?: string): string {
-  if (!category) return FRAME_FALLBACK;
+  if (!category) return INTERVIEW_FRAME_FALLBACK;
   if ((RESEARCH_CATEGORIES as readonly string[]).includes(category)) {
     return CATEGORY_GUIDANCE[category as ResearchCategory];
   }
   // Free-form custom category: let the model interpret the label.
   return `Probe the subject through the lens of "${category}". Pick question types that suit this lens.`;
 }
-
-const INTERVIEW_GEN_SYSTEM = `You are a research assistant designing depth interviews for a long-form fiction author. The author wants to learn about ONE specific subject (a character, a location, or an artifact) by asking 5-7 in-character questions and aggregating the responses.
-
-Each question should:
-- Be answerable IN CHARACTER from the subject's recorded world-graph continuity. No meta-narrative, no fourth-wall breaks.
-- Probe something the author would not already know explicitly from the text.
-- Pick the right TYPE for the shape of insight wanted:
-    binary    — clean check
-    likert    — graduated stance (5-pt unless 3 or 7 fits better)
-    estimate  — numeric guess; reveals knowledge or stance magnitude
-    choice    — forced rank among named alternatives
-    open      — the subject's own voice is the data (use sparingly; 1-2 per batch)
-
-Aim for VARIETY across the batch — different question types, different angles into the subject. The whole batch together should leave the author understanding the subject more deeply than any single question could.
-
-OUTPUT FORMAT — JSON only, no preamble:
-{
-  "category": "<2-3 word label for the batch>",
-  "questions": [
-    {
-      "question": "<question, addressed to the subject in second person>",
-      "questionType": "binary" | "likert" | "estimate" | "choice" | "open",
-      "config": { "scale": 3|5|7 } | { "unit": "<short word>" } | { "options": ["A","B","C"] } | null
-    }
-  ]
-}`;
 
 export type InterviewBatch = {
   category: string;
@@ -200,17 +176,12 @@ export async function generateInterviewBatch(
 ): Promise<InterviewBatch | null> {
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
   const subjectBlock = describeSubject(subject);
-  const lens = category ? `INTERVIEW LENS: ${category}\n${categoryGuidance(category)}` : `INTERVIEW LENS: open\n${FRAME_FALLBACK}`;
-  const userPrompt = `Narrative continuity:
-
-${ctx}
-
-SUBJECT:
-${subjectBlock}
-
-${lens}
-
-Propose 5-7 in-character questions for THIS subject. Calibrate to what their world graph already records and to what the author would learn from asking.`;
+  const userPrompt = buildInterviewUserPrompt({
+    narrativeContext: ctx,
+    subjectBlock,
+    category,
+    categoryGuidance: category ? categoryGuidance(category) : INTERVIEW_FRAME_FALLBACK,
+  });
 
   const raw = await callGenerate(
     userPrompt,

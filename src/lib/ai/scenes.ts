@@ -4,17 +4,32 @@ import { isThreadAbandoned, isThreadClosed, clampEvidence, FORCE_BANDS, fmtBand 
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { newNarratorBelief } from '@/lib/thread-log';
 import { normalizeTimeDelta } from '@/lib/time-deltas';
-import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
+import { callGenerate, callGenerateStream } from './api';
+import { GENERATE_SCENES_SYSTEM } from '@/lib/prompts/scenes/generate';
 import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, buildProseProfile } from './context';
 import { PROMPT_STRUCTURAL_RULES, PROMPT_DELTAS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_WORLD, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, PROMPT_FORCE_STANDARDS, PROMPT_ARC_STATE_GUIDANCE, buildScenePlanSystemPrompt, buildBeatAnalystSystemPrompt, buildScenePlanEditSystemPrompt, buildSceneProseSystemPrompt } from './prompts';
+import { EXTRACT_PROPOSITIONS_SYSTEM, buildExtractPropositionsUserPrompt } from '@/lib/prompts/scenes/extract-propositions';
+import { buildGenerateScenesPrompt } from '@/lib/prompts/scenes/generate';
+import {
+  buildScenePlanUserPrompt,
+  buildScenePlanEditUserPrompt,
+  buildBeatAnalystUserPrompt,
+  buildCompulsoryPropositionsBlock,
+} from '@/lib/prompts/scenes/plan-user';
+import {
+  buildProseInstructionsWithPlan,
+  buildProseInstructionsFreeform,
+  buildSceneProseUserPrompt,
+} from '@/lib/prompts/scenes/prose-instructions';
 import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from '@/lib/prompts';
 import { logWarning, logError, logInfo } from '@/lib/system-logger';
 import type { ReasoningGraph } from './reasoning-graph';
 import { buildSequentialPath, extractPatternWarningDirectives } from './reasoning-graph';
+import { buildActivePhaseGraphSection } from './phase-graph';
 import { retryWithValidation, validateBeatPlan, validateBeatProseMap } from './validation';
 import { sanitizeSystemDelta, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
 
@@ -235,135 +250,93 @@ export async function generateScenes(
     sequencePrompt = buildSequencePrompt(sequence);
   }
 
-  const prompt = `${ctx}
-
-NARRATIVE SEED: ${seed}
-
-${arcInstruction}
-${reasoningGraph ? `REASONING GRAPH — PRIMARY BRIEF. Execute this path exactly; don't skip nodes or invent reasoning not shown.
-
-Arc Summary: ${reasoningGraph.summary}
-
-REASONING PATH:
+  const briefBlock = (() => {
+    if (reasoningGraph) {
+      const directives = extractPatternWarningDirectives(reasoningGraph);
+      return `<brief type="reasoning-graph" hint="PRIMARY BRIEF — execute this path exactly; don't skip nodes or invent reasoning not shown. REASONING nodes are core logic; CHARACTER/LOCATION/ARTIFACT/SYSTEM nodes provide grounding; OUTCOME nodes are thread effects to deliver. Edge labels carry meaning (enables, requires, causes, etc.).">
+  <arc-summary>${reasoningGraph.summary}</arc-summary>
+  <reasoning-path>
 ${buildSequentialPath(reasoningGraph)}
-${(() => {
-  const directives = extractPatternWarningDirectives(reasoningGraph);
-  return directives ? `\n## COURSE-CORRECTION DIRECTIVES\n\n${directives}\n` : "";
-})()}
-REASONING: nodes are core logic to execute. CHARACTER/LOCATION/ARTIFACT/SYSTEM: nodes provide grounding. OUTCOME: nodes are thread effects to deliver. Edge labels carry meaning (enables, requires, causes, etc.).` : coordinationPlanContext ? `COORDINATION PLAN — PRIMARY BRIEF (Arc ${coordinationPlanContext.arcIndex}/${coordinationPlanContext.arcCount}: "${coordinationPlanContext.arcLabel}"). Directive derived from backward-induction across the full plan.
-${coordinationPlanContext.forceMode ? `Force Mode: ${coordinationPlanContext.forceMode.toUpperCase()}.` : ''}
-
-${coordinationPlanContext.directive}${direction.trim() ? `\n\nADDITIONAL DIRECTION (layer on top):\n${direction}` : ''}` : direction.trim() ? `DIRECTION — PRIMARY BRIEF. Every scene executes these beats. Prose-level guidance (tone, POV style, pacing, register) must flow into the scene summaries — the summary is the prose writer's only brief.
-
-${direction}` : 'DIRECTION: Use your judgment — pick the most compelling next development based on unresolved threads, tensions, and momentum.'}
-${worldBuildFocus ? (() => {
-  const wb = worldBuildFocus;
-  const chars = wb.expansionManifest.newCharacters.map((c) => `${c.name} (${c.role})`);
-  const locs = wb.expansionManifest.newLocations.map((l) => l.name);
-  const threads = wb.expansionManifest.newThreads.map((t) => {
-    const live = narrative.threads[t.id];
-    const status = live
-      ? (isThreadClosed(live) ? 'closed' : isThreadAbandoned(live) ? 'abandoned' : 'open')
-      : 'open';
-    const outcomes = (live?.outcomes ?? t.outcomes ?? []).join(' | ');
-    return `${t.description} [${status}] outcomes: ${outcomes}`;
-  });
-  const lines: string[] = [`WORLD BUILD FOCUS (${wb.id} — "${wb.summary}"): The entities below were recently introduced and have not yet had a presence in the story. This arc should bring them in — use these characters in scenes, set at least one scene in these locations, and begin seeding these latent threads:`];
-  if (chars.length) lines.push(`  Characters: ${chars.join(', ')}`);
-  if (locs.length) lines.push(`  Locations: ${locs.join(', ')}`);
-  if (threads.length) lines.push(`  Threads to activate: ${threads.join('; ')}`);
-  return '\n' + lines.join('\n') + '\n';
-})() : ''}
-The scenes must continue from the current point in the story (after scene index ${currentIndex + 1}).
-
-${sequencePrompt}
-
-Return JSON with this exact structure.
-
-PROCEDURE per scene:
-  1. DRAFT the summary in rich prose using NAMES not IDs.
-  2. ENUMERATE per sentence: which entity changed, which rule surfaced, which thread moved, which off-screen party would receive news. Usually multiple answers.
-  3. REWRITE the summary so every intended delta has a source sentence. Summary and delta-set are paired.
-  4. EMIT the full delta block.
-The summary is your DELTA BUDGET — richer summary supports richer extraction. Under-tagging is the dominant failure.
-
-{
-  "arcName": "2-4 words, evocative, UNIQUE. Bad: 'Continuation'. Good: 'Fractured Oaths'.",
-  "directionVector": "Forward-looking intent for this arc.",
-  "worldState": "Compact state snapshot at END of arc — the chess-board position.",
-  "scenes": [
-    {
-      "id": "S-GEN-001",
-      "arcId": "${arcId}",
-      "locationId": "existing location ID",
-      "povId": "character ID (must be a participant)${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED: ${storySettings.povCharacterIds.join(', ')}` : storySettings.povMode === 'free' && storySettings.povCharacterIds.length > 0 ? ` — PREFER: ${storySettings.povCharacterIds.join(', ')}` : ''}",
-      "participantIds": ["existing character IDs"],
-      "summary": "3-6 sentences in prose using NAMES not IDs. Write what HAPPENED / was SAID / visibly CHANGED. Include concrete specifics (objects, dialogue, data). No generic summaries, no sentences that end in private emotions.",
-      "timeDelta": {"value": 1, "unit": "minute|hour|day|week|month|year"},
-      "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
-      "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "how they travelled"}},
-      "events": ["event_tag_1", "event_tag_2"],
-      "threadDeltas": [{"threadId": "T-XX", "logType": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "updates": [{"outcome": "outcome name from thread.outcomes", "evidence": -4..+4 (decimals allowed, e.g. +1.5)}], "volumeDelta": 0..2, "addOutcomes": ["optional — new outcome names when this scene structurally opens a possibility not previously in the market"], "rationale": "the summary sentence that moved this thread's market in this scene"}],
-      "worldDeltas": [{"entityId": "C-XX|L-XX|A-XX", "addedNodes": [{"id": "K-GEN-001", "content": "15-25 words, present tense", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
-      "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-      "systemDeltas": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, general rule, no specific entities/events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-XX", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},
-      "ownershipDeltas": [{"artifactId": "A-XX", "fromId": "C-XX|L-XX|null", "toId": "C-YY|L-YY|null"}],
-      "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
-      "newCharacters": [{"id": "C-GEN-001", "name": "Full Name", "role": "anchor|recurring|transient", "threadIds": [], "imagePrompt": "literal physical description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history|capability|secret|goal", "content": "key fact"}}, "edges": []}}],
-      "newLocations": [{"id": "L-GEN-001", "name": "Name", "prominence": "domain|place|margin", "parentId": "L-XX|null", "tiedCharacterIds": [], "threadIds": [], "imagePrompt": "literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history", "content": "key fact"}}, "edges": []}}],
-      "newArtifacts": [{"id": "A-GEN-001", "name": "Name", "significance": "key|notable|minor", "parentId": "C-XX|L-XX|null", "threadIds": [], "imagePrompt": "literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|capability|history|state", "content": "one fact per node"}}, "edges": []}}],
-      "newThreads": [{"id": "T-GEN-001", "description": "compelling question", "outcomes": ["yes", "no"], "participants": [{"id": "C-XX", "type": "character|location|artifact"}], "threadLog": {"nodes": {}, "edges": []}}]
+  </reasoning-path>${directives ? `\n  <course-correction-directives>\n${directives}\n  </course-correction-directives>` : ''}
+</brief>`;
     }
-  ]
-}
+    if (coordinationPlanContext) {
+      return `<brief type="coordination-plan" arc-index="${coordinationPlanContext.arcIndex}" arc-count="${coordinationPlanContext.arcCount}" arc-label="${coordinationPlanContext.arcLabel}"${coordinationPlanContext.forceMode ? ` force-mode="${coordinationPlanContext.forceMode}"` : ''} hint="PRIMARY BRIEF — directive derived from backward-induction across the full plan.">
+  <directive>${coordinationPlanContext.directive}</directive>${direction.trim() ? `\n  <additional-direction hint="Layer on top of the directive.">${direction}</additional-direction>` : ''}
+</brief>`;
+    }
+    if (direction.trim()) {
+      return `<brief type="direction" hint="PRIMARY BRIEF — every scene executes these beats. Prose-level guidance (tone, POV style, pacing, register) must flow into the scene summaries; the summary is the prose writer's only brief.">
+${direction}
+</brief>`;
+    }
+    return `<brief type="freeform">Use your judgment — pick the most compelling next development based on unresolved threads, tensions, and momentum.</brief>`;
+  })();
 
-INTRODUCE NEW ENTITIES liberally on the fly when the scene needs them (a messenger, a tavern, a letter, a new rivalry). Each new character/location/artifact needs ≥1 world node at creation; each new thread needs ≥1 setup log entry.
+  const worldBuildFocusBlock = worldBuildFocus ? (() => {
+    const wb = worldBuildFocus;
+    const chars = wb.expansionManifest.newCharacters.map((c) => `    <character name="${c.name}" role="${c.role}" />`).join('\n');
+    const locs = wb.expansionManifest.newLocations.map((l) => `    <location name="${l.name}" />`).join('\n');
+    const threads = wb.expansionManifest.newThreads.map((t) => {
+      const live = narrative.threads[t.id];
+      const status = live
+        ? (isThreadClosed(live) ? 'closed' : isThreadAbandoned(live) ? 'abandoned' : 'open')
+        : 'open';
+      const outcomes = (live?.outcomes ?? t.outcomes ?? []).join(' | ');
+      return `    <thread status="${status}" outcomes="${outcomes}">${t.description}</thread>`;
+    }).join('\n');
+    return `<world-build-focus id="${wb.id}" hint="The entities below were recently introduced and have not yet had a presence in the story. This arc should bring them in — use these characters in scenes, set at least one scene in these locations, and begin seeding these latent threads.">
+  <summary>${wb.summary}</summary>
+${chars ? `  <characters>\n${chars}\n  </characters>` : ''}
+${locs ? `  <locations>\n${locs}\n  </locations>` : ''}
+${threads ? `  <threads-to-activate>\n${threads}\n  </threads-to-activate>` : ''}
+</world-build-focus>`;
+  })() : '';
 
-NAMING DISCIPLINE — new entities MUST use concrete, in-world proper names. The reasoning graph may seed roles or archetypes ("the betrayer", "Shadow Seeker", "the rival sect"); scene generation is the layer that COLLAPSES those into real names that fit the established culture and naming conventions of the existing cast.
-  BAD (placeholder / archetype / role-as-name): "Shadow Seeker", "The Stranger", "Mysterious Figure", "Old Man", "The Rival", "Dark Forest", "Mystery Letter".
-  GOOD (concrete proper names matching the world): for a Chinese xianxia world — "Liang Wei", "Elder Hua Jin", "Black Pine Ridge", "Letter from Bao Cheng"; for a Tolkien-style setting — "Aerin son of Faldor", "Dunwood Vale".
-  RULE: read the existing characters/locations/artifacts in context, match their naming style (length, language family, honorific conventions), and pick a name that could pass as one of theirs. Descriptive labels and titles belong in the world-node content, never in the \`name\` field.
+  const inputBlocks: string[] = [];
+  inputBlocks.push(`  <narrative-context>\n${ctx}\n  </narrative-context>`);
+  inputBlocks.push(`  <narrative-seed>${seed}</narrative-seed>`);
+  if (arcInstruction) inputBlocks.push(`  <arc-instruction>${arcInstruction}</arc-instruction>`);
+  inputBlocks.push(`  ${briefBlock.replace(/\n/g, '\n  ')}`);
+  if (worldBuildFocusBlock) inputBlocks.push(`  ${worldBuildFocusBlock.replace(/\n/g, '\n  ')}`);
+  inputBlocks.push(`  <continuation-point hint="Scenes continue from this point in the story.">after scene index ${currentIndex + 1}</continuation-point>`);
+  if (sequencePrompt) inputBlocks.push(`  <pacing-sequence>\n${sequencePrompt}\n  </pacing-sequence>`);
+  const phaseGraphSection = buildActivePhaseGraphSection(narrative);
+  if (phaseGraphSection) inputBlocks.push(`  ${phaseGraphSection.replace(/\n/g, '\n  ')}`);
 
-IDS: scene S-GEN-###, knowledge K-GEN-###, system SYS-GEN-### (reused SYS nodes keep original ID), character/location/artifact/thread GEN-### placeholders remapped to real IDs downstream.
+  const povRestrictedHint = storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0
+    ? ` — RESTRICTED: ${storySettings.povCharacterIds.join(', ')}`
+    : storySettings.povMode === 'free' && storySettings.povCharacterIds.length > 0
+    ? ` — PREFER: ${storySettings.povCharacterIds.join(', ')}`
+    : '';
 
-TIME DELTA: gap from prior scene as an estimate ({value: int≥0, unit}). "that evening" → 3 hours; "next morning" → 1 day; "three years later" → 3 years. {value:0, unit:"minute"} = simultaneous/concurrent (use for first scene too). Relative only — no absolute calendar.
+  const sharedRulesBlock = [
+    PROMPT_STRUCTURAL_RULES,
+    PROMPT_SUMMARY_REQUIREMENT,
+    PROMPT_FORCE_STANDARDS,
+    PROMPT_DELTAS,
+    PROMPT_LOCATIONS,
+    Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : '',
+    PROMPT_POV,
+    PROMPT_WORLD,
+    PROMPT_ARC_STATE_GUIDANCE,
+    promptThreadLifecycle(),
+    buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex),
+    buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex),
+  ].join('\n');
 
-TAG-RICHLY DISCIPLINE (floors and emission rules consolidated — forces.ts has formulas, deltas.ts has shape):
-  FLOORS: ≥6 world nodes across ≥3 entities, ≥1 system node per scene. Never emit \`systemDeltas: {}\`. One threadDelta per thread per scene; transitions move ONE step forward.
-  TYPICAL scene: ${fmtBand(FORCE_BANDS.world.typical)} world, ${fmtBand(FORCE_BANDS.system.typical)} system, 2-4 thread pulses (0-1 transitions). CLIMAX: ${fmtBand(FORCE_BANDS.world.climax, true)} world, ${fmtBand(FORCE_BANDS.system.climax)} system, 1-2 transitions. QUIET: ${fmtBand(FORCE_BANDS.world.quiet)} world, ${fmtBand(FORCE_BANDS.system.quiet)} system, 0-1 pulses.
-  REFLECTIVE POV (solo-POV scenes, mostly thinking/planning): the POV is STILL the most-changed entity. Expect 4-6 nodes on the POV alone (belief/state/goal/capability/secret shifts), plus 2-3 on adjacent entities (location witnessed, artifact handled, off-screen party affected). A reflective scene with only one POV delta is broken.
-  AGENCY over ORBIT, OFF-SCREEN deltas are valid (news/rumour/intelligence), REUSE existing node IDs — only NEW concepts count.
-
-WORKED EXAMPLE — same summary, thin vs rich:
-
-Summary: "Fang Yuan activated Heaven's Mandate Gu on a corpus combining the stone slab's hum with Elder Xuan's Tracking Gu signature. The reading revealed Heaven's Will was embedded within the refinement of specialized Gu — overturning his prior model and demanding a new counter-strategy."
-
-THIN (what to AVOID): 1 worldDelta on Fang Yuan, \`systemDeltas: {}\`.
-
-RICH (target — 8 world across 5 entities + 2 system):
-  worldDeltas: [
-    {entityId: C-THE-01, nodes: [belief "Heaven's Will embeds inside specialized Gu mechanisms", state "prior external-force model is overturned", goal "shift to proactive counter-mandate engineering", capability "can compose multi-source anomaly corpora"]},
-    {entityId: A-THE-04, nodes: [capability "Heaven's Mandate Gu resolves composite corpora into multi-layered revelations"]},
-    {entityId: A-18, nodes: [trait "Tracking Gu carries Heaven's Will signature embedded at refinement"]},
-    {entityId: A-THE-17, nodes: [trait "stone slab hum carries cosmic-disruption data readable by Mandate Gu"]},
-    {entityId: L-THE-03, nodes: [history "Gray Wolf Ranges stronghold served as the analysis site"]}
-  ]
-  systemDeltas: { addedNodes: [principle "Heaven's Will operates by embedding influence within specialized Gu refinement", concept "Heaven's Mandate Gu resolves anomaly corpora into patterned revelations"], addedEdges: [governs(principle, concept)] }
-  threadDeltas: [one transition + optional pulse on the Heaven's Will inquiry thread]
-
-Same summary; the difference is extraction discipline. Apply the rich pattern to every scene.
-${PROMPT_STRUCTURAL_RULES}
-${PROMPT_SUMMARY_REQUIREMENT}
-${PROMPT_FORCE_STANDARDS}
-${PROMPT_DELTAS}
-${PROMPT_LOCATIONS}
-${Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : ''}
-${PROMPT_POV}
-${PROMPT_WORLD}
-${PROMPT_ARC_STATE_GUIDANCE}
-${promptThreadLifecycle()}
-${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex)}
-${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
+  const prompt = buildGenerateScenesPrompt({
+    inputBlocks: inputBlocks.join('\n'),
+    arcId,
+    povRestrictedHint,
+    worldTypicalBand: fmtBand(FORCE_BANDS.world.typical),
+    worldClimaxBand: fmtBand(FORCE_BANDS.world.climax, true),
+    worldQuietBand: fmtBand(FORCE_BANDS.world.quiet),
+    systemTypicalBand: fmtBand(FORCE_BANDS.system.typical),
+    systemClimaxBand: fmtBand(FORCE_BANDS.system.climax),
+    systemQuietBand: fmtBand(FORCE_BANDS.system.quiet),
+    sharedRulesBlock,
+  });
 
   // Retry on JSON parse failures (truncation, malformed output)
   const MAX_RETRIES = 2;
@@ -374,8 +347,8 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
       const reasoningBudget = REASONING_BUDGETS[storySettings.reasoningLevel] || undefined;
       const useStream = !!(onToken || onReasoning);
       const raw = useStream
-        ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken ?? (() => {}), MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL, reasoningBudget, onReasoning)
-        : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL, reasoningBudget);
+        ? await callGenerateStream(prompt, GENERATE_SCENES_SYSTEM, onToken ?? (() => {}), MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL, reasoningBudget, onReasoning)
+        : await callGenerate(prompt, GENERATE_SCENES_SYSTEM, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL, reasoningBudget);
       parsed = parseJson(raw, 'generateScenes') as { arcName?: string; directionVector?: string; worldState?: string; scenes: Scene[] };
       break;
     } catch (err) {
@@ -646,6 +619,10 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
         initialCharacterLocations: {},
         directionVector,
         worldState,
+        // Stamp the active Phase Reasoning Graph (PRG) at arc-creation time
+        // so the working-model-of-reality the arc was built under is preserved
+        // even after the user later switches or clears the active PRG.
+        phaseGraphId: narrative.currentPhaseGraphId,
       };
 
   if (!existingArc && scenes.length > 0) {
@@ -713,32 +690,10 @@ async function extractCompulsoryPropositions(
   onReasoning: ((token: string) => void) | undefined,
   reasoningBudget: number | undefined,
 ): Promise<Proposition[]> {
-  const systemPrompt = `You are a scene fact-extractor. Read the scene's structural data (summary, deltas, new entities, events) and return the COMPLETE set of compulsory propositions the scene must land.
-
-A compulsory proposition is a fact the prose MUST establish for the scene to count as having happened. Not atmosphere. Not craft flourish. The discrete, checkable claims a reader must come away believing.
-
-THOROUGHNESS — every structural element in the scene data maps to at least one proposition. Walk through the data and confirm you've covered:
-  - summary → any commitments the summary makes that aren't yet captured by deltas below
-  - each threadDelta → one proposition for the narrative fact that moved the thread (use the thread's description and addedNodes as anchors)
-  - each worldDelta → one proposition per addedNode, framed in present-tense state ("X now Y")
-  - systemDelta addedNodes → the world rule/principle surfaced
-  - relationshipDeltas → the concrete shift ("A now distrusts B")
-  - ownershipDeltas → the transfer fact
-  - tieDeltas → the tie established or severed
-  - artifactUsages → what the artifact did
-  - characterMovements → the arrival/departure fact
-  - events → any fact the event tag implies that isn't already captured
-  - new-characters / new-locations / new-artifacts / new-threads → that this entity now exists, plus one proposition per meaningful world-node they carry in
-Completeness matters more than minimalism. A missed delta becomes a continuity hole in later scenes.
-
-DO NOT deduplicate across delta types — each delta is its own commitment even if the surface wording overlaps.
-DO NOT include sensory texture, weather, or obvious background.
-DO NOT impose an ordering — emit propositions grouped by source for clarity; reordering for prose effect is the planner's job.
-
-Return ONLY JSON: { "propositions": [{"content": "...", "type": "..."}, ...] }
-Type is a free label (event, state, rule, relation, secret, goal, transfer, tie, movement, emergence…). Each proposition should be a single complete sentence stating one fact.`;
-
-  const userPrompt = `${sceneContext(narrative, scene)}\n\nExtract every compulsory proposition from the scene above. Walk through every block of the XML; no structural element goes uncovered.`;
+  const systemPrompt = EXTRACT_PROPOSITIONS_SYSTEM;
+  const userPrompt = buildExtractPropositionsUserPrompt({
+    sceneXml: sceneContext(narrative, scene),
+  });
 
   const raw = onReasoning
     ? await callGenerateStream(userPrompt, systemPrompt, () => {}, MAX_TOKENS_SMALL, 'generateScenePlan.extractPropositions', GENERATE_MODEL, reasoningBudget, onReasoning)
@@ -746,6 +701,113 @@ Type is a free label (event, state, rule, relation, secret, goal, transfer, tie,
 
   const parsed = parseJson(raw, 'generateScenePlan.extractPropositions') as { propositions?: unknown[] };
   return parsePropositions(Array.isArray(parsed.propositions) ? parsed.propositions : []);
+}
+
+/**
+ * Build a focused grounding block for the planner: each scene participant
+ * (POV, other characters, location, artifacts in play) with their visual
+ * identity + most-recent continuity nodes grouped by type. The planner
+ * uses this as an OPTIONAL glue pool — facts to reach for when they would
+ * naturally surface in a beat, on top of the compulsory propositions which
+ * remain non-negotiable.
+ */
+function buildParticipantGroundingBlock(narrative: NarrativeState, scene: Scene): string {
+  const NODE_CAP_PER_ENTITY = 10;
+  // Stable display order — mirror the character-sheet logic readers carry around:
+  // who they are → what they want → what they hide → what's true now → what they
+  // can do → what they remember → who they're tied to → where they're vulnerable.
+  const TYPE_ORDER = ['trait', 'belief', 'goal', 'secret', 'state', 'capability', 'history', 'relation', 'weakness'];
+
+  type WorldNode = { id: string; type: string; content: string };
+  type WorldOwner = { world?: { nodes: Record<string, WorldNode> } };
+
+  const recentNodes = (entity: WorldOwner): WorldNode[] =>
+    Object.values(entity.world?.nodes ?? {}).slice(-NODE_CAP_PER_ENTITY);
+
+  const renderContinuity = (entity: WorldOwner, indent: string): string => {
+    const nodes = recentNodes(entity);
+    if (nodes.length === 0) return '';
+    const grouped = new Map<string, string[]>();
+    for (const n of nodes) {
+      if (!grouped.has(n.type)) grouped.set(n.type, []);
+      grouped.get(n.type)!.push(n.content);
+    }
+    const orderedTypes = [
+      ...TYPE_ORDER.filter(t => grouped.has(t)),
+      ...[...grouped.keys()].filter(t => !TYPE_ORDER.includes(t)).sort(),
+    ];
+    const lines = orderedTypes.map(type => {
+      const items = grouped.get(type)!.map(c => `${indent}  <fact>${c}</fact>`).join('\n');
+      return `${indent}<${type}>\n${items}\n${indent}</${type}>`;
+    });
+    return `${indent.replace(/  $/, '')}<continuity>\n${lines.join('\n')}\n${indent.replace(/  $/, '')}</continuity>`;
+  };
+
+  const renderVisual = (imagePrompt: string | undefined, indent: string): string =>
+    imagePrompt ? `${indent}<visual hint="appearance / look — surface when mechanism is environment, action, or first-presence">${imagePrompt.trim()}</visual>` : '';
+
+  const renderEntity = (
+    tag: string,
+    attrs: string,
+    visual: string | undefined,
+    entity: WorldOwner,
+  ): string => {
+    const v = renderVisual(visual, '    ');
+    const c = renderContinuity(entity, '    ');
+    const inner = [v, c].filter(Boolean).join('\n');
+    return `  <${tag} ${attrs}>${inner ? `\n${inner}\n  ` : ''}</${tag}>`;
+  };
+
+  const povChar = narrative.characters[scene.povId];
+  const otherParticipants = scene.participantIds
+    .filter(id => id !== scene.povId)
+    .map(id => narrative.characters[id])
+    .filter((c): c is Character => !!c);
+  const location = narrative.locations[scene.locationId];
+
+  // Artifacts in play: usages this scene + ownership transfers + artifacts owned by the location
+  const artifactIds = new Set<string>();
+  for (const u of scene.artifactUsages ?? []) artifactIds.add(u.artifactId);
+  for (const o of scene.ownershipDeltas ?? []) artifactIds.add(o.artifactId);
+  for (const a of Object.values(narrative.artifacts)) {
+    if (a.parentId === scene.locationId) artifactIds.add(a.id);
+  }
+  const artifacts = [...artifactIds]
+    .map(id => narrative.artifacts[id])
+    .filter((a): a is Artifact => !!a);
+
+  const sections: string[] = [];
+
+  if (povChar) {
+    sections.push(renderEntity('pov', `id="${povChar.id}" name="${povChar.name}" role="${povChar.role}"`, povChar.imagePrompt, povChar));
+  }
+  for (const c of otherParticipants) {
+    sections.push(renderEntity('participant', `id="${c.id}" name="${c.name}" role="${c.role}"`, c.imagePrompt, c));
+  }
+  if (location) {
+    sections.push(renderEntity('location', `id="${location.id}" name="${location.name}" prominence="${location.prominence}"`, location.imagePrompt, location));
+  }
+  for (const a of artifacts) {
+    sections.push(renderEntity('artifact', `id="${a.id}" name="${a.name}" significance="${a.significance}"`, a.imagePrompt, a));
+  }
+
+  if (sections.length === 0) return '';
+
+  return `
+GROUNDING POOL — optional glue facts for THIS scene's cast. Each entity carries:
+  • <visual> — appearance / look. Pull when the mechanism is environment, action, or first-presence so the prose stays embodied (a tall figure / a scarred hand / a moss-eaten doorframe — never generic).
+  • <continuity> — last ${NODE_CAP_PER_ENTITY} accumulated knowledge nodes, grouped by type (trait, belief, goal, secret, state, capability, history, relation, weakness). These are what the participant already KNOWS / WANTS / HIDES / IS coming into the scene.
+
+USAGE — these are OPTIONAL glue, NOT compulsory. The compulsory-propositions block below is non-negotiable; grounding is what you reach for to enrich beats:
+  • Mechanism = thought / dialogue → reach for beliefs, goals, secrets, history.
+  • Mechanism = environment / action → reach for visual, location traits, current state.
+  • Mechanism = memory / callback → reach for history, relation.
+  • Pulling a grounding fact into a beat = adding one bridge proposition (clearly recognisable as a callback, not a fresh commitment).
+  • Do NOT dump every grounding fact. Pick the few that this beat would naturally surface; the rest stay implicit. Quality of selection > breadth.
+<scene-grounding>
+${sections.join('\n')}
+</scene-grounding>
+`;
 }
 
 /**
@@ -797,44 +859,40 @@ async function constructBeatPlan(
 
   const beatSlotsBlock = (() => {
     if (!sampledSlots || sampledSlots.length === 0) return '';
-    const lines = sampledSlots.map((b, i) => `  Slot ${i + 1}: ${b.fn}:${b.mechanism}`);
-    return `\nFIXED BEAT SLOTS — the sampler has pre-assigned each beat's \`fn\` and \`mechanism\`. These are the story's voice and are NOT negotiable:\n${lines.join('\n')}\n\nYour job per beat is to fill in \`what\` and \`propositions\` only. DO NOT change \`fn\` or \`mechanism\` — copy them verbatim from the slot into each beat's output. Use slots in order (slot 1 = beat 1, slot 2 = beat 2, ...). If your content fits in fewer beats than slots provided, stop early; trailing slots are discarded. If a mechanism seems to clash with the scene (e.g. \`dialogue\` in a solitary POV), render it creatively within that mechanism (interior monologue spoken aloud, muttered side-remark, conversation with an absent party) rather than substituting — the mix is the voice, and every substitution drifts the voice. Structural exceptions are a last resort, not a default.\n`;
+    const slotXml = sampledSlots
+      .map((b, i) => `  <slot index="${i + 1}" fn="${b.fn}" mechanism="${b.mechanism}" />`)
+      .join('\n');
+    return `<beat-slots hint="The sampler has pre-assigned each beat's fn and mechanism. These are the story's voice and are NOT negotiable. Fill in only \`what\` and \`propositions\` per slot; copy fn/mechanism verbatim. Use slots in order (slot 1 = beat 1, ...). Stop early if content fits fewer beats; trailing slots are discarded. If a mechanism seems to clash with the scene (e.g. dialogue in a solitary POV), render it creatively within that mechanism (interior monologue spoken aloud, muttered side-remark, conversation with an absent party) rather than substituting — the mix is the voice, and every substitution drifts it. Structural exceptions are a last resort.">
+${slotXml}
+</beat-slots>`;
   })();
 
-  const compulsoryBlock = compulsoryPropositions.length > 0
-    ? `\nCOMPULSORY PROPOSITIONS — the prose MUST transmit every one of these facts. They are what the scene commits to.
+  const compulsoryBlock = buildCompulsoryPropositionsBlock({ propositions: compulsoryPropositions });
 
-The list below is in EXTRACTION ORDER (grouped by structural source). Extraction order is NOT delivery order. Your job:
+  const planGuidanceBlock = (() => {
+    const parts = [narrative.storySettings?.planGuidance?.trim(), guidance?.trim()].filter(Boolean);
+    return parts.length > 0 ? `\n\n<plan-guidance>\n${parts.map(p => `  <directive>${p}</directive>`).join('\n')}\n</plan-guidance>` : '';
+  })();
+  const systemPrompt = buildScenePlanSystemPrompt() + planGuidanceBlock;
 
-  1. COVERAGE — every proposition lands in some beat. None dropped.
-  2. REORDER — sequence them for maximum narrative effect. Late reveals, early hooks, payoff after setup, interleaved lines of action. The order on the page is a craft decision; the extraction order is just a checklist.
-  3. GLUE — where the narrative context shows a gap (a relationship the reader hasn't seen recently, a rule about to be invoked, a memory that frames a moment), add a small number of glue propositions from the narrative context to bridge. Glue enriches; it does not replace.
-  4. GROUP — multiple propositions can share a beat when they deliver together (a single dialogue exchange can carry three thread moves). Don't force 1:1.
+  const groundingBlock = buildParticipantGroundingBlock(narrative, scene);
+  const completedBeatsBlock = buildCompletedBeatsPrompt(narrative, resolvedKeys, contextIndex);
+  const proseProfileBlock = buildProseProfile(resolveProfile(narrative));
 
-DELIVERY — prose style follows the PROSE PROFILE above, not a rigid order. The profile decides whether propositions are demonstrated, stated, or imaged; the plan just says WHERE in the scene each lands and WHICH mechanism carries it.
+  const inputBlocks: string[] = [];
+  inputBlocks.push(`  <prose-profile hint="The story's authorial voice — mechanism mix, register, devices. Beats inherit voice from this profile, not from prompt instructions.">
+${proseProfileBlock}
+  </prose-profile>`);
+  if (beatSlotsBlock) inputBlocks.push(`  ${beatSlotsBlock.replace(/\n/g, '\n  ')}`);
+  const planPhaseGraphSection = buildActivePhaseGraphSection(narrative);
+  if (planPhaseGraphSection) inputBlocks.push(`  ${planPhaseGraphSection.replace(/\n/g, '\n  ')}`);
+  if (completedBeatsBlock) inputBlocks.push(`  <completed-beats>\n${completedBeatsBlock}\n  </completed-beats>`);
+  if (adjacentBlock) inputBlocks.push(`  <previous-scene-tail>${adjacentBlock}</previous-scene-tail>`);
+  inputBlocks.push(`  <scene-summary>${scene.summary}</scene-summary>`);
+  if (groundingBlock) inputBlocks.push(`  ${groundingBlock.replace(/\n/g, '\n  ')}`);
+  if (compulsoryBlock) inputBlocks.push(`  ${compulsoryBlock.replace(/\n/g, '\n  ')}`);
 
-Compulsory propositions (extraction order, group by blank line for readability):
-
-${compulsoryPropositions
-      .map((p, i) => `${i + 1}. ${p.content}${p.type ? ` [${p.type}]` : ''}`)
-      .join('\n')}\n`
-    : '';
-
-  const profileBlock = `\n${buildProseProfile(resolveProfile(narrative))}${beatSlotsBlock}\n`;
-  const systemPrompt = buildScenePlanSystemPrompt()
-    + (() => {
-      const parts = [narrative.storySettings?.planGuidance?.trim(), guidance?.trim()].filter(Boolean);
-      return parts.length > 0 ? `\n\nPLAN GUIDANCE:\n${parts.join('\n')}` : '';
-    })();
-
-  const prompt = `${profileBlock}NARRATIVE CONTEXT:\n${narrativeContext(narrative, resolvedKeys, contextIndex)}
-${buildThreadHealthPrompt(narrative, resolvedKeys, contextIndex) ? `\n${buildThreadHealthPrompt(narrative, resolvedKeys, contextIndex)}\n` : ''}${buildCompletedBeatsPrompt(narrative, resolvedKeys, contextIndex) ? `\n${buildCompletedBeatsPrompt(narrative, resolvedKeys, contextIndex)}\n` : ''}${adjacentBlock ? `${adjacentBlock}\n\n` : ''}
-SCENE:
-${sceneContext(narrative, scene)}
-${compulsoryBlock}
-Generate a beat plan that GLUES the compulsory propositions into the narrative flow: reordered for effect, enriched with bridge propositions drawn from the narrative context where continuity calls for them, grouped into beats, and paced with varied mechanisms. Coverage is non-negotiable; the ORDERING and GROUPING are your craft decisions. Prose delivery will follow the prose profile — your job is the skeleton, not the voice.
-
-OPENING SHAPE — check the <time-gap> on the scene. Good storytelling weaves the passage of time into narrative texture so the reader always feels it without ever reading it as a timestamp. The gap size shifts how visible the weaving is, not whether it happens. MINOR gaps (concurrent, hours, same-day, multi-day): texture only — light, mood, weather, wear, what's changed. NEVER a "X days later" beat. NOTABLE gaps (multi-week): weave a clearer signal — a season turning, a project moved on, a wound healing. Still texture, not statement. MAJOR gaps (multi-month): weight it with a re-anchor beat (status update, changed season, plan bearing fruit); naming the elapsed time directly is permitted when it carries force. GENERATIONAL gaps (year+): must be acknowledged with weight — a montage beat, an aged-up reveal, an environmental change. Underplaying a generational jump reads as continuity error.`;
+  const prompt = buildScenePlanUserPrompt({ inputBlocks: inputBlocks.join('\n') });
 
   const raw = onReasoning
     ? await callGenerateStream(prompt, systemPrompt, () => {}, MAX_TOKENS_SMALL, 'generateScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
@@ -1004,45 +1062,19 @@ export async function editScenePlan(
     beats: plan.beats.map((b, i) => ({ idx: i + 1, fn: b.fn, mechanism: b.mechanism, what: b.what, propositions: b.propositions })),
   }, null, 2);
 
-  const issueBlock = issues.map((iss, i) => `${i + 1}. ${iss}`).join('\n');
+  const issueXml = issues.map((iss, i) => `    <issue index="${i + 1}">${iss}</issue>`).join('\n');
 
-  const sceneDesc = `Scene: ${scene.summary}`;
-
-  const prompt = `NARRATIVE CONTEXT:\n${fullContext}
-
-SCENE AT BRANCH HEAD:
-${sceneDesc}
-
-CURRENT BEAT PLAN:
-${currentPlanJson}
-
-ISSUES TO FIX:
-${issueBlock}
-
-Edit the beat plan to address every issue above. You may:
-- Modify a beat's fn, mechanism, what, or propositions
-- Add new beats (to fill gaps or add missing setups)
-- Remove beats (if redundant or contradictory)
-- Reorder beats (if sequencing is wrong)
-
-CRITICAL: The 'what' field must be a STRUCTURAL SUMMARY of what happens, NOT pre-written prose.
-- DO: "Guard confronts him about the forged papers" — structural event
-- DON'T: "He muttered, 'The academy won't hold me long'" — pre-written prose with quotes
-- DO: "Mist covers the village" — simple fact
-- DON'T: "Mist clung, blurring the distinction..." — literary prose
-Strip adjectives, adverbs, literary embellishments. State the event, not its texture.
-
-Keep beats that have NO issues exactly as they are — do not rewrite beats that are working.
-Return the COMPLETE plan (all beats, not just changed ones) as JSON:
-{
-  "beats": [
-    { "fn": "${BEAT_FN_LIST.join('|')}", "mechanism": "${BEAT_MECHANISM_LIST.join('|')}", "what": "...", "propositions": [{"content": "..."}] }
-  ],
-  "propositions": [{"content": "..."}]
-}`;
+  const prompt = buildScenePlanEditUserPrompt({
+    fullContext,
+    sceneSummary: scene.summary,
+    currentPlanJson,
+    issueXml,
+    beatFnList: BEAT_FN_LIST.join('|'),
+    beatMechanismList: BEAT_MECHANISM_LIST.join('|'),
+  });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'editScenePlan', GENERATE_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, buildScenePlanEditSystemPrompt(narrative.title), MAX_TOKENS_SMALL, 'editScenePlan', GENERATE_MODEL, reasoningBudget);
 
   const parsed = parseJson(raw, 'editScenePlan') as { beats?: unknown[]; propositions?: unknown[] };
   const beats = (parsed.beats ?? []).map((b: unknown) => {
@@ -1174,19 +1206,11 @@ async function reverseEngineerScenePlanOnce(
 
   const systemPrompt = buildBeatAnalystSystemPrompt(chunks.length);
 
-  const prompt = `SCENE SUMMARY: ${summary}
-
-CHUNKS (${chunks.length} items, ~100 words each — annotate each one):
-${chunksJson}
-
-TASK:
-Annotate each chunk with its beat function, mechanism, and propositions. One beat per chunk, in order.
-
-Extract propositions according to density guidelines — light fiction gets 1-2 props/beat, technical prose gets exhaustive extraction.
-
-CONSTRAINTS:
-- Return exactly ${chunks.length} beats — one per chunk.
-- Use ONLY these 10 beat functions: breathe, inform, advance, bond, turn, reveal, shift, expand, foreshadow, resolve`;
+  const prompt = buildBeatAnalystUserPrompt({
+    summary,
+    chunkCount: chunks.length,
+    chunksJson,
+  });
 
   let accumulated = '';
   const raw = onToken
@@ -1543,142 +1567,57 @@ export async function generateSceneProse(
 
   // Scene plan — when available, this is the primary creative direction
   const planBlock = activePlan
-    ? `\nBEAT PLAN (follow this beat sequence — each beat maps to a passage of prose):
+    ? `<beat-plan hint="Follow this sequence — each beat maps to a passage of prose. The mechanism defines delivery MODE; the propositions are STORY WORLD FACTS to transmit through craft, never copied verbatim or stated flatly.">
 ${activePlan.beats.map((b, i) =>
-  `  ${i + 1}. [${b.fn}:${b.mechanism}] ${b.what}
-     Propositions: ${b.propositions.map(p => `"${p.content}"`).join('; ')}`
+  `  <beat index="${i + 1}" fn="${b.fn}" mechanism="${b.mechanism}">
+    <what>${b.what}</what>
+    <propositions>
+${b.propositions.map(p => `      <proposition>${p.content}</proposition>`).join('\n')}
+    </propositions>
+  </beat>`,
 ).join('\n')}
+</beat-plan>
 
-PROPOSITIONS ARE STORY WORLD FACTS TO TRANSMIT — atomic claims the reader must come to believe are true. Your job is to transmit these beliefs through prose craft. NEVER copy propositions verbatim. NEVER state them as flat declarations. Transmit them through demonstration, implication, sensory detail, action, and atmosphere.
-
-HOW TO TRANSMIT PROPOSITIONS:
-Given proposition: "Mist covers the village at dawn"
-  • Direct sensory: "He couldn't see past ten paces. Dampness clung to his skin."
-  • Through action: "Houses materialized from whiteness as he walked."
-  • Environmental: "The mountain disappeared into grey nothing above the rooftops."
-All three methods transmit the same world fact. Choose your method based on the beat's mechanism and the prose profile's voice.
-
-Given proposition: "Fang Yuan views other people as tools"
-  • Through thought: His gaze swept over the crowd. Resources. Obstacles. Nothing between.
-  • Through action: He stepped around the old woman without breaking stride.
-  • Through dialogue: "They'll serve. Or they won't." He didn't look back.
-The proposition is a belief-state to establish. HOW you establish it is craft.
-
-CRITICAL: If a proposition contains figurative language and the prose profile forbids figures of speech, REWRITE the proposition as literal fact, then transmit that. "Smoke dances like spirits" becomes "Smoke rises in twisted columns" if metaphor is forbidden.
-\n`
+<proposition-craft hint="Propositions are facts the reader must come to believe. Transmit through demonstration, implication, sensory detail, action, atmosphere — never verbatim, never flat declarations.">
+  <example proposition="Mist covers the village at dawn">
+    <method type="direct-sensory">He couldn't see past ten paces. Dampness clung to his skin.</method>
+    <method type="through-action">Houses materialized from whiteness as he walked.</method>
+    <method type="environmental">The mountain disappeared into grey nothing above the rooftops.</method>
+  </example>
+  <example proposition="Fang Yuan views other people as tools">
+    <method type="thought">His gaze swept over the crowd. Resources. Obstacles. Nothing between.</method>
+    <method type="action">He stepped around the old woman without breaking stride.</method>
+    <method type="dialogue">"They'll serve. Or they won't." He didn't look back.</method>
+  </example>
+  <rule name="profile-aware-figures">If a proposition contains figurative language and the prose profile forbids figures of speech, REWRITE the proposition as literal fact then transmit that. "Smoke dances like spirits" becomes "Smoke rises in twisted columns" if metaphor is forbidden.</rule>
+</proposition-craft>`
     : '';
 
   // Previous prose edge for transition continuity
   const adjacentProseBlock = prevProseEnding
-    ? `PREVIOUS SCENE ENDING (match tone, avoid repeating imagery or phrasing):\n"""${prevProseEnding}"""`
+    ? `<previous-scene-ending hint="Match tone; avoid repeating imagery or phrasing.">\n"""${prevProseEnding}"""\n</previous-scene-ending>`
     : '';
 
   const instruction = activePlan
-    ? `Follow the beat plan sequence — each beat maps to a passage of prose. The mechanism defines the delivery MODE (dialogue, thought, action, etc). The propositions define STORY WORLD FACTS TO TRANSMIT (what the reader must come to believe is true). Your job is to weave both into compelling, voiced prose.
+    ? buildProseInstructionsWithPlan({ wordsPerBeat: WORDS_PER_BEAT })
+    : buildProseInstructionsFreeform({ wordsPerBeat: WORDS_PER_BEAT });
 
-BEAT BOUNDARY MARKERS:
-After completing the prose for each beat, insert a marker line on its own:
-[BEAT_END:0]
-[BEAT_END:1]
-[BEAT_END:2]
-...and so on for each beat in the plan (0-indexed).
+  const inputBlocks: string[] = [];
+  if (profileSection.trim()) inputBlocks.push(`  <prose-profile hint="The story's authorial voice. Always law — rules in <instructions> apply only when this is silent on a given dimension.">${profileSection}\n  </prose-profile>`);
+  const proseProsePhaseGraphSection = buildActivePhaseGraphSection(narrative);
+  if (proseProsePhaseGraphSection) inputBlocks.push(`  ${proseProsePhaseGraphSection.replace(/\n/g, '\n  ')}`);
+  if (adjacentProseBlock) inputBlocks.push(`  ${adjacentProseBlock.replace(/\n/g, '\n  ')}`);
+  if (planBlock) inputBlocks.push(`  ${planBlock.replace(/\n/g, '\n  ')}`);
+  inputBlocks.push(`  <scene>${sceneBlock}\n  </scene>`);
 
-These markers help track which prose came from which beat and will be removed from the final prose. Place them BETWEEN beats, not within paragraphs. Do NOT include a marker after the final beat.
-
-Example structure for a 3-beat scene:
-[Prose for beat 0...]
-
-[BEAT_END:0]
-
-[Prose for beat 1...]
-
-[BEAT_END:1]
-
-[Prose for beat 2...]
-
-MECHANISMS define delivery mode:
-- dialogue → a substantive EXCHANGE of quoted speech between characters. A dialogue beat is NOT a single line with a tag. Unfold it: at least 3–5 turns, distinct voices, subtext (what is NOT said), interruptions or silences that carry weight, non-verbal business (glances, gestures, pauses) interleaved between lines. Dialogue carries the bulk of the beat's word budget. A "dialogue" beat that resolves in one or two quoted sentences has failed the mechanism — either expand it into a real conversation or switch the mechanism. In dramatic registers, dialogue is where character and conflict live; treat it accordingly.
-
-  WORKED EXAMPLE — beat: "Shen Lin confronts Meng Song about the missing ledger"
-
-  FAILURE (one-line exchange, mechanism collapsed):
-    Shen Lin demanded to know where the ledger was. "Don't play dumb," he said. Meng Song shrugged. "I have no idea what you're talking about."
-
-  SUCCESS (multi-turn exchange, subtext, non-verbal business, distinct voices):
-    "The ledger." Shen Lin didn't sit. He set his palms flat on the table, as though the wood might lie if he didn't hold it down. "The one from the eastern storehouse."
-    Meng Song looked up from his tea. "You'll have to be more specific. I've signed off on four ledgers this week."
-    "You know which one."
-    "I know which one you've been losing sleep over." Meng Song tilted the cup, watched a leaf fold in on itself. "That's a different question."
-    Silence. Outside, a guard's footfall receded down the corridor, then returned, paused, moved on.
-    "If the inspector finds discrepancies —"
-    "He won't." Meng Song set the cup down. His fingers were steady. "Because the ledger he sees will be the correct one." A small, almost fond smile. "I thought you trusted me, Shen Lin."
-    Shen Lin's palms left marks on the wood. He didn't answer. He didn't need to.
-
-  Notice the elements: each character has a distinct cadence (Shen Lin clipped, Meng Song elliptical); the subtext (accusation, evasion, power inversion) is carried by what is implied rather than stated; the non-verbal business (palms on table, the tea leaf, the footsteps outside, the withheld answer) does as much work as the quoted lines; the silence at the midpoint is a turn. THIS is a dialogue beat. Aim for this level of density and texture whenever dialogue is the declared mechanism — adapted, of course, to the prose profile's register and voice.
-- thought → internal monologue, POV character's private reasoning
-- action → physical movement, gesture, interaction with objects
-- environment → setting, weather, sensory details of the space
-- narration → authorial voice, rhetoric, time compression
-- memory → flashback triggered by association
-- document → embedded text (letter, sign, excerpt) shown literally
-- comic → humor, irony, absurdity, undercut expectations
-
-PROPOSITIONS are facts the scene must establish. The mode of transmission is dictated by the declared register:
-- In dramatic-realist registers, prefer demonstration over verbatim assertion. Proposition: "Mist covers the village" → transmit via sensory detail (dampness on skin, visibility reduced), action (houses emerge from whiteness), or environment description — not as a flat declaration.
-- In lyric, mythic, fabulist, aphoristic, omniscient, or essayistic registers, direct statement is legitimate and sometimes primary. "Mist covered the village, and the village stopped speaking of its dead." is a valid transmission in those registers.
-- In declarative / expository registers (essay, research, memoir at distance), propositions can be stated, attributed, and grounded — "The research shows X" is the point, not a failure.
-- The reader comes to hold the fact as true. How that holding is earned is register-dependent.
-
-RHYTHM & VOICE — the prose profile is law; the defaults below apply only when the profile is silent:
-- Where the profile specifies a rhythm (terse, flowing, periodic, cumulative, incantatory, monotonic-by-design, fragmented, staccato), obey the profile. Hemingway and Saramago have opposite rhythms and both are correct.
-- Default (profile silent): vary sentence length — short for impact, long for flow, fragments for urgency; avoid inertial subject-verb-object patterns; front-load clauses, use appositives, embed dependent clauses.
-- Match the register declared in the prose profile. In dramatic registers, avoid writing like technical documentation. In essayistic, scholarly, or reportorial registers, exposition IS the register — it is a failure only when it displaces a declared dramatic register.
-
-SHOW, DON'T TELL — default for dramatic registers, adjustable by profile:
-- In dramatic registers: prefer demonstration over explanation. Show fear through trembling hands, not "He felt fear". Demonstrate themes through events rather than declaring them. Reveal system knowledge through demonstration, dialogue discovery, or consequence rather than narrator exposition.
-- In essayistic, mythic, oracular, auto-theoretical, omniscient, memoiristic, or oral-epic registers: narrator commentary, named emotion, direct thematic statement, and expository paragraphs are legitimate primary tools. Borges tells. Tolstoy's essay-chapters tell. Sebald tells. Rushdie's openings address the reader. When the profile declares such a register, "showing" is still earned through particulars (specific image, specific claim, specific citation), but the prohibition against direct statement is lifted.
-- Universal across registers: vagueness is the real failure. "She felt something shift" is weak in every register; "She named the thing that shifted" is strong in reflective registers; "Her hands would not stop" is strong in dramatic registers. The test is specificity, not the verb.
-
-THREE CONTINUITY CONSTRAINTS — the prose honours all three. The *mode* of honouring them is dictated by the declared register, not by a single craft doctrine:
-1. WORLD: the POV perceives only what its senses and existing knowledge allow. New world deltas arrive through specific moments in the scene; they are not referenced before they have been established. (In dramatic registers this is "discovery through action"; in essayistic or omniscient registers it is "the narrator introduces it here for the first time, with evidence".)
-2. THREADS: each thread shift lands at a specific moment in the scene. In dramatic registers that moment is usually dramatised through action; in reflective, essayistic, or lyric registers it may be named, stated, or imaged — whatever the profile calls for.
-3. SYSTEM: new system concepts arrive with grounding — a demonstration, a citation, a consequence, a worked example, or a framing that earns them. What counts as "earning" is register-dependent.
-
-BEAT SIZING — EACH BEAT IS A ~${WORDS_PER_BEAT}-WORD CHUNK OF PROSE. The plan was built on this convention: every beat is allocated roughly ${WORDS_PER_BEAT} words so beat weight stays consistent across the work.
-- Write each beat at approximately ${WORDS_PER_BEAT} words of prose. A light beat may land at ~${Math.round(WORDS_PER_BEAT * 0.7)}; a dense dialogue or action beat with many propositions may stretch to ~${Math.round(WORDS_PER_BEAT * 1.3)}. Treat this as the rhythm budget, not a hard cap.
-- The plan has already balanced proposition load across beats assuming this size. If a beat carries 4 propositions, it needs ~${WORDS_PER_BEAT} words to land all four with texture; compressing into 40 words will drop or flatten them. Expanding into 200 words will bloat the rhythm and push the scene long.
-- Consistency matters. A ~${Math.round(WORDS_PER_BEAT * 0.5)}-word beat followed by a ~${WORDS_PER_BEAT * 2}-word beat reads as broken rhythm. Keep consecutive beats comparable in length unless the plan's mechanism/function explicitly calls for contrast.
-- Brevity is still a virtue — do not pad to hit the target. If a beat can honestly deliver its propositions in fewer words, write fewer words. Just do not cut propositions to fit.
-
-Satisfy every logical requirement and achieve every proposition in whatever mode the profile declares.
-
-PROSE PROFILE COMPLIANCE: every sentence conforms to the voice, register, devices, and rules declared above. If the profile forbids figurative language, use zero figures of speech. If it requires specific devices, use them. The profile is the authorial voice — match it.`
-    : `RHYTHM & VOICE — the prose profile is law; the defaults below apply only when the profile is silent:
-- Where the profile specifies a rhythm, obey the profile. Register and stance from PROSE PROFILE above take precedence over the defaults here.
-- Default (profile silent): vary sentence length, front-load clauses, use appositives, vary structure.
-- Match the register declared in the prose profile. In dramatic registers, avoid documentation-tone. In essayistic or scholarly registers, exposition IS the register.
-
-SHOW, DON'T TELL — default for dramatic registers, adjustable by profile:
-- In dramatic registers: prefer demonstration over explanation — show through body language, action, dialogue subtext; demonstrate themes through events.
-- In essayistic, mythic, oracular, omniscient, memoiristic, auto-theoretical, or oral-epic registers: narrator commentary, named emotion, direct thematic statement, and expository paragraphs are legitimate primary tools when the profile declares such a register.
-- Universal across registers: vagueness is the real failure. Specificity — a named image, a named claim, a named source — is strong in every register.
-
-THREE CONTINUITY CONSTRAINTS — the prose honours all three. The mode of honouring them is dictated by the declared register:
-1. WORLD: the POV perceives only what its senses and existing knowledge allow. New world deltas arrive through specific moments in the scene; they are not referenced before they have been established.
-2. THREADS: each thread shift lands at a specific moment in the scene. In dramatic registers the shift is usually dramatised; in reflective, essayistic, or lyric registers it may be named, stated, or imaged.
-3. SYSTEM: new system concepts arrive with grounding appropriate to the register — demonstration, citation, consequence, worked example, or named framing.
-
-Render every thread shift, world change, relationship delta, and system reveal in the mode the profile declares. Foreshadow through imagery, subtext, or explicit framing as the profile prefers.
-
-BEAT SIZING — EVEN WITHOUT A PLAN, THINK IN ~${WORDS_PER_BEAT}-WORD BEATS. The scene should read as a sequence of beats of roughly consistent weight — one beat ≈ one paragraph or tight scene moment, ≈${WORDS_PER_BEAT} words. This keeps rhythm even and propositions evenly distributed. No fixed floor, no padding — but if you find a single beat running past ~${WORDS_PER_BEAT * 2} words, it is probably two beats.
-
-OPENING TRANSITION — read the <time-gap> on the scene. Good storytelling weaves the passage of time into narrative texture so the reader always feels it without ever reading it as a timestamp or log entry. The gap size shifts how visible the weaving is, not whether it happens. MINOR jumps (concurrent, hours, same-day, multi-day): texture only — a candle now lit, light fallen low, a chair pushed back, a character visibly tired. NEVER write "X hours later" or "the next morning,". NOTABLE jumps (multi-week): weave a clearer signal through weather, a finished task, a small status change. Still texture, not statement. MAJOR jumps (multi-month): weight the opening with a re-anchor — status update, changed season, healed wound, matured plan; naming the elapsed time directly is permitted here when it carries narrative force. GENERATIONAL jumps (year+): must be marked with weight — montage, aged-up description, environmental change. Underplaying a generational jump reads as continuity error.
-
-PROSE PROFILE COMPLIANCE: every sentence conforms to the declared voice, register, devices, and rules. If the profile forbids figures of speech, use zero. If it requires specific devices, use them.`;
-
-  const prompt = `${profileSection ? `${profileSection}\n\n` : ''}${adjacentProseBlock ? `${adjacentProseBlock}\n\n` : ''}${planBlock}${sceneBlock}
-
-${instruction}`;
+  const prompt = buildSceneProseUserPrompt({
+    inputBlocks: inputBlocks.join('\n'),
+    instruction,
+    formatRules: formatInstructions.formatRules,
+    toneCue: narrative.worldSummary,
+    proseVoiceOverride: hasVoiceOverride ? narrative.storySettings!.proseVoice! : undefined,
+    direction: guidance,
+  });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
 

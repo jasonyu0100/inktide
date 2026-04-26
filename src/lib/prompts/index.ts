@@ -6,6 +6,7 @@
  */
 
 // ── Core Prompts ────────────────────────────────────────────────────────────
+export { SYSTEM_PROMPT } from './core/system';
 export { PROMPT_FORCE_STANDARDS, buildForceStandardsPrompt } from './core/forces';
 export { PROMPT_STRUCTURAL_RULES } from './core/structural-rules';
 export { PROMPT_DELTAS } from './core/deltas';
@@ -29,9 +30,24 @@ export {
 export { buildScenePlanSystemPrompt } from './scenes/plan';
 export { buildBeatAnalystSystemPrompt } from './scenes/analyze';
 export { buildScenePlanEditSystemPrompt } from './scenes/edit';
-export { PROMPT_PROPOSITION_TRANSMISSION } from './scenes/proposition-transmission';
 export { buildSceneProseSystemPrompt } from './scenes/prose';
 export type { SceneProseSystemPromptArgs } from './scenes/prose';
+export {
+  EXTRACT_PROPOSITIONS_SYSTEM,
+  buildExtractPropositionsUserPrompt,
+} from './scenes/extract-propositions';
+export { buildGenerateScenesPrompt } from './scenes/generate';
+export type { GenerateScenesPromptArgs } from './scenes/generate';
+export {
+  buildScenePlanUserPrompt,
+  buildScenePlanEditUserPrompt,
+  buildBeatAnalystUserPrompt,
+  buildCompulsoryPropositionsBlock,
+} from './scenes/plan-user';
+export {
+  buildProseInstructionsWithPlan,
+  buildProseInstructionsFreeform,
+} from './scenes/prose-instructions';
 
 // (Legacy schemas/ directory removed — the lifecycle-based fragments were
 // unused dead code that confused LLM output shape. Prompts now embed their
@@ -39,22 +55,27 @@ export type { SceneProseSystemPromptArgs } from './scenes/prose';
 
 // ── Ingest Prompts ──────────────────────────────────────────────────────────
 export {
-  buildIngestRulesPrompt,
-  buildIngestSystemsPrompt,
   buildIngestProseProfilePrompt,
   buildDeriveProseProfilePrompt,
+  INGEST_PROSE_PROFILE_SYSTEM,
+  DERIVE_PROSE_PROFILE_SYSTEM,
 } from './ingest';
 
 // ── Premise Prompts ─────────────────────────────────────────────────────────
 export {
-  PREMISE_SYSTEM,
   PREMISE_SUGGEST_PROMPT,
-  PHASE_GUIDANCE,
-  SCHEMA_PREMISE_QUESTION,
+  PREMISE_SUGGEST_SYSTEM,
 } from './premise';
 
 // ── Prose Prompts ───────────────────────────────────────────────────────────
 export { FORMAT_INSTRUCTIONS } from './prose/format-instructions';
+export {
+  buildRewriteSystemPrompt,
+  buildRewriteUserPrompt,
+  buildRewriteChangelogPrompt,
+  REWRITE_CHANGELOG_SYSTEM,
+} from './prose/rewrite';
+export type { RewriteSystemPromptArgs } from './prose/rewrite';
 
 // ── Review Prompts ──────────────────────────────────────────────────────────
 export {
@@ -62,6 +83,35 @@ export {
   buildProseReviewPrompt,
   buildPlanReviewPrompt,
 } from './review';
+
+// ── Reconstruct Prompts ─────────────────────────────────────────────────────
+export {
+  buildEditScenePrompt,
+  buildMergeScenesPrompt,
+  buildInsertScenePrompt,
+} from './reconstruct';
+export type { EditSceneEvaluation } from './reconstruct';
+
+// ── World Prompts ───────────────────────────────────────────────────────────
+export {
+  buildSuggestArcDirectionPrompt,
+  buildSuggestAutoDirectionPrompt,
+  buildSuggestWorldExpansionPrompt,
+  buildExpandWorldPrompt,
+  buildGenerateNarrativePrompt,
+  buildDetectPatternsPrompt,
+  EXPANSION_SIZE_CONFIG,
+  EXPANSION_STRATEGY_PROMPTS,
+} from './world';
+export type {
+  ExpansionSizeConfig,
+  SuggestWorldExpansionArgs,
+  WorldExpansionSize,
+  WorldExpansionStrategy,
+  ExpandWorldArgs,
+  GenerateNarrativeArgs,
+  DetectPatternsArgs,
+} from './world';
 
 // ── Report Prompts ──────────────────────────────────────────────────────────
 export { REPORT_SYSTEM, REPORT_ANALYSIS_PROMPT, REPORT_SECTIONS } from './report';
@@ -81,6 +131,8 @@ export {
   buildCoalesceOutcomesPrompt,
   THREADING_SYSTEM,
   buildThreadingPrompt,
+  META_EXTRACTION_SYSTEM,
+  buildMetaExtractionPrompt,
 } from './analysis';
 
 // ── Reasoning-Graph Prompts ─────────────────────────────────────────────────
@@ -91,4 +143,48 @@ export {
   getPlanNodeGuidance,
   buildSequentialPath,
   extractPatternWarningDirectives,
+  buildArcReasoningGraphPrompt,
+  buildCoordinationPlanPrompt,
 } from './reasoning';
+export type {
+  ArcReasoningGraphArgs,
+  CoordinationPlanContextForPrompt,
+  CoordinationPlanArgs,
+  CoordPlanNodeGuidance,
+} from './reasoning';
+
+// ── Interview Prompts ───────────────────────────────────────────────────────
+export {
+  INTERVIEW_GEN_SYSTEM,
+  INTERVIEW_FRAME_FALLBACK,
+  buildInterviewUserPrompt,
+} from './interviews';
+
+// ── Search Synthesis Prompts ────────────────────────────────────────────────
+export {
+  SEARCH_SYNTHESIS_SYSTEM,
+  buildSearchSynthesisPrompt,
+} from './search';
+
+// ── Health Report Prompts ───────────────────────────────────────────────────
+export {
+  HEALTH_REPORT_SYSTEM,
+  buildHealthReportPrompt,
+} from './health';
+
+// ── Image Prompt Builder ────────────────────────────────────────────────────
+export {
+  COMPOSITION_BY_KIND,
+  buildImagePromptUserPrompt,
+} from './image';
+export type { ImagePromptEntityKind, ImagePromptArgs } from './image';
+
+// ── Survey Prompts ──────────────────────────────────────────────────────────
+export {
+  buildCharacterPersona,
+  buildLocationPersona,
+  buildArtifactPersona,
+  buildSurveyUserPrompt,
+  buildSurveyProposalUserPrompt,
+  SURVEY_GEN_SYSTEM,
+} from './surveys';

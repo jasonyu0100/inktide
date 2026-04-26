@@ -8,9 +8,9 @@ export function CastSlide({ data }: { data: SlidesData }) {
 
   return (
     <div className="flex flex-col justify-center h-full px-12 py-8">
-      <h2 className="text-2xl font-bold text-text-primary mb-2">Cast, Locations & Artefacts</h2>
+      <h2 className="text-2xl font-bold text-text-primary mb-2">Usage</h2>
       <p className="text-sm text-text-secondary mb-8">
-        Top characters by scene participation, most-visited locations, and artefact usage.
+        Top characters by scene participation, most-visited locations, and artifact usage.
       </p>
 
       <div className="grid grid-cols-2 gap-10">

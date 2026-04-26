@@ -1,11 +1,11 @@
 /**
- * World Prompt (narrative consistency rules)
+ * World Prompt (narrative consistency rules) — XML block injected into user
+ * prompts.
  */
 
-export const PROMPT_WORLD = `
-WORLD CONSISTENCY:
-- Character movement should be legible to the reader. Record it in characterMovements; prefer revisiting established locations. Non-literal translocation (dream-logic, ceremonial, stage-play-derived, or fabulist forms) is valid when the declared form supports it; literal teleportation in a realist register is a continuity break.
-- Injuries, exhaustion, and consequences persist scene to scene.
-- Characters cannot act on information they haven't learned.
-- Signal time gaps: "Three days later", "By morning".
-`;
+export const PROMPT_WORLD = `<world-consistency>
+  <rule name="character-movement">Character movement should be legible to the reader. Record it in characterMovements; prefer revisiting established locations. Non-literal translocation (dream-logic, ceremonial, stage-play-derived, or fabulist forms) is valid when the declared form supports it; literal teleportation in a realist register is a continuity break.</rule>
+  <rule name="persistent-state">Injuries, exhaustion, and consequences persist scene to scene.</rule>
+  <rule name="information-discipline">Characters cannot act on information they haven't learned.</rule>
+  <rule name="time-gaps">Signal time gaps clearly — "Three days later", "By morning".</rule>
+</world-consistency>`;

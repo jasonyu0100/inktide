@@ -20,16 +20,17 @@ export const SCENE_STRUCTURE_SYSTEM = `You are a narrative structure extractor. 
  * EXTRACTION STANDARDS field guide.
  */
 export function buildSceneStructurePrompt(prose: string, plan: BeatPlan | null): string {
-  const beatSection = plan
-    ? `\n\nBEAT PLAN (${plan.beats.length} beats — use as a guide for where events happen):\n${plan.beats.map((b, i) => `Beat ${i + 1} [${b.fn}/${b.mechanism}]: ${b.what}`).join('\n')}`
-    : '';
+  const prompt = `<inputs>
+  <scene-prose>
+${prose}
+  </scene-prose>${plan ? `\n  <beat-plan beats="${plan.beats.length}" hint="Use as a guide for where events happen.">\n${plan.beats.map((b, i) => `    <beat index="${i + 1}" fn="${b.fn}" mechanism="${b.mechanism}">${b.what}</beat>`).join('\n')}\n  </beat-plan>` : ''}
+</inputs>
 
-  const prompt = `Extract narrative structure from this scene's prose.
+<instructions>
+  <task>Extract narrative structure from the scene's prose.</task>
 
-SCENE PROSE:
-${prose}${beatSection}
+  <three-planes hint="Extract each independently.">
 
-THREE ORTHOGONAL PLANES — extract each independently:
 - WORLD (MATERIAL plane): tangible, embodied. People, places, objects — characters, locations, artifacts; in non-fiction: institutions, datasets, figures, charts, embedded documents. Every new stable fact about an entity. This is a DENSITY lever — reach for the detail the prose genuinely earns.
   W = ΔN_c + √ΔE_c. Ref: ~${FORCE_REFERENCE_MEANS.world}/scene.
 - SYSTEM (ABSTRACT plane): rules, mechanisms, principles — how the world works, not the things themselves. Magic systems, physics, social order; or theorems, methods, constraints. Rule and knowledge density — NOT incidental setting. Also a DENSITY lever — under-extraction is the dominant failure.

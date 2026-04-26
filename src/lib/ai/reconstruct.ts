@@ -2,12 +2,20 @@ import type { NarrativeState, StructureReview, SceneEval, SceneVerdict, Scene, A
 import { resolveEntry, isScene, isWorldBuild, REASONING_BUDGETS } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
 import { normalizeTimeDelta } from '@/lib/time-deltas';
-import { callGenerate, SYSTEM_PROMPT } from './api';
+import { callGenerate } from './api';
 import { parseJson } from './json';
 import { sanitizeScenes } from './scenes';
 import { GENERATE_MODEL, PROSE_CONCURRENCY, MAX_TOKENS_SMALL } from '@/lib/constants';
 import { narrativeContext } from './context';
 import { logError, logWarning, logInfo } from '@/lib/system-logger';
+import {
+  buildEditScenePrompt,
+  buildMergeScenesPrompt,
+  buildInsertScenePrompt,
+  RECONSTRUCT_EDIT_SYSTEM,
+  RECONSTRUCT_MERGE_SYSTEM,
+  RECONSTRUCT_INSERT_SYSTEM,
+} from '@/lib/prompts/reconstruct';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -566,57 +574,27 @@ async function editScene(
     nextScene ? `NEXT SCENE (${nextScene.id}): ${nextScene.summary}` : '',
   ].filter(Boolean).join('\n');
 
-  const prompt = `${ctx}
-
-You are editing a scene as part of a branch reconstruction. Address the evaluation reason by revising the scene.
-
-EVALUATION REASON: ${reason}
-${evaluation.thematicQuestion ? `THEMATIC QUESTION: "${evaluation.thematicQuestion}"` : ''}
-${evaluation.repetitions.length > 0 ? `PATTERNS TO AVOID: ${evaluation.repetitions.join('; ')}` : ''}
-
-${surroundingContext}
-
-CURRENT SCENE:
-${JSON.stringify({
-  locationId: scene.locationId,
-  povId: scene.povId,
-  participantIds: scene.participantIds,
-  artifactUsages: scene.artifactUsages ?? [],
-  events: scene.events,
-  threadDeltas: scene.threadDeltas,
-  worldDeltas: scene.worldDeltas,
-  relationshipDeltas: scene.relationshipDeltas,
-  systemDeltas: scene.systemDeltas,
-  summary: scene.summary,
-}, null, 2)}
-
-You may change ANYTHING — POV, location, participants, events, deltas, summary — to fix the issue. Return ONLY the fields you are changing (omit unchanged fields). If the fix requires structural changes (different POV, different location), make them.
-
-You MUST:
-- Keep the scene at this position in the timeline (between previous and next scene)
-- Use only existing character, location, and thread IDs from the context
-- Maintain continuity with surrounding scenes
-- Address the evaluation reason directly
-- Every threadDelta MUST include 1-2 addedNodes log entries describing what happened to THAT thread in THIS scene (pulse/transition/setup/escalation/payoff/twist/callback/resistance/stall). If you omit them the thread log goes blank.
-- Every worldDelta should list its nodes in causal/temporal order — adjacent nodes auto-chain (no explicit edges).
-
-Return JSON:
-{
-  "locationId": "L-XX",
-  "povId": "C-XX",
-  "participantIds": ["C-XX"],
-  "summary": "REQUIRED — WRITE THIS FIRST. This is the spine of the scene; every delta below must trace back to something stated here. Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings.",
-  "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
-  "events": ["event_tag"],
-  "threadDeltas": [{"threadId": "T-XX", "logType": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "updates": [{"outcome": "outcome name from thread.outcomes", "evidence": -4..+4 (decimals allowed, e.g. +1.5)}], "volumeDelta": 0..2, "addOutcomes": ["optional — new outcome names when this scene opens a possibility not previously in the market"], "rationale": "the summary sentence that moved this thread's market in this scene"}],
-  "worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
-  "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-  "systemDeltas": {"addedNodes": [], "addedEdges": []},
-  "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}]
-}`;
+  const prompt = buildEditScenePrompt({
+    context: ctx,
+    reason,
+    evaluation,
+    surroundingContext,
+    currentSceneJson: JSON.stringify({
+      locationId: scene.locationId,
+      povId: scene.povId,
+      participantIds: scene.participantIds,
+      artifactUsages: scene.artifactUsages ?? [],
+      events: scene.events,
+      threadDeltas: scene.threadDeltas,
+      worldDeltas: scene.worldDeltas,
+      relationshipDeltas: scene.relationshipDeltas,
+      systemDeltas: scene.systemDeltas,
+      summary: scene.summary,
+    }, null, 2),
+  });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'editScene', GENERATE_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, RECONSTRUCT_EDIT_SYSTEM, MAX_TOKENS_SMALL, 'editScene', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'editScene') as Partial<Scene>;
 
   const edited: Scene = {
@@ -681,56 +659,26 @@ async function mergeScenes(
     })
     .join('\n\n');
 
-  const prompt = `${ctx}
-
-You are merging multiple scenes into a single, denser scene. The evaluation found these scenes covered the same dramatic territory and should be combined. Your job is to produce ONE scene that preserves the best elements from all inputs.
-
-EVALUATION REASON: ${reason}
-${evaluation.thematicQuestion ? `THEMATIC QUESTION: "${evaluation.thematicQuestion}"` : ''}
-${evaluation.repetitions.length > 0 ? `PATTERNS TO AVOID: ${evaluation.repetitions.join('; ')}` : ''}
-
-${surroundingContext}
-
-TARGET SCENE (this scene survives — its position in the timeline is preserved):
-${JSON.stringify({
-  locationId: targetScene.locationId,
-  povId: targetScene.povId,
-  participantIds: targetScene.participantIds,
-  events: targetScene.events,
-  threadDeltas: targetScene.threadDeltas,
-  worldDeltas: targetScene.worldDeltas,
-  relationshipDeltas: targetScene.relationshipDeltas,
-  summary: targetScene.summary,
-}, null, 2)}
-
-SCENES BEING ABSORBED (these will be removed — extract their unique value):
-${sourceBlock}
-
-MERGE RULES:
-- The output is ONE scene, not multiple. It replaces the target scene.
-- You may change POV, location, and participants if the absorbed content demands it.
-- Combine thread deltas from all scenes — if the target advances T-01 and a source advances T-03, the merged scene should advance both. Each threadDelta MUST include 1-2 addedNodes log entries describing what happened to THAT thread in the merged scene.
-- Combine world and relationship deltas — deduplicate but preserve unique knowledge. List world nodes in causal/temporal order (adjacent nodes auto-chain).
-- The summary must use character NAMES and location NAMES (never raw IDs) and weave the best elements from all inputs into a cohesive narrative beat.
-- Do NOT simply concatenate summaries. Synthesize them into a single dramatic moment.
-- Use only existing character, location, and thread IDs from the context above.
-
-Return JSON:
-{
-  "locationId": "L-XX",
-  "povId": "C-XX",
-  "participantIds": ["C-XX"],
-  "summary": "REQUIRED — WRITE THIS FIRST. This is the spine of the merged scene; every delta below must trace back to something stated here. Rich prose sentences using character NAMES (never IDs) combining the strongest elements from all merged scenes.",
-  "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
-  "events": ["event_tag"],
-  "threadDeltas": [{"threadId": "T-XX", "logType": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "updates": [{"outcome": "outcome name from thread.outcomes", "evidence": -4..+4 (decimals allowed, e.g. +1.5)}], "volumeDelta": 0..2, "addOutcomes": ["optional — new outcome names when this scene opens a possibility not previously in the market"], "rationale": "the summary sentence that moved this thread's market in this scene"}],
-  "worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
-  "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-  "systemDeltas": {"addedNodes": [], "addedEdges": []}
-}`;
+  const prompt = buildMergeScenesPrompt({
+    context: ctx,
+    reason,
+    evaluation,
+    surroundingContext,
+    targetSceneJson: JSON.stringify({
+      locationId: targetScene.locationId,
+      povId: targetScene.povId,
+      participantIds: targetScene.participantIds,
+      events: targetScene.events,
+      threadDeltas: targetScene.threadDeltas,
+      worldDeltas: targetScene.worldDeltas,
+      relationshipDeltas: targetScene.relationshipDeltas,
+      summary: targetScene.summary,
+    }, null, 2),
+    sourceBlock,
+  });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'mergeScenes', GENERATE_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, RECONSTRUCT_MERGE_SYSTEM, MAX_TOKENS_SMALL, 'mergeScenes', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'mergeScenes') as Partial<Scene>;
 
   const merged: Scene = {
@@ -766,37 +714,14 @@ async function insertScene(
   const contextIndex = Math.min(timelineIndex, resolvedKeys.length - 1);
   const ctx = narrativeContext(narrative, resolvedKeys, contextIndex);
 
-  const prompt = `${ctx}
-
-You are generating a NEW scene as part of a branch reconstruction. The evaluator identified a gap in the narrative that needs filling.
-
-GENERATION BRIEF: ${brief}
-${evaluation.thematicQuestion ? `THEMATIC QUESTION: "${evaluation.thematicQuestion}"` : ''}
-${evaluation.repetitions.length > 0 ? `PATTERNS TO AVOID: ${evaluation.repetitions.join('; ')}` : ''}
-
-Generate a complete scene that addresses the generation brief. The scene must:
-- Use only existing character, location, and thread IDs from the context
-- Advance at least one thread with a status transition
-- Every threadDelta MUST include 1-2 addedNodes log entries (pulse/transition/setup/escalation/payoff/twist/callback/resistance/stall) describing what happened to THAT thread in THIS scene. Missing log entries leave the thread log blank.
-- List each worldDelta's nodes in causal/temporal order — adjacent nodes auto-chain into the entity's world graph.
-
-Return JSON:
-{
-  "locationId": "L-XX",
-  "povId": "C-XX",
-  "participantIds": ["C-XX"],
-  "summary": "REQUIRED — WRITE THIS FIRST. This is the spine of the scene; every delta below must trace back to something stated here. Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings.",
-  "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
-  "events": ["event_tag"],
-  "threadDeltas": [{"threadId": "T-XX", "logType": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "updates": [{"outcome": "outcome name from thread.outcomes", "evidence": -4..+4 (decimals allowed, e.g. +1.5)}], "volumeDelta": 0..2, "addOutcomes": ["optional — new outcome names when this scene opens a possibility not previously in the market"], "rationale": "the summary sentence that moved this thread's market in this scene"}],
-  "worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
-  "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-  "systemDeltas": {"addedNodes": [], "addedEdges": []},
-  "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}]
-}`;
+  const prompt = buildInsertScenePrompt({
+    context: ctx,
+    brief,
+    evaluation,
+  });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'insertScene', GENERATE_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, RECONSTRUCT_INSERT_SYSTEM, MAX_TOKENS_SMALL, 'insertScene', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'insertScene') as Partial<Scene>;
 
   const inserted: Scene = {

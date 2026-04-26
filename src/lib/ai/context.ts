@@ -949,8 +949,18 @@ export function sceneContext(
     for (const node of wkm.addedNodes ?? []) {
       lines.push(`<node id="${node.id}" type="${node.type}">${node.concept}</node>`);
     }
+    // Resolve edge endpoints to their concept text so the LLM never sees a
+    // bare SYS-XX id without its meaning. Falls back gracefully if a referenced
+    // node can't be located in either the cumulative graph or this delta.
+    const resolveConcept = (id: string): string => {
+      const node = narrative.systemGraph?.nodes[id] ?? wkm.addedNodes?.find((n) => n.id === id);
+      if (!node?.concept) return id;
+      return node.concept.includes(' — ') ? node.concept.split(' — ')[0] : node.concept;
+    };
     for (const edge of wkm.addedEdges ?? []) {
-      lines.push(`<edge from="${edge.from}" to="${edge.to}" relation="${edge.relation}"/>`);
+      const fromConcept = resolveConcept(edge.from);
+      const toConcept = resolveConcept(edge.to);
+      lines.push(`<edge relation="${edge.relation}" from="${fromConcept}" to="${toConcept}"/>`);
     }
     return `\n<system-reveals>\n${lines.join('\n')}\n</system-reveals>`;
   })();

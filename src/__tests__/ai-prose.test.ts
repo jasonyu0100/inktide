@@ -286,9 +286,10 @@ describe('rewriteSceneProse', () => {
       'Original prose',
       'Analysis',
     );
-    const systemPromptArg = vi.mocked(callGenerate).mock.calls[0]![1];
-    expect(systemPromptArg).toContain('AUTHOR VOICE');
-    expect(systemPromptArg).toContain('lyrical, poetic style');
+    // The author voice override now flows through the user prompt (system
+    // prompt stays lean role-only). Check the user-prompt body.
+    const userPromptArg = vi.mocked(callGenerate).mock.calls[0]![0];
+    expect(userPromptArg).toContain('lyrical, poetic style');
   });
   it('handles changelog array format', async () => {
     const mockProse = 'Prose.';
@@ -344,9 +345,10 @@ describe('rewriteSceneProse', () => {
       0, // contextFuture = 0
     );
     const promptCall = vi.mocked(callGenerate).mock.calls[0]![0];
-    // Should include ending/opening snippets, not full scenes
-    expect(promptCall).toContain('PREVIOUS SCENE ENDING');
-    expect(promptCall).toContain('NEXT SCENE OPENING');
+    // Should include ending/opening snippets via the XML neighbor blocks,
+    // not full scenes.
+    expect(promptCall).toContain('<previous-scene-ending>');
+    expect(promptCall).toContain('<next-scene-opening>');
   });
   it('handles scene not in resolvedKeys', async () => {
     const mockProse = 'Prose for orphan scene.';

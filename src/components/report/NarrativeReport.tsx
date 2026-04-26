@@ -1765,8 +1765,8 @@ export function NarrativeReport({
             })}
           </Section>
 
-          {/* ── 06 Cast, Locations & Artefacts ── */}
-          <Section title="Cast, Locations & Artefacts" number={++sec}>
+          {/* ── 06 Usage ── */}
+          <Section title="Usage" number={++sec}>
             <div className="grid grid-cols-2 gap-10 mt-5">
               <div>
                 <h3 className="text-[9px] uppercase tracking-[0.15em] text-white/20 mb-3">

@@ -5,6 +5,9 @@
  * cross-scene continuous, and deliver the declared deltas.
  */
 
+export const PLAN_REVIEW_SYSTEM =
+  'You are a continuity editor reviewing scene beat plans. For each scene check beat-to-delta alignment, cross-plan continuity, internal beat logic, character knowledge, and spatial/temporal consistency. Assign verdict ok|edit per scene with precise issue references (cite beat numbers). Return ONLY valid JSON matching the schema in the user prompt.';
+
 export interface PlanReviewPromptParams {
   title: string;
   threadBlock: string;
@@ -17,33 +20,37 @@ export interface PlanReviewPromptParams {
 }
 
 export function buildPlanReviewPrompt(p: PlanReviewPromptParams): string {
-  return `You are a continuity editor reviewing beat plans. Each scene has a beat-by-beat blueprint and declared deltas. Your job: verify the BEATS are internally consistent, cross-scene continuous, and actually deliver the declared deltas.
-${p.guidanceBlock}
-
-TITLE: "${p.title}"
-
-THREADS:
+  return `<inputs>
+  <branch title="${p.title}" />
+${p.guidanceBlock ? `  <guidance>\n${p.guidanceBlock}\n  </guidance>` : ''}
+  <threads>
 ${p.threadBlock}
-
-CHARACTER KNOWLEDGE:
+  </threads>
+  <character-knowledge>
 ${p.charBlock || '(none tracked yet)'}
-
-SCENES WITH BEAT PLANS (${p.sceneCount} scenes):
+  </character-knowledge>
+  <scenes-with-beat-plans count="${p.sceneCount}">
 ${p.sceneBlocks}
+  </scenes-with-beat-plans>
+</inputs>
 
-For each scene, check:
-1. **BEAT-TO-DELTA ALIGNMENT** — Do the beats actually show what the declared deltas claim? If a thread delta says T-03 escalates, which specific beat delivers that escalation? If no beat does, flag it.
-2. **CROSS-PLAN CONTINUITY** — Does this plan's opening beats follow logically from the previous plan's closing beats? Character positions, emotional states, knowledge, injuries.
-3. **INTERNAL BEAT LOGIC** — Do beats within the plan follow causally? Does beat 5 depend on something beat 3 established?
-4. **CHARACTER KNOWLEDGE** — Does any beat have a character act on information they haven't learned yet in prior scenes or earlier beats?
-5. **SPATIAL/TEMPORAL** — Are characters where they should be? Can all beats plausibly occur in one scene?
+<instructions>
+  <step name="check" hint="For each scene, walk these five checks.">
+    <check name="beat-to-delta-alignment">Do the beats actually show what the declared deltas claim? If a thread delta says T-03 escalates, which specific beat delivers that escalation? If no beat does, flag it.</check>
+    <check name="cross-plan-continuity">Does this plan's opening beats follow logically from the previous plan's closing beats? Character positions, emotional states, knowledge, injuries.</check>
+    <check name="internal-beat-logic">Do beats within the plan follow causally? Does beat 5 depend on something beat 3 established?</check>
+    <check name="character-knowledge">Does any beat have a character act on information they haven't learned yet in prior scenes or earlier beats?</check>
+    <check name="spatial-temporal">Are characters where they should be? Can all beats plausibly occur in one scene?</check>
+  </step>
+  <step name="assign-verdict">
+    <verdict name="ok">Beats are consistent, deltas are earned by specific beats.</verdict>
+    <verdict name="edit">Issues found. Each issue must reference a specific beat number and what's wrong.</verdict>
+  </step>
+  <step name="precision">Be precise: "Beat 4 declares Fang Yuan recognises the seal pattern, but no prior beat or scene establishes he has seen this pattern before" — not "continuity error."</step>
+${p.guidance?.trim() ? `  <step name="author-guidance-reminder">The author asked you to address: "${p.guidance.trim()}".</step>` : ''}
+</instructions>
 
-Verdicts:
-- "ok" — beats are consistent, deltas are earned by specific beats
-- "edit" — issues found. Each issue must reference a specific beat number and what's wrong.
-
-Be precise: "Beat 4 declares Fang Yuan recognises the seal pattern, but no prior beat or scene establishes he has seen this pattern before" — not "continuity error."
-
+<output-format>
 Return JSON:
 {
   "overall": "2-3 paragraph analysis focused on beat quality and delta alignment.",
@@ -52,6 +59,6 @@ Return JSON:
   ],
   "patterns": ["recurring issue across multiple plans"]
 }
-
-Every scene with a plan must appear.${p.guidance?.trim() ? `\n\nREMINDER — The author asked you to address: "${p.guidance.trim()}".` : ''}`;
+Every scene with a plan must appear.
+</output-format>`;
 }

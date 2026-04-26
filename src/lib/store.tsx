@@ -829,6 +829,10 @@ export type Action =
   | { type: "SET_PROSE_PROFILE"; profile: ProseProfile | undefined }
   | { type: "SET_PATTERNS"; patterns: string[] }
   | { type: "SET_ANTI_PATTERNS"; antiPatterns: string[] }
+  | { type: "ADD_PHASE_GRAPH"; graph: import("@/types/narrative").PhaseGraph }
+  | { type: "SET_CURRENT_PHASE_GRAPH"; phaseGraphId: string | null }
+  | { type: "RENAME_PHASE_GRAPH"; phaseGraphId: string; name: string }
+  | { type: "DELETE_PHASE_GRAPH"; phaseGraphId: string }
   | { type: "SET_GENRE"; genre: string }
   | { type: "SET_SUBGENRE"; subgenre: string }
   | { type: "SET_DETECTED_PATTERNS"; genre: string; subgenre: string; patterns: string[]; antiPatterns: string[] }
@@ -2616,6 +2620,44 @@ function reducer(state: AppState, action: Action): AppState {
         ...n,
         antiPatterns: action.antiPatterns,
       }));
+
+    case "ADD_PHASE_GRAPH":
+      return updateNarrative(state, (n) => ({
+        ...n,
+        phaseGraphs: { ...(n.phaseGraphs ?? {}), [action.graph.id]: action.graph },
+        currentPhaseGraphId: action.graph.id,
+      }));
+
+    case "SET_CURRENT_PHASE_GRAPH":
+      return updateNarrative(state, (n) => ({
+        ...n,
+        currentPhaseGraphId: action.phaseGraphId ?? undefined,
+      }));
+
+    case "RENAME_PHASE_GRAPH":
+      return updateNarrative(state, (n) => {
+        const graph = n.phaseGraphs?.[action.phaseGraphId];
+        if (!graph) return n;
+        return {
+          ...n,
+          phaseGraphs: {
+            ...n.phaseGraphs,
+            [action.phaseGraphId]: { ...graph, name: action.name },
+          },
+        };
+      });
+
+    case "DELETE_PHASE_GRAPH":
+      return updateNarrative(state, (n) => {
+        const next = { ...(n.phaseGraphs ?? {}) };
+        delete next[action.phaseGraphId];
+        return {
+          ...n,
+          phaseGraphs: next,
+          currentPhaseGraphId:
+            n.currentPhaseGraphId === action.phaseGraphId ? undefined : n.currentPhaseGraphId,
+        };
+      });
 
     case "SET_GENRE":
       return updateNarrative(state, (n) => ({

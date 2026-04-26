@@ -26,32 +26,32 @@ export function extractPatternWarningDirectives(
   if (warnings.length > 0) {
     const warningLines = warnings
       .map((w) => {
-        const detail = w.detail ? ` — ${w.detail}` : "";
-        return `- ${w.label}${detail}`;
+        const detail = w.detail ? ` detail="${w.detail.replace(/"/g, '&quot;')}"` : "";
+        return `      <warning${detail}>${w.label}</warning>`;
       })
       .join("\n");
     sections.push(
-      `REPETITION WARNINGS — the reasoning graph flagged these shapes as already-seen patterns. Do NOT drift toward them in your output. Route around each explicitly:\n${warningLines}`,
+      `    <repetition-warnings hint="The reasoning graph flagged these shapes as already-seen patterns. Do NOT drift toward them in your output. Route around each explicitly.">\n${warningLines}\n    </repetition-warnings>`,
     );
   }
 
   if (patterns.length > 0) {
     const patternLines = patterns
       .map((p) => {
-        const detail = p.detail ? ` — ${p.detail}` : "";
-        return `- ${p.label}${detail}`;
+        const detail = p.detail ? ` detail="${p.detail.replace(/"/g, '&quot;')}"` : "";
+        return `      <pattern${detail}>${p.label}</pattern>`;
       })
       .join("\n");
     sections.push(
-      `NOVEL PATTERNS — the reasoning graph proposes these shapes as fresh to this narrative. Your output MUST actively introduce them (not merely mention them):\n${patternLines}`,
+      `    <novel-patterns hint="The reasoning graph proposes these shapes as fresh to this narrative. Your output MUST actively introduce them (not merely mention them).">\n${patternLines}\n    </novel-patterns>`,
     );
   }
 
   sections.push(
-    `These are course-corrections, not suggestions. If your output recreates a warned pattern or fails to introduce a proposed pattern, the reasoning graph has been ignored.`,
+    `    <enforcement>These are course-corrections, not suggestions. If your output recreates a warned pattern or fails to introduce a proposed pattern, the reasoning graph has been ignored.</enforcement>`,
   );
 
-  return sections.join("\n\n");
+  return sections.join("\n");
 }
 
 /**

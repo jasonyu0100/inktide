@@ -32,7 +32,6 @@ vi.mock("@/lib/ai/prompts", () => ({
   PROMPT_ARC_STATE_GUIDANCE: "Mock arc state guidance",
   PROMPT_SUMMARY_REQUIREMENT: "Mock summary requirement",
   PROMPT_BEAT_TAXONOMY: "Mock beat taxonomy",
-  PROMPT_PROPOSITION_TRANSMISSION: "Mock proposition transmission",
   promptThreadLifecycle: vi.fn().mockReturnValue("Mock thread lifecycle"),
   buildThreadHealthPrompt: vi.fn().mockReturnValue("Mock thread health"),
   buildCompletedBeatsPrompt: vi.fn().mockReturnValue("Mock completed beats"),

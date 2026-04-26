@@ -655,7 +655,7 @@ export function GeneratePanel({
 
   return (
     <Modal onClose={loading || generatingGraph ? () => {} : onClose} size="xl" maxHeight="90vh">
-      <ModalHeader onClose={onClose} hideClose={loading}>
+      <ModalHeader onClose={onClose} hideClose={loading || generatingGraph}>
         <div>
           <h2 className="text-sm font-semibold text-text-primary">Generate</h2>
         </div>

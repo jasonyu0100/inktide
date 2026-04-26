@@ -776,12 +776,13 @@ describe('reconcileResults', () => {
       String(vi.mocked(fetch).mock.calls[0][1]?.body),
     );
     const firstPrompt = firstCallBody.prompt as string;
-    expect(firstPrompt).toMatch(/CHARACTERS/);
-    expect(firstPrompt).toMatch(/LOCATIONS/);
-    expect(firstPrompt).toMatch(/ARTIFACTS/);
+    // Entity-phase XML inputs — characters/locations/artifacts blocks present.
+    expect(firstPrompt).toMatch(/<characters\b/);
+    expect(firstPrompt).toMatch(/<locations\b/);
+    expect(firstPrompt).toMatch(/<artifacts\b/);
     // Entity phase must not ask for thread or system merges
-    expect(firstPrompt).not.toMatch(/THREADS/);
-    expect(firstPrompt).not.toMatch(/SYSTEM KNOWLEDGE/);
+    expect(firstPrompt).not.toMatch(/<threads\b/);
+    expect(firstPrompt).not.toMatch(/<system-knowledge\b/);
   });
   it('semantic phase prompt targets threads and system knowledge', async () => {
     const results = [createMockAnalysisResult(0)];
@@ -790,12 +791,12 @@ describe('reconcileResults', () => {
       String(vi.mocked(fetch).mock.calls[1][1]?.body),
     );
     const secondPrompt = secondCallBody.prompt as string;
-    expect(secondPrompt).toMatch(/THREADS/);
-    expect(secondPrompt).toMatch(/SYSTEM KNOWLEDGE/);
+    expect(secondPrompt).toMatch(/<threads\b/);
+    expect(secondPrompt).toMatch(/<system-knowledge\b/);
     // Semantic phase must not ask for entity merges
-    expect(secondPrompt).not.toMatch(/CHARACTERS \(/);
-    expect(secondPrompt).not.toMatch(/LOCATIONS \(/);
-    expect(secondPrompt).not.toMatch(/ARTIFACTS \(/);
+    expect(secondPrompt).not.toMatch(/<characters\b/);
+    expect(secondPrompt).not.toMatch(/<locations\b/);
+    expect(secondPrompt).not.toMatch(/<artifacts\b/);
   });
   it('semantic phase defaults to preservation (emphasises keeping items separate)', async () => {
     const results = [createMockAnalysisResult(0)];
@@ -823,7 +824,7 @@ describe('reconcileResults', () => {
     // Only semantic phase runs — one fetch
     expect(calls.length).toBe(1);
     const body = JSON.parse(String(calls[0][1]?.body));
-    expect(body.prompt).toMatch(/THREADS/);
+    expect(body.prompt).toMatch(/<threads\b/);
   });
   it('skips semantic LLM call when no threads or system concepts exist', async () => {
     const results: AnalysisChunkResult[] = [{
@@ -842,7 +843,7 @@ describe('reconcileResults', () => {
     // Only entity phase runs
     expect(calls.length).toBe(1);
     const body = JSON.parse(String(calls[0][1]?.body));
-    expect(body.prompt).toMatch(/CHARACTERS/);
+    expect(body.prompt).toMatch(/<characters\b/);
   });
   it('entity merges from phase A and thread merges from phase B both apply', async () => {
     // First fetch (entity phase): merge character names by ID.

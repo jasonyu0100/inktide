@@ -7,6 +7,12 @@ import { sceneContext, buildProseProfile } from './context';
 import { resolveProfile } from '@/lib/beat-profiles';
 import { logInfo } from '@/lib/system-logger';
 import { FORMAT_INSTRUCTIONS } from '@/lib/prompts';
+import {
+  buildRewriteSystemPrompt,
+  buildRewriteUserPrompt,
+  buildRewriteChangelogPrompt,
+  REWRITE_CHANGELOG_SYSTEM,
+} from '@/lib/prompts/prose/rewrite';
 
 // Re-export from centralised prompt repository so existing importers keep working.
 export { FORMAT_INSTRUCTIONS };
@@ -140,34 +146,31 @@ export async function rewriteSceneProse(
     ? `\n\n${buildProseProfile(proseProfile)}`
     : '';
 
-  const systemPrompt = `${formatInstructions.systemRole} Your task is to REWRITE based on the provided analysis.${onToken ? '' : ' You return ONLY valid JSON — no markdown, no commentary.'}
-${hasVoiceOverride
-    ? `\nAUTHOR VOICE (this is the PRIMARY creative direction — all style defaults below are subordinate to this voice):
-${narrative.storySettings!.proseVoice!.trim()}
-`
-    : ''}${profileSection}
-${formatInstructions.formatRules}
-
-Match the tone and genre of the world: ${narrative.worldSummary.slice(0, 200)}.`;
+  const systemPrompt = buildRewriteSystemPrompt({
+    formatSystemRole: formatInstructions.systemRole,
+    formatRules: formatInstructions.formatRules,
+    hasVoiceOverride,
+    voiceOverride: hasVoiceOverride ? narrative.storySettings!.proseVoice!.trim() : undefined,
+    profileSection,
+    worldSummary: narrative.worldSummary,
+    streaming: !!onToken,
+  });
 
   const neighborBlock = neighborContext
-    || `${prevEnding ? `\nPREVIOUS SCENE ENDING:\n"...${prevEnding}"\n` : ''}${nextOpening ? `\nNEXT SCENE OPENING:\n"${nextOpening}..."\n` : ''}`;
+    || `${prevEnding ? `<previous-scene-ending>"...${prevEnding}"</previous-scene-ending>\n` : ''}${nextOpening ? `<next-scene-opening>"${nextOpening}..."</next-scene-opening>\n` : ''}`;
 
-  const prompt = `SCENE CONTEXT:
-${sceneBlock}
-${neighborBlock}
-
-CURRENT PROSE:
-${currentProse}
-
-ANALYSIS / CRITIQUE TO ADDRESS:
-${analysis}
-
-Rewrite the prose to FULLY ADDRESS every point in the analysis above. The analysis describes specific changes that MUST be implemented — do not merely acknowledge them cosmetically. If the analysis says a character should leave, they must leave in the prose. If it says an event should be removed, remove it entirely. If it says a detail should be added, add it concretely. The rewrite is not a polish pass — it is a structural edit guided by the analysis.
-
-Preserve narrative deliveries, events, and plot points that the analysis does NOT ask you to change. Let the scene be as long or short as its content demands — say more in fewer words rather than padding to reach a length.${hasExpandedContext ? '\n\nYou have been given the FULL PROSE of neighboring scenes. Use this to ensure continuity — character state, spatial positions, injuries, emotional beats, and knowledge must flow consistently across scene boundaries. Do not repeat beats that already occurred in preceding scenes, and set up what following scenes expect.' : ''}
-
-${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, no commentary. Start with the first word of the scene.' : 'Return JSON:\n{\n  "prose": "the full rewritten prose text"\n}'}`;
+  const prompt = buildRewriteUserPrompt({
+    sceneBlock,
+    neighborBlock,
+    currentProse,
+    analysis,
+    hasExpandedContext,
+    streaming: !!onToken,
+    formatRules: formatInstructions.formatRules,
+    voiceOverride: hasVoiceOverride ? narrative.storySettings!.proseVoice!.trim() : undefined,
+    profileSection,
+    toneCue: narrative.worldSummary,
+  });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   let prose: string;
@@ -184,8 +187,8 @@ ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, n
   // Generate changelog in a separate cheap call — diffing old vs new
   let changelog = '';
   const changelogRaw = await callGenerate(
-    `ANALYSIS ADDRESSED:\n${analysis.slice(0, 500)}\n\nSummarize the key changes in 3-5 bullet points. Each bullet: one sentence, plain description, no quotes. Focus on structural changes.\n\nReturn JSON with changelog as a SINGLE STRING with bullet points separated by newlines:\n{"changelog": "• Change one\\n• Change two\\n• Change three"}`,
-    'You are a literary editor. Return ONLY valid JSON with changelog as a string.',
+    buildRewriteChangelogPrompt({ analysis }),
+    REWRITE_CHANGELOG_SYSTEM,
     800,
     'rewriteChangelog',
     ANALYSIS_MODEL,

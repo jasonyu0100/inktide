@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene } from '@/types/narrative';
@@ -30,13 +30,30 @@ export function filterKeysBySceneRange(
  * Compact trigger + portal popout dialog for selecting a scene range.
  * Shows scene availability per stream (structure / plan / prose).
  * Dual-handle range slider + number inputs.
+ *
+ * Polymorphic trigger:
+ *   - default: a pill showing "All N" / "M of N" (used by review eval).
+ *   - custom: pass `trigger` for a different button (e.g. an auto-loop icon).
+ *
+ * Optional confirm step:
+ *   - pass `onStart` to render a Start CTA inside the popover; the CTA closes
+ *     the popover and forwards the chosen range. Used by bulk auto modes
+ *     where the user must explicitly confirm a range before kicking off a run.
  */
 export default function SceneRangeSelector({
   range,
   onChange,
+  trigger,
+  onStart,
+  startLabel,
+  placement = 'bottom',
 }: {
   range: SceneRange;
   onChange: (range: SceneRange) => void;
+  trigger?: { icon: ReactNode; className?: string; title?: string };
+  onStart?: (range: SceneRange) => void;
+  startLabel?: string;
+  placement?: 'top' | 'bottom';
 }) {
   const { state } = useStore();
   const narrative = state.activeNarrative;
@@ -47,7 +64,7 @@ export default function SceneRangeSelector({
   const [open, setOpen] = useState(false);
   const popoutRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const [popoutPos, setPopoutPos] = useState<{ top: number; left: number } | null>(null);
+  const [popoutPos, setPopoutPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
 
   // Resolve all scenes from timeline
   const sceneEntries = useMemo(() => {
@@ -96,15 +113,22 @@ export default function SceneRangeSelector({
     return { count, plans, prose };
   }, [effectiveStart, effectiveEnd, totalScenes, streamAvail]);
 
-  // Position the popout relative to the trigger via portal
+  // Position the popout relative to the trigger via portal. Anchoring from
+  // the bottom of the viewport (when placement === 'top') avoids needing to
+  // measure the popout's height — the bottom edge is pinned 4px above the
+  // trigger and the popout grows upward.
   useEffect(() => {
     if (!open || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const popoutWidth = 288; // w-72 = 18rem = 288px
     let left = rect.right - popoutWidth;
     if (left < 8) left = 8;
-    setPopoutPos({ top: rect.bottom + 4, left });
-  }, [open]);
+    if (placement === 'top') {
+      setPopoutPos({ bottom: window.innerHeight - rect.top + 4, left });
+    } else {
+      setPopoutPos({ top: rect.bottom + 4, left });
+    }
+  }, [open, placement]);
 
   // Close on outside click
   useEffect(() => {
@@ -125,22 +149,24 @@ export default function SceneRangeSelector({
 
   const isFullRange = !range || (effectiveStart === 0 && effectiveEnd === totalScenes - 1);
 
+  const defaultTriggerClass = `text-[10px] px-2 py-0.5 rounded transition-colors flex items-center gap-1 ${
+    isFullRange
+      ? 'bg-white/5 text-text-dim hover:text-text-secondary'
+      : 'bg-cyan-500/15 text-cyan-400'
+  }`;
+
   return (
     <>
-      {/* Trigger */}
+      {/* Trigger — pill by default, custom icon when `trigger` is provided */}
       <button
         ref={triggerRef}
+        type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`text-[10px] px-2 py-0.5 rounded transition-colors flex items-center gap-1 ${
-          isFullRange
-            ? 'bg-white/5 text-text-dim hover:text-text-secondary'
-            : 'bg-cyan-500/15 text-cyan-400'
-        }`}
+        className={trigger?.className ?? defaultTriggerClass}
+        title={trigger?.title}
       >
-        {isFullRange ? (
-          <>All {totalScenes}</>
-        ) : (
-          <>{rangeStats.count} of {totalScenes}</>
+        {trigger ? trigger.icon : (
+          isFullRange ? <>All {totalScenes}</> : <>{rangeStats.count} of {totalScenes}</>
         )}
       </button>
 
@@ -149,7 +175,7 @@ export default function SceneRangeSelector({
         <div
           ref={popoutRef}
           className="fixed z-9999 w-72 bg-neutral-900/95 backdrop-blur-md border border-white/10 rounded-lg shadow-xl p-3 space-y-3"
-          style={{ top: popoutPos.top, left: popoutPos.left }}
+          style={{ top: popoutPos.top, bottom: popoutPos.bottom, left: popoutPos.left }}
         >
           {/* Title + reset */}
           <div className="flex items-center justify-between">
@@ -233,6 +259,20 @@ export default function SceneRangeSelector({
               {rangeStats.prose} prose
             </span>
           </div>
+
+          {/* Optional Start CTA — bulk auto modes require an explicit confirm */}
+          {onStart && (
+            <button
+              type="button"
+              onClick={() => {
+                onStart(range);
+                setOpen(false);
+              }}
+              className="w-full text-[11px] font-semibold px-2 py-1.5 rounded bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition-colors uppercase tracking-wider"
+            >
+              {startLabel ?? `Start on ${rangeStats.count} scene${rangeStats.count !== 1 ? 's' : ''}`}
+            </button>
+          )}
         </div>,
         document.body,
       )}

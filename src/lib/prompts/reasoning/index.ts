@@ -17,3 +17,14 @@ export {
   buildSequentialPath,
   extractPatternWarningDirectives,
 } from "./sequential-path";
+export {
+  buildArcReasoningGraphPrompt,
+  ARC_REASONING_GRAPH_SYSTEM,
+  COORDINATION_PLAN_SYSTEM,
+} from "./arc-graph";
+export type {
+  ArcReasoningGraphArgs,
+  CoordinationPlanContextForPrompt,
+} from "./arc-graph";
+export { buildCoordinationPlanPrompt } from "./coordination-plan";
+export type { CoordinationPlanArgs, CoordPlanNodeGuidance } from "./coordination-plan";

@@ -22,6 +22,7 @@ import { SceneAudioView } from './SceneAudioView';
 import { SceneGameTheoryView } from './SceneGameTheoryView';
 import { SearchView } from './SearchView';
 import { ReasoningGraphView } from './ReasoningGraphView';
+import { PhaseGraphCanvas } from './PhaseGraphView';
 import NetworkView from './NetworkView';
 import MarketView from './MarketView';
 import {
@@ -1152,6 +1153,8 @@ export default function WorldGraph() {
         <NetworkView />
       ) : graphViewMode === 'market' ? (
         <MarketView />
+      ) : graphViewMode === 'phase' ? (
+        <PhaseGraphCanvas />
       ) : graphViewMode === 'reasoning' ? (
         // World build reasoning takes priority when viewing a world commit
         currentWorldBuildWithReasoning ? (

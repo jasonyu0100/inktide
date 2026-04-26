@@ -193,7 +193,7 @@ function LogDetail({ entry, onBack }: { entry: ApiLogEntry; onBack: () => void }
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-white/8 shrink-0">
+      <div className="flex items-stretch border-b border-white/8 shrink-0">
         {hasSystem && <TabButton active={tab === 'system'} onClick={() => setTab('system')} color="cyan">System</TabButton>}
         <TabButton active={tab === 'prompt'} onClick={() => setTab('prompt')}>Prompt</TabButton>
         <TabButton active={tab === 'response'} onClick={() => setTab('response')}>Response</TabButton>
@@ -202,6 +202,7 @@ function LogDetail({ entry, onBack }: { entry: ApiLogEntry; onBack: () => void }
             Reasoning
           </TabButton>
         )}
+        <CopyButton text={tabContent(entry, tab)} label={`Copy ${tab}`} />
       </div>
 
       <div className="overflow-y-auto p-4" style={{ maxHeight: 'calc(80vh - 13rem)' }}>
@@ -210,6 +211,47 @@ function LogDetail({ entry, onBack }: { entry: ApiLogEntry; onBack: () => void }
         </pre>
       </div>
     </div>
+  );
+}
+
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard write can fail in non-secure contexts; swallow silently.
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={onCopy}
+      title={label}
+      aria-label={label}
+      className={`ml-auto px-3 py-2 text-[10px] font-mono transition-colors flex items-center gap-1.5 border-b border-transparent ${
+        copied ? 'text-emerald-400' : 'text-text-dim hover:text-text-secondary'
+      }`}
+    >
+      {copied ? (
+        <>
+          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          Copied
+        </>
+      ) : (
+        <>
+          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+            <rect x="9" y="9" width="11" height="11" rx="2" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 15V5a2 2 0 0 1 2-2h10" />
+          </svg>
+          Copy
+        </>
+      )}
+    </button>
   );
 }
 

@@ -2,19 +2,15 @@
 
 # InkTide
 
-**Narrative is a composition of three forces in flux.**
+**A browser-based engine for simulating, analyzing, and querying long-form text.** Built for developers who need to reason about narrative structure, run analysis over text corpuses, and generate coherent long-form output without an LLM forgetting what it wrote three sections ago.
 
-Every story is fate, world, and system — threads accumulating commitment toward resolution, entities transforming under pressure, rules deepening beneath the surface. InkTide makes these forces measurable. Paste any long-form text and it builds a living knowledge graph that evolves section by section, deriving the structural forces that shape the work. A Classic is fate-dominant. A Show is world-dominant. A Paper is system-dominant. An Opus balances all three.
+No backend. State and embeddings live in IndexedDB. Plug in an OpenRouter key, paste any text, and the engine extracts a typed knowledge graph that mutates section by section — characters, locations, artifacts, threads, system rules. Three forces (fate / world / system) are derived deterministically from graph mutations; no second LLM call required to grade structure.
 
-Everything becomes searchable by meaning. Every proposition is embedded as a vector. Search for "sacrifice" and surface every moment of selfless choice across the timeline, even when the word never appears. Each analyzed work contributes its pacing fingerprint to a growing network of structural intelligence.
-
-The same forces power generation — new content shaped by the rhythms of published works, branching paths explored via MCTS, and drafts refined through structural evaluation.
-
-**[Read the paper →](https://inktide-sourcenovel.vercel.app/paper)** · **[Case analysis →](https://inktide-sourcenovel.vercel.app/case-analysis)** · **[Try it →](https://inktide-sourcenovel.vercel.app/)**
+**[Try it →](https://inktide-sourcenovel.vercel.app/)** · **[Read the paper →](https://inktide-sourcenovel.vercel.app/paper)** · **[Architecture reference →](CLAUDE.md)**
 
 ---
 
-## Quick Start
+## Setup
 
 ```bash
 git clone https://github.com/jasonyu0100/inktide.git
@@ -24,86 +20,74 @@ cp .env.example .env.local   # add your OpenRouter key
 npm run dev                   # → http://localhost:3001
 ```
 
-You need an **[OpenRouter API key](https://openrouter.ai/keys)** for LLM access. Optionally add a **Replicate token** for image generation. See `.env.example` for all options.
+| Variable                        | Required | Purpose                                                |
+| ------------------------------- | :------: | ------------------------------------------------------ |
+| `OPENROUTER_API_KEY`            | yes      | LLM calls (default: Gemini 2.5 / 3 Flash)              |
+| `OPENAI_API_KEY`                | optional | Embeddings — disables semantic search if absent        |
+| `REPLICATE_API_TOKEN`           | optional | Image generation (Seedream 4.5)                        |
+| `NEXT_PUBLIC_USER_API_KEYS`     | optional | Allow user-supplied keys via the in-app modal          |
+
+See `.env.example` for the full list.
 
 ---
 
-## What It Does
+## What you can build with it
 
-### Analyze
+**Narrative simulation.** Generate full arcs end-to-end through a layered pipeline — phase graph (the world's working machinery) → causal reasoning graph (per-arc causal logic) → scene structures (deltas + summaries) → beat plans (function + mechanism scaffolding) → prose. Each stage commits decisions the next executes against, so coherence survives across hundreds of scenes. Branchable, reviewable, reconstructable. Renders into prose, screenplay, meta-overlay, or in-world simulation overlay — same beat plan, format-tailored accent profile.
 
-Three forces — the channels through which information reaches the reader. Rank→Gaussian normalised, derived from knowledge-graph mutations and prediction-market information gain. Pure math, no LLM:
+**Text corpus analysis.** Paste any long-form work and the engine extracts its full structure: typed knowledge graph, force trajectories, pacing fingerprint (Markov transition matrices over scene-level cube modes), prose profile (authorial Markov chains over a 10-function / 8-mechanism beat taxonomy). Every analyzed work compounds the network — pacing patterns and prose signatures become reusable for cross-corpus comparison or generation.
 
-| Force      | What it measures                                                                                                                                                                   |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Fate**   | `Σ_t v_t · D_KL(p⁺‖p⁻)` — attention-weighted Kullback–Leibler divergence across thread prediction markets. The narrator's belief moving under new evidence. |
-| **World**  | `ΔN + √ΔE` — new facts added to entity continuity graphs (characters, locations, artifacts). |
-| **System** | `ΔN + √ΔE` — new rules, concepts, and relations added to the world-mechanism graph. |
+**Mind mapping at scale.** Entities, threads, knowledge nodes, and embeddings render as interactive D3 graphs: network view (cumulative activation tiers), world graph (per-entity inner knowledge), knowledge graph (system rules / concepts), phase graph (working model of reality), reasoning graph (per-arc causal chain). Click any node to inspect — characters, locations, artifacts, threads, system nodes, knowledge nodes all open in the side panel with their full continuity.
 
-Each force is graded 0–25, 100 total (+ swing). The **narrative cube** maps force combinations into 8 modes — a vocabulary for how stories move through fate/world/system space.
+**Semantic retrieval.** Every proposition, beat, and scene is embedded as a 1536-dim vector via OpenAI's `text-embedding-3-small`. Cosine similarity surfaces meaning, not keywords — searching for "betrayal" returns scenes of broken trust even when the word never appears. AI-synthesized overviews cite back to source spans. Drives continuity validation, knowledge-asymmetry tracking, and intelligent RAG for generation.
 
-The aggregate is the **information curve** `I = w_F·F + w_W·W + w_S·S`, with weights recovered by PCA on the three force trajectories — the work's own information signature. A paper weights system heavily, a character novel world-heavy, a thriller fate-heavy; mixed signatures are the default. Peaks = moments of rich information in the work's own vocabulary; valleys = information-light stretches that structurally set up the next delivery.
-
-Additional layers: **swing** (the rhythm of contrast between sections), **pacing profiles** (Markov transition matrices capturing an author's structural signature), and **scale & density** (how richly interconnected the world becomes).
-
-### Query
-
-Every proposition, beat, and scene is embedded as a 1536-dimensional vector. Cosine similarity retrieves content by meaning, not keywords. AI-synthesized overviews trace thematic patterns across the full timeline with inline citations.
-
-Applications: continuity validation (verifying that referenced events actually occurred), tracking what each character knows at any point in the story, and semantic retrieval that gives generation rich context from anywhere in the timeline.
-
-### Interrogate
-
-Forces and embeddings measure what's on the page. Four research instruments probe what's *carried* — the beliefs entities hold, the moves they make, the strategic structure beneath the prose, and how ELO ratings accumulate across a story.
-
-| Method          | Shape                                                         | What it surfaces                                                                                                                                     |
-| --------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Surveys**     | One question × N respondents — cast-wide distribution         | Fault-lines across the cast. Eight research lenses (Personality, Values, Knowledge, Trust, Allegiance, Threat, Predictions, Backstory) tilt the axis |
-| **Interviews**  | One subject × N questions — single-mind depth profile         | Internal structure of one mind — self-image vs behaviour, tradeoff hierarchies, formative backstory, knowledge surface                               |
-| **Game theory** | 2×2 game decomposition per strategic beat, additive per scene | The moves beneath the prose. 14 axes (disclosure, trust, confrontation, stakes...), 19 shapes (coordination, dilemma, stag-hunt, chicken...)         |
-| **ELO ratings** | Continuous margin score drives per-player rating updates      | Who trends up, who collapses, and where the turning points land. Trajectories + behaviour tags (extractor, schemer, dominant, responder, steady)     |
-
-Every entity answers surveys and interviews in-character from its own world-graph continuity — responses are grounded in what that specific entity actually knows, not in the LLM's general knowledge. Game-theoretic analysis is orthogonal to narrative structure (a scene can be force-balanced while containing an unresolved prisoner's dilemma); ELO turns those games into a running tally of strategic success that reveals story-wide power dynamics the prose alone never summarises.
-
-### Reason
-
-Generation is steered by **causal reasoning graphs** — 8–20 typed nodes per arc (fate, reasoning, character, location, artifact, system, pattern, warning, chaos) with typed edges (requires / enables / causes / resolves...). Scenes execute the graph; threads advance because an entity had to decide, not because the prompt said so.
-
-Four **thinking modes** shape how the graph is built:
-
-| Mode           | Direction           | Signature                                                                                     |
-| -------------- | ------------------- | --------------------------------------------------------------------------------------------- |
-| **Abduction**  | Backward, selective | Committed outcome ← best hypothesis among competitors. *Default for narrative planning.*      |
-| **Divergent**  | Forward, expansive  | One premise branches into many possibilities; leaves marked for pairwise compatibility.       |
-| **Deduction**  | Forward, narrow     | Premise → necessary consequence chain. Rigid derivation, low branching factor.                |
-| **Induction**  | Backward, general   | Many observations → inferred principle. Retains competing generalisations.                    |
-
-The reasoning graph from the last arc is fed into the next generation with divergence pressure, so successive arcs differ in causal shape rather than re-describing the same spine with cosmetic variation.
-
-### Generate
-
-| Capability             | How it works                                                                            |
-| ---------------------- | --------------------------------------------------------------------------------------- |
-| **Markov pacing**      | Learn the rhythm of any published work and write in its structural signature            |
-| **Prose profiles**     | Beat plans shaped by authorial Markov chains — 10 functions, 8 mechanisms               |
-| **MCTS search**        | Explore branching narrative paths, each guided by a fresh pacing sequence               |
-| **Course correction**  | Direction adapts after each arc based on what the story actually became                 |
-| **Iterative revision** | Evaluate → verdict (ok / edit / merge / insert / cut) → reconstruct into refined drafts |
-| **Pacing presets**     | Curated arcs (Sucker Punch, Slow Burn, Roller Coaster) for targeted narrative shapes    |
+**Strategic interrogation.** Surveys (one question × N entities, each answering in-character from its own world-graph continuity), interviews (one entity × N questions), per-scene game-theoretic decomposition (14 axes × 19 game shapes), ELO rankings derived from per-scene stake deltas. Surfaces structural patterns the prose alone never summarises.
 
 ---
 
-## Architecture
+## First run
+
+1. Land on `/` and pick a seed story (Harry Potter, LOTR, Game of Thrones, Star Wars, Reverend Insanity), or create your own from a premise via the wizard.
+2. The wizard generates an initial world + introduction arc.
+3. Open the **world graph** or **network view** to see what got built.
+4. Run **auto mode** to generate more arcs, or drive each stage manually — generate the CRG, then the scenes, then the beat plans, then the prose. Edit at any layer.
+5. Paste any long-form text into `/analysis` to extract its full structure into the engine.
+
+---
+
+## Why this beats LLM-only
+
+LLMs alone collapse on long-form text — they forget, hallucinate, drift off premise, and can't tell you _why_ a story works structurally. InkTide is the substrate the LLM is missing:
+
+- A **persistent typed graph** that mutates section by section, so the next generation knows what every prior scene committed.
+- **Deterministic force math** — no LLM tax to grade structure, reproducible across runs.
+- **Semantic embeddings** indexed on every proposition, so retrieval pulls relevant context from anywhere in the timeline.
+- A **layered generation pipeline** (phase → CRG → scene → plan → prose) where each stage commits decisions the next executes against, with arc-level engine settings (force preference, reasoning mode, network bias) synced from CRG construction through scene rendering.
+
+The engine is the spine; the LLM is one tool the engine drives.
+
+---
+
+## For developers digging in
+
+- **[`CLAUDE.md`](CLAUDE.md)** — full architecture reference. Every major subsystem (forces, threads, phase graph, CRG, scenes, plans, prose, embeddings, surveys, game theory, auto-engine) documented with file pointers.
+- **[`/paper`](https://inktide-sourcenovel.vercel.app/paper)** — the theory: force formulas, Markov chain pacing, MCTS evaluation, beat taxonomy, calibration against published works.
+- **`src/types/narrative.ts`** — the domain model.
+- **`src/lib/ai/`** — the LLM call surface. All generation routes through `callGenerate` / `callGenerateStream`.
+- **`src/lib/prompts/`** — every prompt, modular and scoped. Phase-graph application, scene generation, beat planning, prose rendering, world expansion all live here.
+- **`src/lib/narrative-utils.ts`** — force formulas, cube logic, graph algorithms.
+
+State: React Context + `useReducer` (`src/lib/store.tsx`). Persistence: IndexedDB (narratives, embeddings, audio, images) + localStorage (active id, prefs). No backend, no auth — your data stays in your browser.
+
+---
+
+## Stack
 
 ```
 Next.js 16 · React 19 · TypeScript · Tailwind v4 · D3.js
-OpenRouter (Gemini 2.5/3 Flash) · OpenAI Embeddings · Replicate (Seedream 4.5)
-IndexedDB + localStorage — fully client-side persistence, no backend database
+OpenRouter (Gemini 2.5 / 3 Flash) · OpenAI Embeddings · Replicate (Seedream 4.5)
+IndexedDB + localStorage — fully client-side persistence
 ```
-
-All LLM calls route through OpenRouter. Embeddings use OpenAI's `text-embedding-3-small` (1536 dimensions). Image generation uses Replicate's Seedream 4.5. State is managed via React Context + useReducer with IndexedDB persistence.
-
-See the **[paper](https://inktide-sourcenovel.vercel.app/paper)** for the full theory — force formulas, Markov chain pacing, MCTS evaluation, beat taxonomy, and validation against published works.
 
 ---
 

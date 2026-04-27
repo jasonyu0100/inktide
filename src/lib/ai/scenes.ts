@@ -13,6 +13,7 @@ import { PROMPT_STRUCTURAL_RULES, PROMPT_DELTAS, PROMPT_ARTIFACTS, PROMPT_LOCATI
 import { EXTRACT_PROPOSITIONS_SYSTEM, buildExtractPropositionsUserPrompt } from '@/lib/prompts/scenes/extract-propositions';
 import { buildGenerateScenesPrompt } from '@/lib/prompts/scenes/generate';
 import { buildArcSettingsBlock } from '@/lib/prompts/scenes/arc-settings';
+import { buildPlanFormatBlock } from '@/lib/prompts/scenes/plan-format';
 import {
   buildScenePlanUserPrompt,
   buildScenePlanEditUserPrompt,
@@ -896,6 +897,9 @@ ${slotXml}
   inputBlocks.push(`  <prose-profile hint="The story's authorial voice — mechanism mix, register, devices. Beats inherit voice from this profile, not from prompt instructions.">
 ${proseProfileBlock}
   </prose-profile>`);
+  const planFormat = narrative.storySettings?.proseFormat ?? 'prose';
+  const planFormatBlock = buildPlanFormatBlock(planFormat);
+  if (planFormatBlock) inputBlocks.push(`  ${planFormatBlock.replace(/\n/g, '\n  ')}`);
   if (beatSlotsBlock) inputBlocks.push(`  ${beatSlotsBlock.replace(/\n/g, '\n  ')}`);
   const planPhaseGraphSection = buildActivePhaseGraphSection(narrative, 'scene-plan');
   if (planPhaseGraphSection) inputBlocks.push(`  ${planPhaseGraphSection.replace(/\n/g, '\n  ')}`);

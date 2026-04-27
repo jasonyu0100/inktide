@@ -72,7 +72,9 @@ export function buildProseInstructionsWithPlan(args: { wordsPerBeat: number }): 
 
   <reference name="mechanisms" hint="Delivery modes — what each beat's mechanism field tells the writer to do.">
 
-MECHANISMS define delivery mode:
+FORMAT-AWARE OVERRIDE — the descriptions below are the PROSE default. Non-prose formats (screenplay, meta-overlay, simulation-overlay) re-render these mechanisms differently; the format-rules block above carries the format-specific translations and overrides this reference. For screenplay specifically, interior mechanisms (\`thought\` / \`narration\` / \`memory\` / \`comic\`) externalise via V.O., flashback cuts, INSERT shots, or pure performance — never as direct internal monologue or authorial commentary on the page.
+
+MECHANISMS define delivery mode (PROSE default):
 - dialogue → a substantive EXCHANGE of quoted speech between characters. A dialogue beat is NOT a single line with a tag. Unfold it: at least 3–5 turns, distinct voices, subtext (what is NOT said), interruptions or silences that carry weight, non-verbal business (glances, gestures, pauses) interleaved between lines. Dialogue carries the bulk of the beat's word budget. A "dialogue" beat that resolves in one or two quoted sentences has failed the mechanism — either expand it into a real conversation or switch the mechanism. In dramatic registers, dialogue is where character and conflict live; treat it accordingly.
 
   WORKED EXAMPLE — beat: "Shen Lin confronts Meng Song about the missing ledger"

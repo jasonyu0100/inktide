@@ -268,7 +268,9 @@ export default function NetworkView() {
         event.stopPropagation();
         if (d.kind === 'character') dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: d.id } });
         else if (d.kind === 'location') dispatch({ type: 'SET_INSPECTOR', context: { type: 'location', locationId: d.id } });
+        else if (d.kind === 'artifact') dispatch({ type: 'SET_INSPECTOR', context: { type: 'artifact', artifactId: d.id } });
         else if (d.kind === 'thread') dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: d.id } });
+        else if (d.kind === 'system') dispatch({ type: 'SET_INSPECTOR', context: { type: 'knowledge', nodeId: d.id } });
       });
 
     // Labels — show every node, scale font and opacity by degree (system style).

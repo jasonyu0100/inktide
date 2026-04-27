@@ -6,6 +6,8 @@
  * doctrine without the beat machinery.
  */
 
+import { phaseGraphPriorityEntry } from "../phase/application";
+
 /** Final assembly: inputs + format rules + instructions, the user-prompt
  *  skeleton consumed by `generateSceneProse`. The system prompt stays
  *  high-level (role only); craft detail lives here. */
@@ -48,7 +50,7 @@ export function buildProseInstructionsWithPlan(args: { wordsPerBeat: number }): 
     <priority rank="1">BEAT PLAN — structural backbone; render every beat's propositions in the assigned mechanism, in the assigned order.</priority>
     <priority rank="2">PROSE PROFILE — authorial voice; rules below apply only when the profile is silent on a given dimension.</priority>
     <priority rank="3">SCENE CONTEXT — POV, setting, participants, deltas to land; the substrate the beats render.</priority>
-    <priority rank="4">PHASE GRAPH (PRG) — atmospheric layer. Surface the ambient model in subtext: rules visibly bind the action, accumulated pressures audibly weight choices, currently-active patterns appear as recognisable shapes. Don't narrate the PRG; let it colour what the prose foregrounds.</priority>
+    ${phaseGraphPriorityEntry(4, "scene-prose")}
   </integration-hierarchy>
 
   <step name="follow-plan">Follow the beat plan sequence — each beat maps to a passage of prose. The mechanism defines the delivery MODE (dialogue, thought, action, etc). The propositions define STORY WORLD FACTS TO TRANSMIT. Weave both into compelling, voiced prose.</step>
@@ -145,7 +147,7 @@ export function buildProseInstructionsFreeform(args: { wordsPerBeat: number }): 
   <integration-hierarchy hint="No beat plan in this mode — priority order for prose decisions:">
     <priority rank="1">PROSE PROFILE — authorial voice; rules below apply only when the profile is silent on a given dimension.</priority>
     <priority rank="2">SCENE CONTEXT — POV, setting, participants, deltas; the substrate to render.</priority>
-    <priority rank="3">PHASE GRAPH (PRG) — atmospheric layer. Surface the ambient model in subtext: rules visibly bind, pressures audibly weight, active patterns appear as recognisable shapes. Don't narrate the PRG; let it colour what the prose foregrounds.</priority>
+    ${phaseGraphPriorityEntry(3, "scene-prose")}
   </integration-hierarchy>
 
   <reference name="craft-doctrine" hint="The craft rules. The prose profile is always law; rules below apply only when the profile is silent.">

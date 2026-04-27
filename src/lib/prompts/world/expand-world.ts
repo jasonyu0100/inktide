@@ -9,6 +9,7 @@ export const EXPAND_WORLD_SYSTEM =
 
 import { PROMPT_PORTFOLIO_PRINCIPLES } from '../core/market-calibration';
 import { PROMPT_ENTITY_INTEGRATION } from '../entities/integration';
+import { phaseGraphPriorityEntry } from '../phase/application';
 import type { ExpansionSizeConfig, WorldExpansionSize } from './expansion-suggestion';
 
 export type WorldExpansionStrategy = 'breadth' | 'depth' | 'dynamic';
@@ -48,6 +49,8 @@ export type ExpandWorldArgs = {
   strategyBlock: string;
   /** Pre-built entity-filter block (or empty when no types disabled). */
   entityFilterBlock: string;
+  /** Active phase graph rendered as a `<phase-graph>` block (or empty). */
+  phaseGraphSection?: string;
   existingCharList: string;
   existingLocList: string;
   existingRelList: string;
@@ -66,6 +69,7 @@ export function buildExpandWorldPrompt(args: ExpandWorldArgs): string {
     size,
     strategyBlock,
     entityFilterBlock,
+    phaseGraphSection,
     existingCharList,
     existingLocList,
     existingRelList,
@@ -82,7 +86,7 @@ export function buildExpandWorldPrompt(args: ExpandWorldArgs): string {
   <narrative-context>
 ${context}
   </narrative-context>
-
+${phaseGraphSection ? `\n  ${phaseGraphSection.replace(/\n/g, '\n  ')}\n` : ''}
   <directive hint="${directive.trim() ? 'Primary creative brief — drive the expansion off this.' : 'No directive — analyze the current narrative state and add what would create the most interesting new possibilities based on existing tensions and unexplored areas.'}">
 ${directive.trim() ? directive : 'EXPAND the world — analyze the current narrative state and add characters, locations, and threads that would create the most interesting new possibilities based on existing tensions and unexplored areas.'}
   </directive>
@@ -117,6 +121,14 @@ ${PROMPT_PORTFOLIO_PRINCIPLES}
     <relationships>${existingRelList || 'none yet'}</relationships>
   </existing-entities>
 </inputs>
+
+<integration-hierarchy hint="When inputs conflict, this is the priority order for expansion decisions.">
+  <priority rank="1">DIRECTIVE / SOURCE-MATERIAL — explicit creative brief; the expansion must serve these directly. Source-material (when present) is verbatim authority over names, roles, and specifics.</priority>
+  <priority rank="2">STRATEGY / SIZE-MODE — depth/breadth/dynamic intent and the entity-count budget; shapes WHAT the expansion adds.</priority>
+  ${phaseGraphPriorityEntry(3, "expand")}
+  <priority rank="4">EXISTING-ENTITIES — the canon the expansion must integrate with; new content references these to avoid orphaning.</priority>
+  <priority rank="5">ENTITY-FILTER — toggles for which delta types are emitted; structural, not creative.</priority>
+</integration-hierarchy>
 
 <output-format>
 Use sequential IDs continuing from the existing ones.

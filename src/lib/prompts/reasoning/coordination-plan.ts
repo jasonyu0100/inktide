@@ -5,6 +5,8 @@
  * reasoning-mode) so the prompts module stays free of upstream dependencies.
  */
 
+import { phaseGraphPriorityEntry } from "../phase/application";
+
 export type CoordPlanNodeGuidance = {
   totalMin: number;
   minSpineNodes: number;
@@ -104,7 +106,7 @@ ${reasoningModeBlockText ? `    ${reasoningModeBlockText.replace(/\n/g, '\n    '
 <integration-hierarchy hint="When inputs conflict, this is the priority order for plan-level decisions.">
   <priority rank="1">DIRECTION / CONSTRAINTS / THREAD TARGETS — explicit user guidance; the plan must serve these directly.</priority>
   <priority rank="2">NARRATIVE STATE — active threads, key characters/locations, system knowledge, recent scenes; the substrate the plan operates on.</priority>
-  <priority rank="3">PHASE GRAPH (PRG) — ambient working model; arc anchors and force composition stay coherent with this phase, but explicit user direction wins where they tension.</priority>
+  ${phaseGraphPriorityEntry(3, "reasoning-plan")}
   <priority rank="4">FORCE PREFERENCE / REASONING MODE — engine tilt applied within the constraints above.</priority>
 </integration-hierarchy>
 

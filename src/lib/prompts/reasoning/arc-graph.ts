@@ -6,6 +6,8 @@
  * context) so the prompts module stays free of upstream dependencies.
  */
 
+import { phaseGraphPriorityEntry } from "../phase/application";
+
 export const ARC_REASONING_GRAPH_SYSTEM =
   'You are a story strategist building the causal reasoning graph for one arc. Choose nodes (fate, reasoning, character, location, artifact, system, pattern, warning, chaos) and typed edges (requires, enables, constrains, causes, reveals, develops, resolves) that capture how the arc actually works — fate, world, and system interacting, not one dominating. Honour the thinking mode (abduction/divergent/deduction/induction) and the divergence pressure from any prior graph. Cast must show agency across multiple characters, not just the protagonist. Return ONLY valid JSON matching the schema in the user prompt.';
 
@@ -122,7 +124,7 @@ ${networkBiasBlockText ? `  ${networkBiasBlockText.replace(/\n/g, '\n  ')}\n` : 
 <integration-hierarchy hint="When inputs conflict, this is the priority order. Higher-rank inputs override lower-rank ones; lower-rank inputs are still always relevant.">
   <priority rank="1">DIRECTION / ARC BRIEF — the user's explicit ask, or the coordination-plan directive when one exists. The graph delivers what the brief commits to.</priority>
   <priority rank="2">PRIOR ARC GRAPH — divergence pressure; the new graph must NOT replicate the prior spine.</priority>
-  <priority rank="3">PHASE GRAPH (PRG) — ambient working model. Plan the chain so it stays coherent with this phase, but the brief overrides where they conflict.</priority>
+  ${phaseGraphPriorityEntry(3, "reasoning-arc")}
   <priority rank="4">NARRATIVE CONTEXT — entities, threads, system rules; the substrate the chain stands on.</priority>
   <priority rank="5">FORCE PREFERENCE / REASONING MODE / NETWORK BIAS — engine tilt applied within the constraints above.</priority>
 </integration-hierarchy>

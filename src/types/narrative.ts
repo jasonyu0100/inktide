@@ -978,6 +978,15 @@ export type ReasoningGraphSnapshot = {
   arcName: string;
   sceneCount: number;
   summary: string;
+  /** Engine settings under which the CRG was built — force preference,
+   *  reasoning mode, network bias. Persisted so scene generation (and
+   *  later stages) can inherit the same tilt the CRG was reasoned under,
+   *  keeping CRG → scene execution synchronised. */
+  arcSettings?: {
+    forcePreference?: "fate" | "world" | "system" | "chaos" | "freeform";
+    reasoningMode?: "divergent" | "deduction" | "abduction" | "induction";
+    networkBias?: "inside" | "outside" | "neutral";
+  };
 };
 
 export type ReasoningNodeSnapshot = {

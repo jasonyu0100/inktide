@@ -439,6 +439,7 @@ export function GeneratePanel({
           arcName: reasoningGraph.arcName,
           sceneCount: reasoningGraph.sceneCount,
           summary: reasoningGraph.summary,
+          arcSettings: reasoningGraph.arcSettings,
         },
       });
       // Advance coordination plan if active (regardless of whether settings were changed)

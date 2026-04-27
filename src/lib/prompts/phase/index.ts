@@ -11,3 +11,12 @@ export {
   buildPhaseGraphPrompt,
 } from "./generate";
 export type { PhaseGraphPromptArgs } from "./generate";
+
+export {
+  buildPhaseGraphDataBlock,
+  buildPhaseGraphApplicationBlock,
+  buildPhaseGraphSection,
+  buildPriorPhaseGraphSection,
+  phaseGraphPriorityEntry,
+} from "./application";
+export type { PhaseGraphScope } from "./application";

@@ -16,34 +16,39 @@ import { REASONING_BUDGETS } from "@/types/narrative";
 import { callGenerate, callGenerateStream } from "./api";
 import { narrativeContext } from "./context";
 import { parseJson } from "./json";
-import { buildSequentialPath } from "./reasoning-graph";
 import { logError } from "@/lib/system-logger";
-import { PHASE_GRAPH_SYSTEM, buildPhaseGraphPrompt } from "@/lib/prompts/phase";
+import {
+  PHASE_GRAPH_SYSTEM,
+  buildPhaseGraphPrompt,
+  buildPhaseGraphSection,
+  buildPriorPhaseGraphSection,
+  type PhaseGraphScope,
+} from "@/lib/prompts/phase";
 import { VALID_EDGE_TYPES } from "./reasoning-graph/shared";
 import type { ReasoningEdgeType } from "./reasoning-graph/types";
 import { getActivePhaseGraph } from "@/lib/phase-graph";
 
 /**
- * Render the active phase graph as a `<phase-graph>` XML block for
- * injection into downstream prompts (CRG / scenes / plans / prose).
- * Returns "" when no phase graph is active — downstream callers can
- * concatenate the result unconditionally.
+ * Render the active phase graph for injection into a downstream prompt:
+ * data block + scope-tailored application directive. Returns "" when no
+ * phase graph is active — callers can concatenate the result unconditionally.
  *
- * The block carries the working model of reality the narrative is
- * currently operating under: patterns/conventions/attractors/agents/rules/
- * pressures/landmarks. Downstream generation should read this as the
- * descriptive state of the system, then plan plot accordingly.
+ * The actual prompt strings live in `@/lib/prompts/phase/application` so
+ * the prompt language stays centralised and modular. This wrapper only
+ * resolves which graph to render.
  */
-export function buildActivePhaseGraphSection(narrative: NarrativeState): string {
+export function buildActivePhaseGraphSection(
+  narrative: NarrativeState,
+  scope: PhaseGraphScope,
+): string {
   const graph = getActivePhaseGraph(narrative);
   if (!graph) return "";
-  return `<phase-graph hint="HIGH-LEVEL META MACHINERY of this world — the structural underpinnings of its economy, political dynamics, magic system, cultural conventions, institutional agents, foundational landmarks, and meta-narrative tropes. NOT situational state (that's CRG/scene). Use this to give your output meaningful body: economic incentives that make characters' bargains land, generic patterns that explain why the next beat hits, institutional pulls that explain why factions stay in their lanes (or break out). Lower-priority than direction/brief/CRG, but always foundational — the higher layers operate ON TOP of the world this PRG describes. Inherit the machinery; let it trickle down to give your reasoning, plan, or prose its meaningful weight.">
-  <summary>${graph.summary}</summary>
-  <sequential-path>
-${buildSequentialPath({ nodes: graph.nodes, edges: graph.edges })}
-  </sequential-path>
-</phase-graph>`;
+  return buildPhaseGraphSection(graph, scope);
 }
+
+// Re-exports for legacy callers that imported types/helpers from this module
+// before the prompt strings were moved into `@/lib/prompts/phase`.
+export type { PhaseGraphScope };
 
 const VALID_PHASE_NODE_TYPES = new Set<PhaseNodeType>([
   "pattern",
@@ -81,14 +86,7 @@ export async function generatePhaseGraph(
 
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
-  const basedOnSection = basedOn
-    ? `<prior-phase-graph hint="The user is regenerating with this as the seed. The new graph must visibly diverge — supersede outdated nodes, surface emergent patterns the prior missed, retire pressures that have discharged. A new graph that maps onto this with cosmetic changes is a wasted regeneration.">
-  <summary>${basedOn.summary}</summary>
-  <sequential-path>
-${buildSequentialPath({ nodes: basedOn.nodes, edges: basedOn.edges })}
-  </sequential-path>
-</prior-phase-graph>`
-    : undefined;
+  const basedOnSection = basedOn ? buildPriorPhaseGraphSection(basedOn) : undefined;
 
   // Node-count target scales with narrative size. Phase graphs are denser
   // than per-arc reasoning graphs because they cover the whole system, but

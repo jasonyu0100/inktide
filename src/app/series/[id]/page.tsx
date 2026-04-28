@@ -291,7 +291,8 @@ export default function SeriesPage() {
               state.graphViewMode === 'prose' ||
               state.graphViewMode === 'audio' ||
               state.graphViewMode === 'game' ||
-              state.graphViewMode === 'phase') && (
+              state.graphViewMode === 'phase' ||
+              state.graphViewMode === 'reasoning') && (
               <FloatingPalette
                 isBulkActive={!!(bulk.runState?.isRunning || bulk.runState?.isPaused)}
                 isBulkAudioActive={!!(bulkAudio.runState?.isRunning || bulkAudio.runState?.isPaused)}

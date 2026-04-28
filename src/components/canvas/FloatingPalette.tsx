@@ -10,10 +10,12 @@ import {
   IconFlask,
   IconList,
   IconRefresh,
+  IconReset,
   IconSearch,
   IconSettings,
   IconTrash,
 } from "@/components/icons";
+import type { InspectorContext } from "@/types/narrative";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useStore } from "@/lib/store";
 import { resolvePlanForBranch, resolveProseForBranch } from "@/lib/narrative-utils";
@@ -234,6 +236,99 @@ export default function FloatingPalette({
     graphViewMode === "audio" ||
     graphViewMode === "game";
   const isPhaseMode = graphViewMode === "phase";
+  const isReasoningMode = graphViewMode === "reasoning";
+
+  // ── Node navigation for graph modes (phase / reasoning) ──────────────
+  // Resolves the active graph + selection from store state and exposes
+  // first/prev/next callbacks. Returns null when no graph is active so
+  // the palette can omit the nav controls entirely.
+  const graphNodeNav = useMemo(() => {
+    if (!narrative) return null;
+
+    if (isPhaseMode) {
+      const activeId = narrative.currentPhaseGraphId;
+      const graph = activeId ? narrative.phaseGraphs?.[activeId] : null;
+      if (!graph || graph.nodes.length === 0 || !activeId) return null;
+      const sorted = [...graph.nodes].sort((a, b) => a.index - b.index);
+      const ctx = state.viewState.inspectorContext;
+      const selectedId = ctx?.type === "phase" && ctx.phaseGraphId === activeId ? ctx.nodeId : null;
+      const selectedIdx = selectedId ? sorted.findIndex((n) => n.id === selectedId) : -1;
+      const buildContext = (nodeId: string): InspectorContext => ({
+        type: "phase",
+        phaseGraphId: activeId,
+        nodeId,
+      });
+      return { sortedNodes: sorted, selectedIdx, buildContext };
+    }
+
+    if (isReasoningMode) {
+      const sceneKey = state.resolvedEntryKeys[state.viewState.currentSceneIndex];
+      const worldBuild = sceneKey ? narrative.worldBuilds?.[sceneKey] : null;
+      if (worldBuild?.reasoningGraph?.nodes.length) {
+        const sorted = [...worldBuild.reasoningGraph.nodes].sort((a, b) => a.index - b.index);
+        const ctx = state.viewState.inspectorContext;
+        const selectedId =
+          ctx?.type === "reasoning" && ctx.worldBuildId === worldBuild.id ? ctx.nodeId : null;
+        const selectedIdx = selectedId ? sorted.findIndex((n) => n.id === selectedId) : -1;
+        const buildContext = (nodeId: string): InspectorContext => ({
+          type: "reasoning",
+          worldBuildId: worldBuild.id,
+          nodeId,
+        });
+        return { sortedNodes: sorted, selectedIdx, buildContext };
+      }
+      const arc = sceneKey
+        ? Object.values(narrative.arcs).find((a) => a.sceneIds.includes(sceneKey))
+        : null;
+      if (arc?.reasoningGraph?.nodes.length) {
+        const sorted = [...arc.reasoningGraph.nodes].sort((a, b) => a.index - b.index);
+        const ctx = state.viewState.inspectorContext;
+        const selectedId =
+          ctx?.type === "reasoning" && ctx.arcId === arc.id ? ctx.nodeId : null;
+        const selectedIdx = selectedId ? sorted.findIndex((n) => n.id === selectedId) : -1;
+        const buildContext = (nodeId: string): InspectorContext => ({
+          type: "reasoning",
+          arcId: arc.id,
+          nodeId,
+        });
+        return { sortedNodes: sorted, selectedIdx, buildContext };
+      }
+      return null;
+    }
+
+    return null;
+  }, [
+    narrative,
+    isPhaseMode,
+    isReasoningMode,
+    state.viewState.inspectorContext,
+    state.viewState.currentSceneIndex,
+    state.resolvedEntryKeys,
+  ]);
+
+  const navToGraphNodeIdx = useCallback(
+    (idx: number) => {
+      if (!graphNodeNav) return;
+      if (idx < 0 || idx >= graphNodeNav.sortedNodes.length) return;
+      dispatch({
+        type: "SET_INSPECTOR",
+        context: graphNodeNav.buildContext(graphNodeNav.sortedNodes[idx].id),
+      });
+    },
+    [graphNodeNav, dispatch],
+  );
+
+  const navFirstGraphNode = useCallback(() => navToGraphNodeIdx(0), [navToGraphNodeIdx]);
+  const navPrevGraphNode = useCallback(() => {
+    if (!graphNodeNav) return;
+    const cur = graphNodeNav.selectedIdx;
+    navToGraphNodeIdx(cur <= 0 ? 0 : cur - 1);
+  }, [graphNodeNav, navToGraphNodeIdx]);
+  const navNextGraphNode = useCallback(() => {
+    if (!graphNodeNav) return;
+    const cur = graphNodeNav.selectedIdx;
+    navToGraphNodeIdx(cur < 0 ? 0 : Math.min(cur + 1, graphNodeNav.sortedNodes.length - 1));
+  }, [graphNodeNav, navToGraphNodeIdx]);
 
   // Branch context for version resolution
   const branchId = state.viewState.activeBranchId;
@@ -503,34 +598,45 @@ export default function FloatingPalette({
           </div>
         )}
 
-        {/* Pill — matches plan/prose layout: chevrons + search + actions */}
+        {/* Pill — node nav + actions (no scene nav: phase graphs are
+            scene-independent, so navigating between graph nodes is the
+            primary affordance). */}
         <div className={`glass-pill px-3 py-1.5 flex items-center gap-2 ${wrapperClasses}`}>
-          {/* Scene nav (consistency with plan/prose) */}
-          <button
-            type="button"
-            className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
-            onClick={() => dispatch({ type: "PREV_SCENE" })}
-            aria-label="Previous scene"
-          >
-            <IconChevronLeft size={14} />
-          </button>
-          <button
-            type="button"
-            className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-secondary hover:text-text-primary hover:bg-white/6"
-            onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'search' })}
-            aria-label="Search narrative"
-            title="Search narrative"
-          >
-            <IconSearch size={12} />
-          </button>
-          <button
-            type="button"
-            className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
-            onClick={() => dispatch({ type: "NEXT_SCENE" })}
-            aria-label="Next scene"
-          >
-            <IconChevronRight size={14} />
-          </button>
+          {graphNodeNav ? (
+            <>
+              <button
+                type="button"
+                className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors disabled:opacity-30"
+                onClick={navPrevGraphNode}
+                disabled={graphNodeNav.selectedIdx <= 0}
+                aria-label="Previous node"
+                title="Previous node"
+              >
+                <IconChevronLeft size={14} />
+              </button>
+              <button
+                type="button"
+                className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
+                onClick={navFirstGraphNode}
+                aria-label="Reset to first node"
+                title="Reset to first node"
+              >
+                <IconReset size={12} />
+              </button>
+              <button
+                type="button"
+                className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors disabled:opacity-30"
+                onClick={navNextGraphNode}
+                disabled={graphNodeNav.selectedIdx >= graphNodeNav.sortedNodes.length - 1}
+                aria-label="Next node"
+                title="Next node"
+              >
+                <IconChevronRight size={14} />
+              </button>
+            </>
+          ) : (
+            <span className="text-[10px] font-mono text-text-dim/40 px-2">No graph</span>
+          )}
 
           <div className="w-px h-4 bg-white/12 mx-1" />
 
@@ -594,6 +700,69 @@ export default function FloatingPalette({
             {phaseGraphs.length > 0 && (
               <span className="text-[9px] text-text-dim/40 tabular-nums">{phaseGraphs.length}</span>
             )}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Reasoning (causal) graph palette — node navigation only. Causal
+  //    graphs are generated upstream via the GeneratePanel, so this
+  //    palette focuses on traversing the active graph's nodes.
+  if (isReasoningMode) {
+    return (
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
+        <div className={`glass-pill px-3 py-1.5 flex items-center gap-2 ${wrapperClasses}`}>
+          {graphNodeNav ? (
+            <>
+              <button
+                type="button"
+                className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors disabled:opacity-30"
+                onClick={navPrevGraphNode}
+                disabled={graphNodeNav.selectedIdx <= 0}
+                aria-label="Previous node"
+                title="Previous node"
+              >
+                <IconChevronLeft size={14} />
+              </button>
+              <button
+                type="button"
+                className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
+                onClick={navFirstGraphNode}
+                aria-label="Reset to first node"
+                title="Reset to first node"
+              >
+                <IconReset size={12} />
+              </button>
+              <button
+                type="button"
+                className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors disabled:opacity-30"
+                onClick={navNextGraphNode}
+                disabled={graphNodeNav.selectedIdx >= graphNodeNav.sortedNodes.length - 1}
+                aria-label="Next node"
+                title="Next node"
+              >
+                <IconChevronRight size={14} />
+              </button>
+            </>
+          ) : (
+            <span className="text-[10px] font-mono text-text-dim/40 px-2">
+              No reasoning graph at this scene
+            </span>
+          )}
+
+          <div className="w-px h-4 bg-white/12 mx-1" />
+
+          {/* Story Settings — keeps parity with other graph palettes */}
+          <button
+            type="button"
+            className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
+            onClick={() =>
+              window.dispatchEvent(new CustomEvent("open-story-settings"))
+            }
+            title="Story settings"
+          >
+            <IconSettings size={14} />
           </button>
         </div>
       </div>

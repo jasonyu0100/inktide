@@ -493,14 +493,14 @@ export default function ThreadGraphView({
           className="absolute z-40 pointer-events-none"
           style={{ left: tooltip.x, top: tooltip.y - 12, transform: 'translate(-50%, -100%)' }}
         >
-          <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl w-72">
+          <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl max-w-sm">
             <div className="flex items-start gap-2 mb-1">
               <span
                 className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5"
                 style={{ background: THREAD_CATEGORY_HEX[tooltip.category], boxShadow: `0 0 6px ${THREAD_CATEGORY_HEX[tooltip.category]}80` }}
               />
               <div>
-                <span className="text-xs font-semibold text-text-primary">{tooltip.description}</span>
+                <span className="text-xs font-semibold text-text-primary whitespace-normal wrap-break-word">{tooltip.description}</span>
                 <span className="text-[10px] text-text-dim ml-1">({THREAD_CATEGORY_LABEL[tooltip.category]})</span>
               </div>
             </div>

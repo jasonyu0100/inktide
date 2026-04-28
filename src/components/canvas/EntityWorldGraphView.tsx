@@ -207,7 +207,7 @@ export default function EntityWorldGraphView({ entityId, entityName, world, scen
   return (
     <div className="absolute inset-0 z-20 flex flex-col">
       {/* Legend strip */}
-      <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border bg-bg-base/60 z-30">
+      <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border glass-panel z-30">
         <button
           onClick={() => dispatch({ type: 'SELECT_KNOWLEDGE_ENTITY', entityId: null })}
           className="text-[10px] text-text-dim hover:text-text-secondary transition-colors flex items-center gap-1 mr-2"

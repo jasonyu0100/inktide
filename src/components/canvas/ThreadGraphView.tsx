@@ -441,7 +441,7 @@ export default function ThreadGraphView({
     <div className={hideControls ? 'flex flex-col absolute inset-0 z-20' : 'absolute inset-0 z-20'}>
       {/* Legend strip — replaces floating controls */}
       {hideControls && (
-        <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border bg-bg-base/60 z-30">
+        <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border glass-panel z-30">
           {legendStripItems.map(({ key, label, checked, toggle }) => (
             <button key={key} onClick={toggle}
               className={`text-[9px] px-2 py-1 rounded transition-colors select-none ${checked ? 'text-text-secondary' : 'text-text-dim/40 hover:text-text-dim'}`}>

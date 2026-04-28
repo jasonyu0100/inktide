@@ -186,6 +186,12 @@ export default function SeriesPage() {
   const showBulkBar = bulk.runState !== null;
   const showBulkAudioBar = bulkAudio.runState !== null;
 
+  // Graph-mode views render a legend strip (h-7 = 28px) at the top of the
+  // canvas. When that strip is visible, push the bar light down so it sits
+  // at the lowest divider line and the wash only spills downward.
+  const hasCanvasLegend = GRAPH_MODES.has(state.graphViewMode);
+  const barLightTop = hasCanvasLegend ? 28 : 0;
+
   return (
     <PropositionClassificationProvider narrative={state.activeNarrative} resolvedKeys={state.resolvedEntryKeys}>
     <AudioPlayerProvider>
@@ -198,6 +204,31 @@ export default function SeriesPage() {
           <CanvasTopBar />
           <div className="flex-1 relative overflow-hidden">
             <WorldGraph />
+            {/* Top bar light — washes the upper canvas for legibility. Both
+                the wash and divider start at the bottom edge of the topmost
+                bar (CanvasTopBar, plus a legend strip when in graph mode), so
+                the light only ever spills downward. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0"
+              style={{
+                top: barLightTop,
+                height: 320,
+                background:
+                  'linear-gradient(to bottom, rgba(221, 214, 254, 0.22) 0%, rgba(210, 197, 253, 0.11) 12%, rgba(196, 181, 253, 0.05) 32%, rgba(196, 181, 253, 0.02) 60%, transparent 100%)',
+                mixBlendMode: 'screen',
+              }}
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0"
+              style={{
+                top: barLightTop,
+                height: 1,
+                background:
+                  'linear-gradient(to right, transparent 0%, rgba(196, 181, 253, 0.55) 18%, rgba(237, 233, 254, 0.85) 50%, rgba(196, 181, 253, 0.55) 82%, transparent 100%)',
+              }}
+            />
             {/* Mode control bars - prioritize: bulk-audio > bulk > mcts > auto */}
             {showBulkAudioBar && bulkAudio.runState && (
               <ModeControlBar

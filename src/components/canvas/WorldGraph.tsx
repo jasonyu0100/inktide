@@ -1043,7 +1043,7 @@ export default function WorldGraph() {
     <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Legend strip — only for spatial/overview when NOT viewing an entity's inner graph */}
       {(graphViewMode === 'spatial' || graphViewMode === 'overview') && !selectedKnowledgeEntity && (
-        <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border bg-bg-base/60">
+        <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border glass-panel">
           {([
             { key: 'labels', label: 'Labels', checked: showEdgeLabels, toggle: () => setShowEdgeLabels((v) => !v) },
             { key: 'heat', label: 'Heat', checked: showHeatmap, toggle: () => setShowHeatmap((v) => !v) },

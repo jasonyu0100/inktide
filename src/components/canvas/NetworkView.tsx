@@ -318,7 +318,7 @@ export default function NetworkView() {
   return (
     <div className="flex flex-col absolute inset-0 z-20">
       {/* Top legend strip — matches the KnowledgeGraphView pattern */}
-      <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border bg-bg-base/60 z-30 overflow-x-auto">
+      <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border glass-panel z-30 overflow-x-auto">
         <button
           onClick={() => setColorMode('heat')}
           className={`text-[9px] px-2 py-1 rounded transition-colors select-none ${colorMode === 'heat' ? 'text-text-secondary' : 'text-text-dim/40 hover:text-text-dim'}`}

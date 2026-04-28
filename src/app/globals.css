@@ -303,10 +303,10 @@ button,
   width: 140vmax;
   height: 140vmax;
   pointer-events: none;
-  opacity: 0.035;
+  opacity: 0.11;
   mix-blend-mode: screen;
   transform-origin: center center;
-  animation: zodiac-rotate 480s linear infinite;
+  animation: zodiac-rotate 360s linear infinite;
 }
 @keyframes zodiac-rotate {
   from {

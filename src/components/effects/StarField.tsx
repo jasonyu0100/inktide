@@ -312,32 +312,32 @@ export function ZodiacWheel() {
         cy="0"
         r="98"
         fill="none"
-        stroke="rgba(196, 181, 253, 0.55)"
-        strokeWidth="0.18"
+        stroke="rgba(196, 181, 253, 0.85)"
+        strokeWidth="0.28"
       />
       <circle
         cx="0"
         cy="0"
         r="78"
         fill="none"
-        stroke="rgba(196, 181, 253, 0.4)"
-        strokeWidth="0.15"
+        stroke="rgba(196, 181, 253, 0.7)"
+        strokeWidth="0.22"
       />
       <circle
         cx="0"
         cy="0"
         r="58"
         fill="none"
-        stroke="rgba(251, 191, 36, 0.32)"
-        strokeWidth="0.15"
+        stroke="rgba(251, 191, 36, 0.6)"
+        strokeWidth="0.22"
       />
       <circle
         cx="0"
         cy="0"
         r="34"
         fill="none"
-        stroke="rgba(196, 181, 253, 0.28)"
-        strokeWidth="0.1"
+        stroke="rgba(196, 181, 253, 0.5)"
+        strokeWidth="0.16"
       />
       {spokes.map((i) => {
         const angle = (i / 12) * Math.PI * 2;
@@ -352,8 +352,8 @@ export function ZodiacWheel() {
             y1={y1}
             x2={x2}
             y2={y2}
-            stroke="rgba(196, 181, 253, 0.32)"
-            strokeWidth="0.1"
+            stroke="rgba(196, 181, 253, 0.6)"
+            strokeWidth="0.16"
           />
         );
       })}
@@ -370,8 +370,8 @@ export function ZodiacWheel() {
             y1={y1}
             x2={x2}
             y2={y2}
-            stroke="rgba(196, 181, 253, 0.55)"
-            strokeWidth="0.1"
+            stroke="rgba(196, 181, 253, 0.85)"
+            strokeWidth="0.16"
           />
         );
       })}

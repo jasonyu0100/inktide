@@ -113,110 +113,161 @@ Return JSON with this exact structure:
 }
 </output-format>
 
-<rules name="pilot-episode" hint="Establish a tight, focused world. These are minimums; exceed when the premise warrants it.">
-- establish a tight, focused world. These are minimums; exceed when the premise warrants it:
-- AT LEAST 8 characters: 2+ anchors, 3+ recurring, 3+ transient
-- AT LEAST 6 locations with parent/child hierarchy (at least 2 nesting levels)
-- AT LEAST 4 threads — a DELIBERATE MIX of thread shapes (see THREAD SHAPES below). A healthy seed carries: 1+ discrete-resolution (a concrete question that will be decisively answered within a few arcs), 1+ slow-burn (stays uncertain for most of the work, resolves late and hard), 1+ constant-tension (a philosophical/character spine — "will they ever forgive themselves?", "can X achieve eternal life?" — pulses forever, may or may not close). Threads force entities into action. At least 2 must share participants so their markets correlate.
-- AT LEAST 8 relationships (at least 1 hostile)
-- AT LEAST 1 artifact when the premise involves tools or objects of power
-- AT LEAST 12 system nodes with 8 edges — the systems, principles, tensions, and structures the world runs on. This is the foundational system graph every future scene draws from; a thin root means thin scenes forever. Each node MUST be 15-25 words describing a general rule or structural fact (how the world works). Include micro-rules (specific mechanics), mid-rules (institutional/economic), and macro-rules (cosmological/thematic). SHORT NAMES ARE FAILURES — "Aperture Grading" is wrong; "The sect grades disciples by aperture quality, with A-grade apertures receiving priority resource allocation and mentorship" is correct.${worldOnly ? '' : `
-- AT LEAST 8 scenes in 1 arc, AVERAGING ~${forceReferenceMeansWorld} world nodes and ~${forceReferenceMeansSystem} system nodes per scene (these are the grading reference means). Some scenes quiet, some dense — but the MEAN across the arc must hit the reference or the whole pilot grades in the 60s. A typical scene touches 3-5 entities with ${worldTypicalBand} world nodes and reveals ${systemTypicalBand} system concepts; climactic scenes push to ${worldClimaxBand} world and ${systemClimaxBand} system.`}
+<rules name="pilot-episode" hint="Establish a tight, focused world. Counts below are minimums; exceed when the premise warrants it.">
+  <minimums>
+    <count entity="characters" target="≥8">2+ anchors, 3+ recurring, 3+ transient</count>
+    <count entity="locations" target="≥6">parent/child hierarchy with at least 2 nesting levels</count>
+    <count entity="threads" target="≥4">DELIBERATE MIX of shapes (see thread-shapes). 1+ discrete-resolution, 1+ slow-burn, 1+ constant-tension. At least 2 must share participants so their markets correlate.</count>
+    <count entity="relationships" target="≥8">at least 1 hostile</count>
+    <count entity="artifacts" target="≥1">when the premise involves tools or objects of power</count>
+    <count entity="system-nodes" target="≥12">with ≥8 edges. The foundational system graph every future scene draws from; a thin root means thin scenes forever. Each node MUST be 15-25 words describing a general rule or structural fact. Include micro-rules (specific mechanics), mid-rules (institutional/economic), and macro-rules (cosmological/thematic).</count>
+    <example category="bad" reason="too-short">Aperture Grading</example>
+    <example category="good">The sect grades disciples by aperture quality, with A-grade apertures receiving priority resource allocation and mentorship.</example>${worldOnly ? '' : `
+    <count entity="scenes" target="≥8 in 1 arc">Averaging ~${forceReferenceMeansWorld} world nodes and ~${forceReferenceMeansSystem} system nodes per scene (the grading reference means). Some scenes quiet, some dense — but the MEAN across the arc must hit the reference or the whole pilot grades in the 60s.</count>
+    <density typical="touches 3-5 entities; ${worldTypicalBand} world nodes; ${systemTypicalBand} system concepts" climactic="${worldClimaxBand} world; ${systemClimaxBand} system" />`}
+  </minimums>
 
-SEEDING FATE — a great world is pregnant with story. Every entity you create should carry the seeds of future conflict:
-- Threads are fate's mechanism — each thread is a COMPELLING question (stakes + uncertainty + investment) the story MUST eventually answer
-- Characters carry secrets that WILL come out, goals that WILL collide, relationships that WILL be tested
-- Locations hold histories that WILL matter, resources that WILL be contested, rules that WILL constrain
-- Artifacts have costs that WILL be paid, powers that WILL corrupt, origins that WILL be revealed
-- Systems create pressures that WILL force action — scarcity breeds conflict, power demands trade-offs
-- The reader should sense from page one that SOMETHING LARGER IS COMING. Every detail is a fuse; you're laying the powder trail
-- Plant surprises: at least 2 characters should have secrets even the reader doesn't know yet (these go in world nodes of type "secret")
-- Create asymmetries: what Character A believes about Character B should differ from reality in ways that will explode later
-- Build pressure: threads should share participants so collision is INEVITABLE, not coincidental
+  <seeding-fate>
+    <intent>A great world is pregnant with story. Every entity you create should carry the seeds of future conflict.</intent>
+    <rule>Threads are fate's mechanism — each thread is a COMPELLING question (stakes + uncertainty + investment) the story MUST eventually answer.</rule>
+    <rule>Characters carry secrets that WILL come out, goals that WILL collide, relationships that WILL be tested.</rule>
+    <rule>Locations hold histories that WILL matter, resources that WILL be contested, rules that WILL constrain.</rule>
+    <rule>Artifacts have costs that WILL be paid, powers that WILL corrupt, origins that WILL be revealed.</rule>
+    <rule>Systems create pressures that WILL force action — scarcity breeds conflict, power demands trade-offs.</rule>
+    <invariant>The reader should sense from page one that SOMETHING LARGER IS COMING. Every detail is a fuse; you're laying the powder trail.</invariant>
+    <rule name="plant-surprises">At least 2 characters should have secrets even the reader doesn't know yet (these go in world nodes of type "secret").</rule>
+    <rule name="create-asymmetries">What Character A believes about Character B should differ from reality in ways that will explode later.</rule>
+    <rule name="build-pressure">Threads should share participants so collision is INEVITABLE, not coincidental.</rule>
+  </seeding-fate>
 
-ENTITY DEFINITIONS:
-- Characters are conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI systems are artifacts.
-- Locations are spatial areas or regions — physical places you can be IN.
-- Artifacts are anything that delivers utility — active tools, not passive concepts. Concepts belong in system knowledge.
-- Threads are COMPELLING QUESTIONS that shape fate. A compelling question has stakes, uncertainty, and investment. Match the narrative's register. BAD: "Will X succeed?" GOOD (narrative): "Can Ayesha clear her grandfather's name before the tribunal ends?" GOOD (argument): "Does the proposed mechanism explain the anomalies the prior model cannot?" GOOD (inquiry): "What role did diaspora networks play in the movement before digital coordination?" Thread logs track incremental answers.
+  <entity-definitions>
+    <entity id="characters">Conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI systems are artifacts.</entity>
+    <entity id="locations">Spatial areas or regions — physical places you can be IN.</entity>
+    <entity id="artifacts">Anything that delivers utility — active tools, not passive concepts. Concepts belong in system knowledge.</entity>
+    <entity id="threads">
+      <definition>COMPELLING QUESTIONS that shape fate. A compelling question has stakes, uncertainty, and investment. Match the narrative's register.</definition>
+      <example category="bad">Will X succeed?</example>
+      <example category="good" register="narrative">Can Ayesha clear her grandfather's name before the tribunal ends?</example>
+      <example category="good" register="argument">Does the proposed mechanism explain the anomalies the prior model cannot?</example>
+      <example category="good" register="inquiry">What role did diaspora networks play in the movement before digital coordination?</example>
+      <note>Thread logs track incremental answers.</note>
+    </entity>
+  </entity-definitions>
 
-THREAD SHAPES — threads differ in how they live and die. A good seed mixes them:
-  • DISCRETE-RESOLUTION — a concrete question with a clean answer. Resolves within 1-3 arcs when the evidence is in. Outcomes are usually binary or small-N ("What grade aperture does X have?" → {A, B, C, D}). The market goes from high uncertainty to collapse in a single decisive scene; once answered, it closes and stays closed. Seed 1-2 of these as early-arc hooks.
-  • SLOW-BURN — stays genuinely uncertain across many arcs. The market oscillates and re-prices but doesn't close until structural conditions align late in the work ("Can the rebellion topple the regime?", "Does the theory survive the critical test case?"). Seed 1-2 of these as the story's middle spine. These require a healthy diet of small evidence updates scene-by-scene; starve them and they abandon.
-  • CONSTANT-TENSION — a philosophical or character spine that pulses forever. It asks a question that shapes every decision ("Can Fang Yuan achieve eternal life?", "Will she ever forgive her mother?", "Is the universe cruel or indifferent?"). The market may never close within the work's scope; instead its probability drifts as events reshape the character's stance. These need recurring small pulses to stay alive (volume decay is lethal); treat them as the story's weather, not its plot. Seed 1-2.
+  <thread-shapes hint="Threads differ in how they live and die. A good seed mixes them.">
+    <shape id="discrete-resolution" seed="1-2">
+      <intent>A concrete question with a clean answer. Resolves within 1-3 arcs when the evidence is in.</intent>
+      <outcomes>Usually binary or small-N — "What grade aperture does X have?" → {A, B, C, D}.</outcomes>
+      <market-behaviour>Goes from high uncertainty to collapse in a single decisive scene; once answered, it closes and stays closed.</market-behaviour>
+      <placement>Early-arc hooks.</placement>
+    </shape>
+    <shape id="slow-burn" seed="1-2">
+      <intent>Stays genuinely uncertain across many arcs.</intent>
+      <market-behaviour>Oscillates and re-prices but doesn't close until structural conditions align late in the work.</market-behaviour>
+      <example>Can the rebellion topple the regime?</example>
+      <example>Does the theory survive the critical test case?</example>
+      <placement>Story's middle spine.</placement>
+      <maintenance>Requires a healthy diet of small evidence updates scene-by-scene; starve them and they abandon.</maintenance>
+    </shape>
+    <shape id="constant-tension" seed="1-2">
+      <intent>A philosophical or character spine that pulses forever — asks a question that shapes every decision.</intent>
+      <example>Can Fang Yuan achieve eternal life?</example>
+      <example>Will she ever forgive her mother?</example>
+      <example>Is the universe cruel or indifferent?</example>
+      <market-behaviour>May never close within the work's scope; probability drifts as events reshape the character's stance.</market-behaviour>
+      <maintenance>Need recurring small pulses to stay alive (volume decay is lethal); treat them as the story's weather, not its plot.</maintenance>
+    </shape>
+    <invariant>Within the same story, these shapes should feel distinctly different to the reader. A discrete-resolution thread that pulses through 20 scenes without resolving has been mis-shaped. A constant-tension thread that closes cleanly in arc 3 has been mis-shaped. Name the shape when you seed — match the question to the lifetime you intend.</invariant>
+  </thread-shapes>
 
-Within the same story, these shapes should feel distinctly different to the reader. A discrete-resolution thread that pulses through 20 scenes without resolving has been mis-shaped. A constant-tension thread that closes cleanly in arc 3 has been mis-shaped. Name the shape when you seed — match the question to the lifetime you intend.
+  <character-depth-by-role hint="Minimums; go deeper for complex characters.">
+    <intent>These initial world nodes become the first readings the grader sees, and anchor entities will be revisited for world deltas across every scene, so seed them richly.</intent>
+    <ordering>List each entity's nodes in the causal/temporal order they became true — adjacent nodes auto-chain into the entity's inner graph, no manual edges needed.</ordering>
+    <depth role="anchor" target="6-8 world nodes">defining trait, goal, belief, weakness, secret, capability, relation, history</depth>
+    <depth role="recurring" target="3-4 world nodes">role, relationship to an anchor, one hidden dimension, one capability or limitation</depth>
+    <depth role="transient" target="1-2 world nodes">function and a distinguishing trait</depth>
+  </character-depth-by-role>
 
-CHARACTER DEPTH BY ROLE — minimums; go deeper for complex characters. These initial world nodes become the first readings the grader sees, and anchor entities will be revisited for world deltas across every scene, so seed them richly. List each entity's nodes in the causal/temporal order they became true — adjacent nodes auto-chain into the entity's inner graph, no manual edges needed:
-- Anchors: 6-8 world nodes each — defining trait, goal, belief, weakness, secret, capability, relation, history.
-- Recurring: 3-4 world nodes each — role, relationship to an anchor, one hidden dimension, one capability or limitation.
-- Transient: 1-2 world nodes each — their function and a distinguishing trait.
+  <input-handling>
+    <intent>The premise may include user-provided characters, locations, threads, rules, and systems. Handle both cases.</intent>
+    <case kind="seeded">Use the provided entities as anchors and starting points. Expand the world around them — add supporting cast, sub-locations, connecting threads. Honour the user's descriptions and relationships but deepen them with secrets, contradictions, and hidden connections. The user's input is the skeleton; you build the muscle and skin.</case>
+    <case kind="bare-premise">Interpret the premise ambitiously. Extrapolate a full world with factions, geography, history, and power structures. A one-line prompt like "kung fu monks in space" should produce a world as rich and specific as one seeded with 20 entities. Do not produce a thin world just because the input was thin.</case>
+  </input-handling>
 
-SEED DATA vs. BARE PREMISE:
-The premise may include user-provided characters, locations, threads, rules, and systems. Handle both cases:
-- IF seeded: Use the provided entities as anchors and starting points. Expand the world around them — add supporting cast, sub-locations, connecting threads. Honour the user's descriptions and relationships but deepen them with secrets, contradictions, and hidden connections. The user's input is the skeleton; you build the muscle and skin.
-- IF bare premise (just a concept/genre/theme with no entities): Interpret the premise ambitiously. Extrapolate a full world with factions, geography, history, and power structures. A one-line prompt like "kung fu monks in space" should produce a world as rich and specific as one seeded with 20 entities. Do not produce a thin world just because the input was thin.
+  <naming critical="true">
+    <intent>The premise may contain placeholder or generic names (e.g. "The Reincarnator", "The Elder Council", "Shadow Realm"). Replace ALL placeholder names with original, specific names. Naming is the single biggest quality signal.</intent>
+    <directive>Name like a writer with cultural specificity, not a fantasy name generator.</directive>
+    <step index="1" name="detect-cultural-origin">
+      <rule>Detect the cultural origin implied by the premise. Never default to Anglo/Celtic/Greek.</rule>
+      <palette region="east-asian">Han Chinese (classical / modern), Japanese (kun/on readings), Korean, Vietnamese, Mongolian</palette>
+      <palette region="south-asian">Sanskrit, Tamil/Dravidian, Bengali, Punjabi, Sinhala, Pashto</palette>
+      <palette region="middle-eastern / west-asian">Arabic, Persian/Farsi, Turkish, Hebrew, Aramaic, Kurdish</palette>
+      <palette region="african">Yoruba, Igbo, Akan, Amharic, Swahili, Zulu, Wolof, Hausa, Malagasy, Tamazight</palette>
+      <palette region="indigenous">Nahuatl, Quechua, Navajo, Cree, Māori, Hawaiian, Sami — use respectfully, avoid sacred/taboo names</palette>
+      <palette region="european">Slavic, Baltic, Nordic, Celtic, Greek, Latin — treat these as one palette among many, not the default</palette>
+      <palette region="post-colonial / maritime">Latin American, Caribbean, Lusophone African, Filipino, Indonesian, Malay</palette>
+      <palette region="diasporic / multicultural">Names that mark hybridity (e.g. Chinese-Peruvian, Lebanese-Brazilian, British-Nigerian) where the premise calls for it</palette>
+    </step>
+    <step index="2" name="source-from-real-cultures">Source names from real census records, historical obscurities, regional naming traditions, or deliberate etymological construction rooted in SPECIFIC cultures matching the world's origin. A world inspired by Song Dynasty China should have names sourced from Chinese historical records. A world inspired by Ottoman history from Turkish/Arabic/Persian roots. A West African-inspired world from Yoruba, Akan, or Wolof roots. A Sanskrit-inflected world from Vedic or Tamil sources.</step>
+    <step index="3" name="multicultural-palettes">For multicultural worlds: each faction, region, or cultural group gets its own distinct naming palette reflecting its origin. Names should signal which part of the world a character comes from.</step>
+    <step index="4" name="internal-consistency">Pick a consistent cultural palette for each faction or region and stay within it. Internal consistency is more important than variety.</step>
+    <step index="5" name="texture">Prefer rough, blunt, asymmetric names where the source tradition allows it. Names with hard consonant clusters, unexpected syllable stress, tonal marks, or occupational origins feel lived-in. Smooth melodic names with open vowels feel generated — unless the palette is genuinely melodic (e.g. Hawaiian, Japanese), in which case lean into the tradition's own texture.</step>
+    <step index="6" name="surnames">From occupations, geography, patronymics/matronymics, or clan names — never compound noun+noun fantasy construction.</step>
+    <step index="7" name="locations">Derive from terrain, founders, or linguistic corruption of older words. They should sound like they've been mispronounced for centuries within their own language family.</step>
+    <step index="8" name="threads-and-systems">Concrete and specific. "The Tithe of Ash" not "The Power System". "The Lazar Compact" not "The Ancient Alliance". Match the cultural palette — a Mughal-inspired system might be "The Mansabdari Ledger", a West African one "The Ọba's Covenant".</step>
+    <test>If a name could appear in 10 different Anglo-fantasy novels interchangeably, it's too generic. If it could only belong to THIS world and this culture, it's right.</test>
+    <respect>When drawing from Indigenous or living religious traditions, avoid names with explicit sacred/taboo status. Use the tradition's everyday register, not its ceremonial one, unless the premise explicitly calls for the latter and handles it with weight.</respect>
+  </naming>
 
-NAMING — CRITICAL:
-The premise may contain placeholder or generic names (e.g. "The Reincarnator", "The Elder Council", "Shadow Realm"). Replace ALL placeholder names with original, specific names. Naming is the single biggest quality signal.
+  <location-hierarchy-and-agency>
+    <rule>Build spatial nesting: Region → Settlement → District → Specific Place.</rule>
+    <rule>A city with 5 sub-locations feels more real than 5 unconnected cities.</rule>
+    <rule>Include contrasting environments: if the story starts safe, the world needs a dangerous frontier.</rule>
+    <agency>A location is BOTH a place AND its people. A delta village is its floodplain AND its fishers AND its song cycles. A city is infrastructure AND culture AND collective will. A kingdom is territory AND governance AND identity. A monastery is cells AND its order. A research institute is buildings AND its reviewers. Locations think, feel, and act through their inhabitants.</agency>
+    <prominence level="domain" target="4-6 world nodes">Centers of power with deep inner worlds. They impose rules on characters and have collective agency — a kingdom demands fealty, a city mourns its dead, an organization pursues its agenda.</prominence>
+    <prominence level="place" target="2-3 world nodes">Recurring settings. History, state, trait.</prominence>
+    <prominence level="margin" target="1 world node">Transitional. Trait or state.</prominence>
+  </location-hierarchy-and-agency>
 
-Name like a writer with cultural specificity, not a fantasy name generator:
-- FIRST: detect the cultural origin implied by the premise. Never default to Anglo/Celtic/Greek. Palettes include (non-exhaustive):
-    • East Asian — Han Chinese (classical / modern), Japanese (kun/on readings), Korean, Vietnamese, Mongolian
-    • South Asian — Sanskrit, Tamil/Dravidian, Bengali, Punjabi, Sinhala, Pashto
-    • Middle Eastern / West Asian — Arabic, Persian/Farsi, Turkish, Hebrew, Aramaic, Kurdish
-    • African — Yoruba, Igbo, Akan, Amharic, Swahili, Zulu, Wolof, Hausa, Malagasy, Tamazight
-    • Indigenous — Nahuatl, Quechua, Navajo, Cree, Māori, Hawaiian, Sami (use respectfully, avoid sacred/taboo names)
-    • Slavic, Baltic, Nordic, Celtic, Greek, Latin — treat these as one palette among many, not the default
-    • Latin American, Caribbean, Lusophone African, Filipino, Indonesian, Malay — use for regions inspired by colonial/post-colonial or maritime cultures
-    • Diasporic & multicultural — names that mark hybridity (e.g. Chinese-Peruvian, Lebanese-Brazilian, British-Nigerian) where the premise calls for it
-- Source names from real census records, historical obscurities, regional naming traditions, or deliberate etymological construction rooted in SPECIFIC cultures matching the world's origin. A world inspired by Song Dynasty China should have names sourced from Chinese historical records. A world inspired by Ottoman history from Turkish/Arabic/Persian roots. A West African-inspired world from Yoruba, Akan, or Wolof roots. A Sanskrit-inflected world from Vedic or Tamil sources.
-- For multicultural worlds: each faction, region, or cultural group gets its own distinct naming palette reflecting its origin. Names should signal which part of the world a character comes from.
-- Pick a consistent cultural palette for each faction or region and stay within it. Internal consistency is more important than variety.
-- Prefer rough, blunt, asymmetric names where the source tradition allows it. Names with hard consonant clusters, unexpected syllable stress, tonal marks, or occupational origins feel lived-in. Smooth melodic names with open vowels feel generated — unless the palette is genuinely melodic (e.g. Hawaiian, Japanese), in which case lean into the tradition's own texture.
-- Surnames from occupations, geography, patronymics/matronymics, or clan names — never compound noun+noun fantasy construction.
-- Location names: derive from terrain, founders, or linguistic corruption of older words. They should sound like they've been mispronounced for centuries within their own language family.
-- Thread/system names: concrete and specific. "The Tithe of Ash" not "The Power System". "The Lazar Compact" not "The Ancient Alliance". Match the cultural palette — a Mughal-inspired system might be "The Mansabdari Ledger", a West African one "The Ọba's Covenant".
-- Test: if a name could appear in 10 different Anglo-fantasy novels interchangeably, it's too generic. If it could only belong to THIS world and this culture, it's right.
-- Respect: when drawing from Indigenous or living religious traditions, avoid names with explicit sacred/taboo status. Use the tradition's everyday register, not its ceremonial one, unless the premise explicitly calls for the latter and handles it with weight.
+  <relationships>
+    <rule>Connect anchors to MANY characters (6+ relationships per anchor).</rule>
+    <rule>Asymmetric descriptions: "A admires B" while "B suspects A".</rule>
+    <rule>At least 2 hidden relationships (known to reader, not to characters).</rule>
+  </relationships>
 
-LOCATION HIERARCHY & AGENCY:
-- Build spatial nesting: Region → Settlement → District → Specific Place
-- A city with 5 sub-locations feels more real than 5 unconnected cities
-- Include contrasting environments: if the story starts safe, the world needs a dangerous frontier
-- A location is BOTH a place AND its people. A delta village is its floodplain AND its fishers AND its song cycles. A city is infrastructure AND culture AND collective will. A kingdom is territory AND governance AND identity. A monastery is cells AND its order. A research institute is buildings AND its reviewers. Locations think, feel, and act through their inhabitants.
-- Prominence: "domain" locations are centers of power with deep inner worlds, "place" locations are recurring settings, "margin" locations are transitional.
-- Domain locations: 4-6 world nodes (history, traits, capabilities, weaknesses, goals, beliefs). They impose rules on characters and have collective agency — a kingdom demands fealty, a city mourns its dead, an organization pursues its agenda.
-- Place locations: 2-3 world nodes (history, state, trait).
-- Margin locations: 1 world node (trait or state).
+  <artifacts-and-tools>
+    <intent>Artifacts are things that by themselves can provide utility. They extend what's possible — a magical weapon changes how someone fights, AI technology changes the scale of thought, a cursed ring slowly consumes its bearer. Artifacts modify their wielder's capabilities and constrain their choices.</intent>
+    <significance level="key" count="1" target="5-7 world nodes">A capability-altering entity. Traits, capabilities, history, weaknesses, secrets, goals. Must connect to at least 2 threads. Its inner world should rival a recurring character's. Define HOW it changes what its wielder can do.</significance>
+    <significance level="notable" count="1" target="3-4 world nodes">A tool that grants a specific capability. Capability, history, relation, weakness. Owned by a character who uses it — the character's capabilities should reflect the tool.</significance>
+    <significance level="minor" count="1" target="1-2 world nodes">A small object with narrative potential. Can be at a location.</significance>
+    <invariant>Artifacts must feel integral to the world. Key artifacts should have world edges (capability motivated_by history, weakness caused_by trait).</invariant>
+  </artifacts-and-tools>${worldOnly ? '' : `
 
-RELATIONSHIPS:
-- Connect anchors to MANY characters (6+ relationships per anchor)
-- Asymmetric descriptions: "A admires B" while "B suspects A"
-- At least 2 hidden relationships (known to reader, not to characters)
+  <scene-coverage>
+    <rule>Every anchor must appear in at least 3 scenes.</rule>
+    <rule>Use at least 6 different locations across the 8 scenes.</rule>
+  </scene-coverage>
 
-ARTIFACTS & TOOLS:
-- Artifacts are things that by themselves can provide utility. They extend what's possible — a magical weapon changes how someone fights, AI technology changes the scale of thought, a cursed ring slowly consumes its bearer. Artifacts modify their wielder's capabilities and constrain their choices.
-- Key artifact (1): a capability-altering entity. 5-7 world nodes (traits, capabilities, history, weaknesses, secrets, goals). Must connect to at least 2 threads. Its inner world should rival a recurring character's. Define HOW it changes what its wielder can do.
-- Notable artifact (1): a tool that grants a specific capability. 3-4 world nodes (capability, history, relation, weakness). Owned by a character who uses it — the character's capabilities should reflect the tool.
-- Minor artifact (1): a small object with narrative potential. 1-2 world nodes. Can be at a location.
-- Artifacts must feel integral to the world. Key artifacts should have world edges (capability motivated_by history, weakness caused_by trait).
+  <time-delta required="true">
+    <intent>Each scene is an instant in time; timeDelta captures the gap since the PRIOR scene as an estimate.</intent>
+    <invariant>Always commit to a best-guess; do not skip the field.</invariant>
+    <field name="value">integer ≥ 0</field>
+    <field name="unit" values="minute | hour | day | week | month | year">Pick the unit that reads most naturally.</field>
+    <example phrase="that evening">3 hours</example>
+    <example phrase="the next morning">1 day</example>
+    <example phrase="three years later">3 years</example>
+    <special-case>{value: 0, unit: "minute"} marks a concurrent / simultaneous scene (same moment, different POV or vantage) — also use this for the very first scene of the arc where there's no prior scene to measure against.</special-case>
+    <rule>This is an ESTIMATE — it's understood that you're reading prose cues, not consulting a calendar. Pick the most plausible value.</rule>
+    <rule>This is a RELATIVE delta only; there is no absolute calendar anchor. Do not assume a start date.</rule>
+  </time-delta>
 
-${worldOnly ? '' : `Every anchor must appear in at least 3 scenes. Use at least 6 different locations across the 8 scenes.
-
-TIME DELTA — REQUIRED on every scene. Each scene is an instant in time; timeDelta captures the gap since the PRIOR scene as an estimate. Always commit to a best-guess; do not skip the field.
-- value: integer ≥ 0. unit: one of minute | hour | day | week | month | year. Pick the unit that reads most naturally ("that evening" → 3 hours, "the next morning" → 1 day, "three years later" → 3 years).
-- {value: 0, unit: "minute"} marks a concurrent / simultaneous scene (same moment, different POV or vantage) — also use this for the very first scene of the arc where there's no prior scene to measure against.
-- This is an ESTIMATE — it's understood that you're reading prose cues, not consulting a calendar. Pick the most plausible value.
-- This is a RELATIVE delta only; there is no absolute calendar anchor. Do not assume a start date.
-
-${PROMPT_POV}
-${PROMPT_FORCE_STANDARDS}
-${PROMPT_STRUCTURAL_RULES}
-${PROMPT_DELTAS}
-${PROMPT_WORLD}
-${PROMPT_ARC_STATE_GUIDANCE}
-${PROMPT_SUMMARY_REQUIREMENT}`}
+  ${PROMPT_POV}
+  ${PROMPT_FORCE_STANDARDS}
+  ${PROMPT_STRUCTURAL_RULES}
+  ${PROMPT_DELTAS}
+  ${PROMPT_WORLD}
+  ${PROMPT_ARC_STATE_GUIDANCE}
+  ${PROMPT_SUMMARY_REQUIREMENT}`}
 </rules>
 `;
 }

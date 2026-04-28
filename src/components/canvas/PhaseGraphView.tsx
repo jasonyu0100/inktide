@@ -15,7 +15,7 @@ import { ReasoningGraphView } from "./ReasoningGraphView";
 import { generatePhaseGraph } from "@/lib/ai/phase-graph";
 import { nextId } from "@/lib/narrative-utils";
 import { logError } from "@/lib/system-logger";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const resolvePhaseNodeColor = (type: string) => {
   return (PHASE_NODE_COLORS as Record<string, { fill: string; stroke: string; text: string }>)[type] ?? REASONING_NODE_COLOR_UNKNOWN;
@@ -39,11 +39,21 @@ export function PhaseGraphView({ graph }: Props) {
     [graph],
   );
 
+  // Memoised so its identity is stable across re-renders. Without useCallback
+  // the inline arrow created a fresh reference each render → ReasoningGraphView's
+  // handleNodeClick deps churned → its main render useEffect retriggered →
+  // svg.call(zoom.transform, initialTransform) reset the pan/zoom on every
+  // selection. Causal mode never passes this prop so it didn't surface there.
+  const buildInspectorContext = useCallback(
+    (nodeId: string) => ({ type: "phase" as const, phaseGraphId: graph.id, nodeId }),
+    [graph.id],
+  );
+
   return (
     <ReasoningGraphView
       graph={adapted}
       nodeColors={resolvePhaseNodeColor}
-      buildInspectorContext={(nodeId) => ({ type: "phase", phaseGraphId: graph.id, nodeId })}
+      buildInspectorContext={buildInspectorContext}
       inspectorContextType="phase"
       phaseGraphId={graph.id}
     />

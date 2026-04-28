@@ -66,35 +66,35 @@ export function StarField() {
 
       const rand = seededRandom(91827);
       const area = rect.width * rect.height;
-      const count = Math.min(450, Math.max(140, Math.floor(area / 4500)));
+      const count = Math.min(280, Math.max(90, Math.floor(area / 7500)));
 
       const stars: Star[] = [];
       for (let i = 0; i < count; i++) {
         const u = rand();
-        // Power-law size: many tiny, few bright
-        const size = 0.4 + Math.pow(u, 4) * 2.6;
-        const isBright = size > 1.7 || rand() < 0.04;
+        // Power-law size: many tiny, few bright (slightly smaller overall)
+        const size = 0.35 + Math.pow(u, 4) * 2.0;
+        const isBright = size > 1.6 || rand() < 0.025;
 
         let hue: number;
         let sat: number;
         const colorRoll = rand();
-        if (isBright && colorRoll < 0.4) {
+        if (isBright && colorRoll < 0.3) {
           hue = 45; // gold
-          sat = 70;
-        } else if (isBright && colorRoll < 0.65) {
-          hue = 270; // violet
           sat = 55;
+        } else if (isBright && colorRoll < 0.5) {
+          hue = 270; // violet
+          sat = 40;
         } else {
           hue = 220; // cool starlight white
-          sat = 8;
+          sat = 6;
         }
 
         stars.push({
           x: rand(),
           y: rand(),
           size,
-          baseAlpha: 0.35 + rand() * 0.65,
-          twinkleSpeed: 0.0008 + rand() * 0.0024,
+          baseAlpha: 0.2 + rand() * 0.45,
+          twinkleSpeed: 0.0006 + rand() * 0.002,
           twinkleOffset: rand() * Math.PI * 2,
           hue,
           sat,
@@ -103,10 +103,10 @@ export function StarField() {
       }
       starsRef.current = stars;
 
-      // Build constellations: groups of nearby stars connected in a chain
+      // Build constellations: fewer, sparser clusters
       const constellations: Constellation[] = [];
       const used = new Set<number>();
-      const clusterCount = 9;
+      const clusterCount = 5;
 
       for (let c = 0; c < clusterCount; c++) {
         let seedIdx = -1;
@@ -182,11 +182,11 @@ export function StarField() {
       const stars = starsRef.current;
       const constellations = constellationsRef.current;
 
-      // Constellation lines (under stars)
-      ctx.lineWidth = 0.5;
+      // Constellation lines (under stars) — much fainter
+      ctx.lineWidth = 0.4;
       for (const con of constellations) {
-        const pulse = 0.55 + 0.35 * Math.sin(t * 0.0005 + con.starIdx[0]);
-        ctx.strokeStyle = `rgba(196, 181, 253, ${0.09 * pulse})`;
+        const pulse = 0.5 + 0.3 * Math.sin(t * 0.0004 + con.starIdx[0]);
+        ctx.strokeStyle = `rgba(196, 181, 253, ${0.04 * pulse})`;
         for (const [a, b] of con.edges) {
           const sa = stars[con.starIdx[a]];
           const sb = stars[con.starIdx[b]];
@@ -207,40 +207,41 @@ export function StarField() {
         const y = s.y * h;
 
         if (s.isBright) {
-          const grd = ctx.createRadialGradient(x, y, 0, x, y, s.size * 5);
+          const haloR = s.size * 3.5;
+          const grd = ctx.createRadialGradient(x, y, 0, x, y, haloR);
           grd.addColorStop(
             0,
-            `hsla(${s.hue}, ${s.sat}%, 80%, ${alpha * 0.7})`,
+            `hsla(${s.hue}, ${s.sat}%, 80%, ${alpha * 0.4})`,
           );
           grd.addColorStop(
             0.4,
-            `hsla(${s.hue}, ${s.sat}%, 70%, ${alpha * 0.2})`,
+            `hsla(${s.hue}, ${s.sat}%, 70%, ${alpha * 0.1})`,
           );
           grd.addColorStop(1, `hsla(${s.hue}, ${s.sat}%, 60%, 0)`);
           ctx.fillStyle = grd;
           ctx.beginPath();
-          ctx.arc(x, y, s.size * 5, 0, Math.PI * 2);
+          ctx.arc(x, y, haloR, 0, Math.PI * 2);
           ctx.fill();
         }
 
-        ctx.fillStyle = `hsla(${s.hue}, ${s.sat}%, 92%, ${alpha})`;
+        ctx.fillStyle = `hsla(${s.hue}, ${s.sat}%, 90%, ${alpha * 0.85})`;
         ctx.beginPath();
         ctx.arc(x, y, s.size, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Shooting stars — spawn occasionally
-      if (timestamp - lastSpawnRef.current > 7000 + Math.random() * 9000) {
+      // Shooting stars — rare
+      if (timestamp - lastSpawnRef.current > 16000 + Math.random() * 14000) {
         lastSpawnRef.current = timestamp;
-        if (shootingRef.current.length < 2) {
+        if (shootingRef.current.length < 1) {
           const fromLeft = Math.random() < 0.5;
           shootingRef.current.push({
             x: fromLeft ? -60 : w + 60,
             y: Math.random() * h * 0.55,
-            vx: fromLeft ? 0.55 + Math.random() * 0.4 : -(0.55 + Math.random() * 0.4),
-            vy: 0.22 + Math.random() * 0.3,
+            vx: fromLeft ? 0.5 + Math.random() * 0.35 : -(0.5 + Math.random() * 0.35),
+            vy: 0.2 + Math.random() * 0.25,
             life: 0,
-            maxLife: 1500,
+            maxLife: 1700,
           });
         }
       }
@@ -255,24 +256,24 @@ export function StarField() {
           lifeRatio < 0.18
             ? lifeRatio / 0.18
             : 1 - (lifeRatio - 0.18) / 0.82;
-        const trailLen = 90;
+        const trailLen = 80;
         const grd = ctx.createLinearGradient(
           s.x,
           s.y,
           s.x - s.vx * trailLen,
           s.y - s.vy * trailLen,
         );
-        grd.addColorStop(0, `rgba(255, 240, 200, ${0.9 * fade})`);
+        grd.addColorStop(0, `rgba(255, 240, 200, ${0.55 * fade})`);
         grd.addColorStop(1, "rgba(255, 240, 200, 0)");
         ctx.strokeStyle = grd;
-        ctx.lineWidth = 1.2;
+        ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
         ctx.lineTo(s.x - s.vx * trailLen, s.y - s.vy * trailLen);
         ctx.stroke();
-        ctx.fillStyle = `rgba(255, 250, 230, ${fade})`;
+        ctx.fillStyle = `rgba(255, 250, 230, ${fade * 0.7})`;
         ctx.beginPath();
-        ctx.arc(s.x, s.y, 1.4, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, 1.2, 0, Math.PI * 2);
         ctx.fill();
         return true;
       });
@@ -311,32 +312,32 @@ export function ZodiacWheel() {
         cy="0"
         r="98"
         fill="none"
-        stroke="rgba(196, 181, 253, 0.85)"
-        strokeWidth="0.25"
+        stroke="rgba(196, 181, 253, 0.55)"
+        strokeWidth="0.18"
       />
       <circle
         cx="0"
         cy="0"
         r="78"
         fill="none"
-        stroke="rgba(196, 181, 253, 0.7)"
-        strokeWidth="0.2"
+        stroke="rgba(196, 181, 253, 0.4)"
+        strokeWidth="0.15"
       />
       <circle
         cx="0"
         cy="0"
         r="58"
         fill="none"
-        stroke="rgba(251, 191, 36, 0.6)"
-        strokeWidth="0.2"
+        stroke="rgba(251, 191, 36, 0.32)"
+        strokeWidth="0.15"
       />
       <circle
         cx="0"
         cy="0"
         r="34"
         fill="none"
-        stroke="rgba(196, 181, 253, 0.5)"
-        strokeWidth="0.15"
+        stroke="rgba(196, 181, 253, 0.28)"
+        strokeWidth="0.1"
       />
       {spokes.map((i) => {
         const angle = (i / 12) * Math.PI * 2;
@@ -351,8 +352,8 @@ export function ZodiacWheel() {
             y1={y1}
             x2={x2}
             y2={y2}
-            stroke="rgba(196, 181, 253, 0.6)"
-            strokeWidth="0.15"
+            stroke="rgba(196, 181, 253, 0.32)"
+            strokeWidth="0.1"
           />
         );
       })}
@@ -369,8 +370,8 @@ export function ZodiacWheel() {
             y1={y1}
             x2={x2}
             y2={y2}
-            stroke="rgba(196, 181, 253, 0.9)"
-            strokeWidth="0.12"
+            stroke="rgba(196, 181, 253, 0.55)"
+            strokeWidth="0.1"
           />
         );
       })}

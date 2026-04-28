@@ -33,6 +33,10 @@ const ALL_KINDS: SurveyRespondentFilter = {
   kinds: ["character", "location", "artifact"],
 };
 
+const CHARACTERS_ONLY: SurveyRespondentFilter = {
+  kinds: ["character"],
+};
+
 export function SurveyComposerModal({
   onClose,
   onCreate,
@@ -48,7 +52,7 @@ export function SurveyComposerModal({
   const [scale, setScale] = useState<3 | 5 | 7>(5);
   const [unit, setUnit] = useState("");
   const [optionsText, setOptionsText] = useState("");
-  const [filter, setFilter] = useState<SurveyRespondentFilter>(ALL_KINDS);
+  const [filter, setFilter] = useState<SurveyRespondentFilter>(CHARACTERS_ONLY);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const [intent, setIntent] = useState<string | null>(null);

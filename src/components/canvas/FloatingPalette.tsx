@@ -384,10 +384,7 @@ export default function FloatingPalette({
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
         {/* Generate guidance overlay */}
         {phaseMode === "generate" && (
-          <div
-            className="w-96 flex flex-col rounded-xl border border-white/10 overflow-hidden"
-            style={{ background: "#1a1a1a", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
-          >
+          <div className="w-96 flex flex-col rounded-xl glass overflow-hidden">
             <div className="px-3 py-2 border-b border-white/5 flex items-center justify-between">
               <span className="text-[10px] uppercase tracking-wider text-world">
                 {phaseBasisId ? "Regenerate from basis" : "Generate Phase Graph"}
@@ -411,7 +408,7 @@ export default function FloatingPalette({
                   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) phaseSubmitGenerate();
                 }}
                 placeholder='Optional hypothesis... e.g. "the world is shifting from clan-rule toward sect-rule"'
-                className="w-full h-20 bg-black/20 border border-white/5 rounded text-[11px] text-text-secondary p-2 resize-none outline-none focus:border-white/15 placeholder:text-text-dim/30"
+                className="w-full h-20 bg-black/30 border border-border rounded text-[11px] text-text-secondary p-2 resize-none outline-none focus:border-violet-300/30 transition-colors placeholder:text-text-dim/30"
               />
               <div className="flex items-center justify-between">
                 <span className="text-[9px] text-text-dim/30">&#x2318;Enter to submit</span>
@@ -428,10 +425,7 @@ export default function FloatingPalette({
 
         {/* History overlay */}
         {phaseMode === "history" && (
-          <div
-            className="w-md max-h-[60vh] flex flex-col rounded-xl border border-white/10 overflow-hidden"
-            style={{ background: "#1a1a1a", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
-          >
+          <div className="w-md max-h-[60vh] flex flex-col rounded-xl glass overflow-hidden">
             <div className="px-3 py-2 border-b border-white/5 flex items-center justify-between">
               <span className="text-[10px] uppercase tracking-wider text-text-secondary">Phase Graph History</span>
               <button onClick={phaseClose} className="text-[10px] text-text-dim/40 hover:text-text-dim transition">
@@ -459,7 +453,7 @@ export default function FloatingPalette({
                               if (e.key === "Enter") phaseRenameGraph(g.id, phaseNameDraft.trim() || (g.name ?? "Untitled PRG"));
                               if (e.key === "Escape") { setPhaseEditingNameFor(null); setPhaseNameDraft(""); }
                             }}
-                            className="w-full bg-black/20 border border-white/5 rounded px-1.5 py-0.5 text-[11px] text-text-primary outline-none"
+                            className="w-full bg-black/30 border border-border rounded px-1.5 py-0.5 text-[11px] text-text-primary outline-none focus:border-violet-300/30 transition-colors"
                           />
                         ) : (
                           <button
@@ -613,13 +607,7 @@ export default function FloatingPalette({
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
           {/* Generate guidance overlay */}
           {generateOpen && (
-            <div
-              className="w-96 flex flex-col rounded-xl border border-white/10 overflow-hidden"
-              style={{
-                background: "#1a1a1a",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-              }}
-            >
+            <div className="w-96 flex flex-col rounded-xl glass overflow-hidden">
               <div className="px-3 py-2 border-b border-white/5 flex items-center justify-between">
                 <span
                   className={`text-[10px] uppercase tracking-wider text-emerald-400/70`}
@@ -648,7 +636,7 @@ export default function FloatingPalette({
                       ? 'Optional direction... e.g. "focus on the power struggle" or "open with a quiet moment"'
                       : 'Optional direction... e.g. "write it sparse and clipped" or "lean into sensory detail"'
                   }
-                  className="w-full h-20 bg-black/20 border border-white/5 rounded text-[11px] text-text-secondary p-2 resize-none outline-none focus:border-white/15 placeholder:text-text-dim/30"
+                  className="w-full h-20 bg-black/30 border border-border rounded text-[11px] text-text-secondary p-2 resize-none outline-none focus:border-violet-300/30 transition-colors placeholder:text-text-dim/30"
                 />
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-[9px] text-text-dim/30">
@@ -667,13 +655,7 @@ export default function FloatingPalette({
 
           {/* Rewrite guidance overlay */}
           {rewriteOpen && (
-            <div
-              className="w-96 flex flex-col rounded-xl border border-white/10 overflow-hidden"
-              style={{
-                background: "#1a1a1a",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-              }}
-            >
+            <div className="w-96 flex flex-col rounded-xl glass overflow-hidden">
               <div className="px-3 py-2 border-b border-white/5 flex items-center justify-between">
                 <span
                   className={`text-[10px] uppercase tracking-wider ${
@@ -706,7 +688,7 @@ export default function FloatingPalette({
                       ? 'Describe what to change... e.g. "add more tension before the reveal" or "swap the dialogue beat for inner monologue"'
                       : 'Describe what to change... e.g. "make the opening more visceral" or "tighten the pacing in the middle section"'
                   }
-                  className="w-full h-20 bg-black/20 border border-white/5 rounded text-[11px] text-text-secondary p-2 resize-none outline-none focus:border-white/15 placeholder:text-text-dim/30"
+                  className="w-full h-20 bg-black/30 border border-border rounded text-[11px] text-text-secondary p-2 resize-none outline-none focus:border-violet-300/30 transition-colors placeholder:text-text-dim/30"
                 />
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-[9px] text-text-dim/30">

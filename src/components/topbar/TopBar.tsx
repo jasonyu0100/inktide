@@ -294,14 +294,7 @@ function MenuDropdown({
         {label}
       </button>
       {isOpen && (
-        <div
-          className="absolute top-full left-0 mt-1 min-w-[200px] rounded-lg border border-white/10 py-1 z-50"
-          style={{
-            background: "#1a1a1a",
-            boxShadow:
-              "0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
-          }}
-        >
+        <div className="absolute top-full left-0 mt-1 min-w-[200px] rounded-lg glass py-1 z-50">
           {items.map((item, i) => (
             <button
               key={i}
@@ -1062,14 +1055,7 @@ export default function TopBar() {
           </button>
 
           {selectorOpen && (
-            <div
-              className="absolute top-full left-0 mt-1.5 w-72 rounded-xl border border-white/10 z-50 overflow-hidden"
-              style={{
-                background: "#1a1a1a",
-                boxShadow:
-                  "0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
-              }}
-            >
+            <div className="absolute top-full left-0 mt-1.5 w-72 rounded-xl glass z-50 overflow-hidden">
               <div className="max-h-80 overflow-y-auto py-1.5">
                 {state.narratives.length === 0 ? (
                   <p className="text-xs text-text-dim px-4 py-4 text-center">
@@ -2082,14 +2068,7 @@ export default function TopBar() {
                 />
               </button>
               {exportOpen && (
-                <div
-                  className="absolute top-full right-0 mt-1 min-w-52 rounded-lg border border-white/10 py-1 z-50"
-                  style={{
-                    background: "#1a1a1a",
-                    boxShadow:
-                      "0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
-                  }}
-                >
+                <div className="absolute top-full right-0 mt-1 min-w-52 rounded-lg glass py-1 z-50">
                   <div className="px-3 pt-1.5 pb-1">
                     <span className="text-[9px] font-semibold text-text-dim uppercase tracking-widest">
                       Copy to Clipboard

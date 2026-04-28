@@ -1583,13 +1583,13 @@ function AnalysisPageInner() {
 
   return (
     <div className="h-screen bg-bg-base flex relative overflow-hidden">
-      {/* Aurora background */}
+      {/* Cosmic background — workspace dim */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="aurora-container aurora-workspace absolute bottom-0 left-0 right-0 h-full" style={{ opacity: 0.25 }}>
-          <div className="aurora-curtain aurora-curtain-1" />
-          <div className="aurora-curtain aurora-curtain-2" />
-          <div className="aurora-curtain aurora-curtain-3" />
-          <div className="aurora-glow" />
+        <div className="cosmos-container cosmos-workspace absolute inset-0" style={{ opacity: 0.3 }}>
+          <div className="nebula nebula-1" />
+          <div className="nebula nebula-2" />
+          <div className="nebula nebula-3" />
+          <div className="cosmos-glow" />
         </div>
       </div>
 

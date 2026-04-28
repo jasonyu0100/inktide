@@ -1,7 +1,7 @@
 "use client";
 
 import { StoryCard } from "@/components/cards/StoryCard";
-import { InkBlot } from "@/components/effects/InkBlot";
+import { StarField, ZodiacWheel } from "@/components/effects/StarField";
 import ApiKeyModal from "@/components/topbar/ApiKeyModal";
 import { CreationWizard } from "@/components/wizard/CreationWizard";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
@@ -298,18 +298,18 @@ export default function HomePage() {
   return (
     <>
       <div className="min-h-screen bg-bg-base flex flex-col">
-        {/* Cinematic background — aurora + ink blot */}
+        {/* Cosmic background — nebulae + zodiac wheel + star field */}
         <div className="pointer-events-none fixed inset-0 overflow-hidden">
-          {/* Ink blot effect — behind aurora */}
-          <div className="absolute inset-0 z-0">
-            <InkBlot />
+          <div className="cosmos-container absolute inset-0 z-0">
+            <ZodiacWheel />
+            <div className="nebula nebula-1" />
+            <div className="nebula nebula-2" />
+            <div className="nebula nebula-3" />
+            <div className="cosmos-glow" />
           </div>
-          {/* Aurora at bottom — renders on top of ink blots */}
-          <div className="aurora-container absolute bottom-0 left-0 right-0 h-full z-10">
-            <div className="aurora-curtain aurora-curtain-1" />
-            <div className="aurora-curtain aurora-curtain-2" />
-            <div className="aurora-curtain aurora-curtain-3" />
-            <div className="aurora-glow" />
+          {/* Star field — drawn on top of nebulae */}
+          <div className="absolute inset-0 z-10">
+            <StarField />
           </div>
         </div>
 

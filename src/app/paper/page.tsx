@@ -1,6 +1,7 @@
 "use client";
 
 import { ARCHETYPE_COLORS, ArchetypeIcon } from "@/components/ArchetypeIcon";
+import { StarField } from "@/components/effects/StarField";
 import { ThinkingAnimation } from "@/components/generation/ThinkingAnimation";
 import { REASONING_NODE_COLORS } from "@/lib/reasoning-node-colors";
 import type { ReasoningMode } from "@/lib/ai/reasoning-graph/types";
@@ -1062,13 +1063,16 @@ export default function PaperPage() {
 
   return (
     <div className="min-h-screen bg-bg-base">
-      {/* Aurora background */}
+      {/* Cosmic background — nebulae + zodiac wheel + star field */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="aurora-container absolute bottom-0 left-0 right-0 h-full">
-          <div className="aurora-curtain aurora-curtain-1" />
-          <div className="aurora-curtain aurora-curtain-2" />
-          <div className="aurora-curtain aurora-curtain-3" />
-          <div className="aurora-glow" />
+        <div className="cosmos-container absolute inset-0 z-0">
+          <div className="nebula nebula-1" />
+          <div className="nebula nebula-2" />
+          <div className="nebula nebula-3" />
+          <div className="cosmos-glow" />
+        </div>
+        <div className="absolute inset-0 z-10">
+          <StarField />
         </div>
       </div>
 

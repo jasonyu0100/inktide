@@ -8,6 +8,7 @@ import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
 import ApiKeyModal from '@/components/topbar/ApiKeyModal';
 import { StoryCard } from '@/components/cards/StoryCard';
+import { StarField } from '@/components/effects/StarField';
 import { timeAgo } from '@/lib/ui-utils';
 
 export default function DashboardPage() {
@@ -38,13 +39,16 @@ export default function DashboardPage() {
   return (
     <>
       <div className="min-h-screen bg-bg-base flex flex-col">
-        {/* Aurora background */}
+        {/* Cosmic background — nebulae + zodiac wheel + star field */}
         <div className="pointer-events-none fixed inset-0 overflow-hidden">
-          <div className="aurora-container absolute bottom-0 left-0 right-0 h-full">
-            <div className="aurora-curtain aurora-curtain-1" />
-            <div className="aurora-curtain aurora-curtain-2" />
-            <div className="aurora-curtain aurora-curtain-3" />
-            <div className="aurora-glow" />
+          <div className="cosmos-container absolute inset-0 z-0">
+            <div className="nebula nebula-1" />
+            <div className="nebula nebula-2" />
+            <div className="nebula nebula-3" />
+            <div className="cosmos-glow" />
+          </div>
+          <div className="absolute inset-0 z-10">
+            <StarField />
           </div>
         </div>
 

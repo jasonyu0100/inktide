@@ -2,6 +2,7 @@
 
 import { type ReactNode, useState, useCallback, useRef } from 'react';
 import TopBar from '@/components/topbar/TopBar';
+import { StarField, ZodiacWheel } from '@/components/effects/StarField';
 import { IconChevronLeft, IconChevronRight } from '@/components/icons';
 
 type AppShellProps = {
@@ -66,12 +67,18 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
 
   return (
     <div className="h-screen bg-bg-base flex flex-col overflow-hidden relative">
-      {/* Ambient aurora background — subtle version for workspace */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden aurora-container aurora-workspace">
-        <div className="aurora-curtain aurora-curtain-1" />
-        <div className="aurora-curtain aurora-curtain-2" />
-        <div className="aurora-curtain aurora-curtain-3" />
-        <div className="aurora-glow" />
+      {/* Ambient cosmic background — dim nebulae + star field behind workspace */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="cosmos-container cosmos-workspace absolute inset-0 z-0">
+          <ZodiacWheel />
+          <div className="nebula nebula-1" />
+          <div className="nebula nebula-2" />
+          <div className="nebula nebula-3" />
+          <div className="cosmos-glow" />
+        </div>
+        <div className="absolute inset-0 z-10 opacity-50">
+          <StarField />
+        </div>
       </div>
 
       {/* TopBar */}
@@ -90,7 +97,7 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
             {sidebar}
             {/* Resize handle */}
             <div
-              className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-white/10 active:bg-white/15 z-10"
+              className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-violet-300/15 active:bg-violet-300/25 transition-colors z-10"
               onMouseDown={left.onMouseDown}
             />
           </div>
@@ -109,7 +116,7 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
           >
             {/* Resize handle */}
             <div
-              className="absolute top-0 left-0 w-1 h-full cursor-col-resize hover:bg-white/10 active:bg-white/15 z-10"
+              className="absolute top-0 left-0 w-1 h-full cursor-col-resize hover:bg-violet-300/15 active:bg-violet-300/25 transition-colors z-10"
               onMouseDown={right.onMouseDown}
             />
             {sidepanel}
@@ -125,7 +132,7 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
           <button
             onClick={left.toggle}
             title={left.collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="pointer-events-auto flex items-center justify-center w-6 h-10 rounded-full bg-bg-panel border border-white/10 text-text-secondary shadow-lg opacity-80 hover:opacity-100 hover:scale-110 hover:text-text-primary transition-all cursor-pointer"
+            className="pointer-events-auto flex items-center justify-center w-6 h-10 rounded-full glass-pill text-text-secondary opacity-80 hover:opacity-100 hover:scale-110 hover:text-violet-200 hover:shadow-[0_0_14px_rgba(196,181,253,0.35)] transition-all cursor-pointer"
           >
             {left.collapsed ? <IconChevronRight size={10} /> : <IconChevronLeft size={10} />}
           </button>
@@ -139,7 +146,7 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
           <button
             onClick={right.toggle}
             title={right.collapsed ? 'Expand inspector' : 'Collapse inspector'}
-            className="pointer-events-auto flex items-center justify-center w-6 h-10 rounded-full bg-bg-panel border border-white/10 text-text-secondary shadow-lg opacity-80 hover:opacity-100 hover:scale-110 hover:text-text-primary transition-all cursor-pointer"
+            className="pointer-events-auto flex items-center justify-center w-6 h-10 rounded-full glass-pill text-text-secondary opacity-80 hover:opacity-100 hover:scale-110 hover:text-violet-200 hover:shadow-[0_0_14px_rgba(196,181,253,0.35)] transition-all cursor-pointer"
           >
             {right.collapsed ? <IconChevronLeft size={10} /> : <IconChevronRight size={10} />}
           </button>

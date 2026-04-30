@@ -210,7 +210,7 @@ export async function extractSceneStructure(
   onToken?: (token: string, accumulated: string) => void,
 ): Promise<SceneStructureResult> {
   const fullPrompt = buildSceneStructurePrompt(prose, plan);
-  const raw = await callAnalysis(fullPrompt, SCENE_STRUCTURE_SYSTEM, onToken);
+  const raw = await callAnalysis(fullPrompt, SCENE_STRUCTURE_SYSTEM, onToken, "extractSceneStructure");
   const json = extractJSON(raw);
   const parsed = JSON.parse(json) as SceneStructureResult;
 
@@ -259,7 +259,7 @@ export async function groupScenesIntoArcs(
   }
 
   const prompt = buildArcGroupingPrompt(groups);
-  const raw = await callAnalysis(prompt, ARC_GROUPING_SYSTEM, onToken);
+  const raw = await callAnalysis(prompt, ARC_GROUPING_SYSTEM, onToken, "groupScenesIntoArcs");
   const json = extractJSON(raw);
   const parsed = JSON.parse(json) as Array<{ name?: string; directionVector?: string; worldState?: string }>;
 
@@ -280,11 +280,15 @@ async function callAnalysis(
   prompt: string,
   systemPrompt: string,
   onToken?: (token: string, accumulated: string) => void,
+  // Per-call name surfaced in api-logger so the dashboard can distinguish
+  // structure / arcs / reconcile / reextract / WB-summary / meta calls
+  // instead of bucketing every analysis hit under one anonymous label.
+  caller: string = "analyzeChunk",
 ): Promise<string> {
   const { logApiCall, updateApiLog } = await import("@/lib/api-logger");
   const { apiHeaders } = await import("@/lib/api-headers");
   const logId = logApiCall(
-    "analyzeChunk",
+    caller,
     prompt.length + systemPrompt.length,
     prompt,
     ANALYSIS_MODEL,
@@ -417,7 +421,7 @@ function buildWorldBuildSummaryPrompt(input: WorldBuildSummaryInput): string {
 
 async function summariseWorldBuildBatch(input: WorldBuildSummaryInput): Promise<string> {
   const prompt = buildWorldBuildSummaryPrompt(input);
-  const raw = await callAnalysis(prompt, WORLD_BUILD_SUMMARY_SYSTEM);
+  const raw = await callAnalysis(prompt, WORLD_BUILD_SUMMARY_SYSTEM, undefined, "summariseWorldBuildBatch");
   // Trim wrapping quotes / code fences if the model adds them.
   return raw
     .trim()
@@ -563,7 +567,7 @@ async function reconcileEntities(
   }
 
   const prompt = buildReconcileEntitiesPrompt(allCharNames, allLocNames, allArtifactNames);
-  const raw = await callAnalysis(prompt, RECONCILE_ENTITIES_SYSTEM, onToken);
+  const raw = await callAnalysis(prompt, RECONCILE_ENTITIES_SYSTEM, onToken, "reconcileEntities");
   const parsed = parseMergeJSON<{
     characterMerges?: Record<string, number | string>;
     locationMerges?: Record<string, number | string>;
@@ -629,7 +633,7 @@ async function reconcileSemantic(
   }
 
   const prompt = buildReconcileSemanticPrompt(allThreadDescs, allSysConcepts);
-  const raw = await callAnalysis(prompt, RECONCILE_SEMANTIC_SYSTEM, onToken);
+  const raw = await callAnalysis(prompt, RECONCILE_SEMANTIC_SYSTEM, onToken, "reconcileSemantic");
   const parsed = parseMergeJSON<Partial<SemanticMerges>>(raw);
   return {
     threadMerges: parsed.threadMerges ?? {},
@@ -756,6 +760,7 @@ export async function reconcileResults(
         coalescePrompt,
         COALESCE_OUTCOMES_SYSTEM,
         phaseStream("coalesce-outcomes"),
+        "coalesceOutcomes",
       );
       const parsed = parseMergeJSON<{ threads?: Record<string, { canonical?: string[]; merges?: Record<string, string> }> }>(
         coalesceRaw,
@@ -1038,7 +1043,7 @@ export async function analyzeThreading(
   if (canonicalThreads.length < 2) return {};
 
   const prompt = buildThreadingPrompt(canonicalThreads);
-  const raw = await callAnalysis(prompt, THREADING_SYSTEM, onToken);
+  const raw = await callAnalysis(prompt, THREADING_SYSTEM, onToken, "analyzeThreading");
   const json = extractJSON(raw);
 
   let parsed: { threadDependencies?: Record<string, unknown> };
@@ -1264,6 +1269,7 @@ export async function reextractFateWithLifecycle(
         opts?.onSceneStream
           ? (_t, acc) => opts.onSceneStream!(idx, acc)
           : undefined,
+        "reextractFateWithLifecycle",
       );
       const parsed = parseMergeJSON<{ threadDeltas?: unknown[] }>(raw);
       const nextDeltas = sanitizeReextractedDeltas(parsed.threadDeltas, canonicalOutcomeSets);
@@ -2621,6 +2627,7 @@ export async function assembleNarrative(
       }),
       META_EXTRACTION_SYSTEM,
       onToken,
+      "metaExtraction",
     );
     const metaParsed = JSON.parse(extractJSON(metaResult));
     imageStyle = metaParsed.imageStyle;

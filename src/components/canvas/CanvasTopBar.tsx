@@ -66,7 +66,7 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
 
 export const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads', 'network']);
 
-type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'game' | 'search' | 'reasoning' | 'market' | 'phase';
+type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'game' | 'search' | 'reasoning' | 'market' | 'brief' | 'phase';
 type ScenePrimaryMode = 'reasoning' | 'plan' | 'prose' | 'audio' | 'game';
 const SCENE_MODES: ScenePrimaryMode[] = ['reasoning', 'plan', 'prose', 'audio', 'game'];
 
@@ -262,6 +262,7 @@ function resolveCanvasMode(graphViewMode: GraphViewMode): CanvasMode {
   if (graphViewMode === 'search') return 'search';
   if (graphViewMode === 'reasoning') return 'reasoning';
   if (graphViewMode === 'market') return 'market';
+  if (graphViewMode === 'brief') return 'brief';
   if (graphViewMode === 'phase') return 'phase';
   return 'graph';
 }
@@ -298,6 +299,7 @@ export function CanvasTopBar() {
   }, [graphViewMode]);
 
   const inSceneMode = (SCENE_MODES as string[]).includes(graphViewMode);
+  const inMarketMode = graphViewMode === 'market' || graphViewMode === 'brief';
 
   // ── Current scene ──────────────────────────────────────────────────────
   const currentScene = useMemo<Scene | null>(() => {
@@ -867,6 +869,35 @@ export function CanvasTopBar() {
           </>
         )}
 
+        {/* Market sub-mode toggle — Dashboard / Brief. Mirrors the graph
+            scope/domain pattern; only renders when the user is in Market or
+            Brief view. */}
+        {inMarketMode && (
+          <div className="flex items-center rounded-md overflow-hidden border border-white/10">
+            {[
+              { mode: 'market' as const, label: 'Dashboard' },
+              { mode: 'brief' as const, label: 'Brief' },
+            ].map(({ mode, label }, idx) => {
+              const isActive = graphViewMode === mode;
+              return (
+                <div key={mode} className="flex items-center">
+                  {idx > 0 && <div className="w-px h-4 bg-white/10" />}
+                  <button
+                    className={`flex items-center gap-1 px-2 py-1 text-[10px] font-medium transition-colors ${
+                      isActive
+                        ? 'bg-white/10 text-text-primary'
+                        : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
+                    }`}
+                    onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode })}
+                  >
+                    {label}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Scene sub-mode toggle (renders to the LEFT of primary, matching
             the graph scope/domain toggle pattern). Only shown in Scene mode. */}
         {inSceneMode && currentScene && (
@@ -906,7 +937,7 @@ export function CanvasTopBar() {
         <div className="flex items-center rounded-md overflow-hidden border border-white/10">
           {[
             { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', condition: 'always' as const, activeWhen: canvasMode === 'graph' },
-            { mode: 'market' as CanvasMode, Icon: IconMarket, label: 'Market', condition: 'always' as const, activeWhen: canvasMode === 'market' },
+            { mode: 'market' as CanvasMode, Icon: IconMarket, label: 'Market', condition: 'always' as const, activeWhen: canvasMode === 'market' || canvasMode === 'brief' },
             { mode: 'phase' as CanvasMode, Icon: IconReasoning, label: 'Phase', condition: 'always' as const, activeWhen: canvasMode === 'phase' },
             { mode: 'scene' as const, Icon: IconNotepad, label: 'Scene', condition: 'sceneOnly' as const, activeWhen: inSceneMode },
             { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', condition: 'always' as const, activeWhen: canvasMode === 'search' },

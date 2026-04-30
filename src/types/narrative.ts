@@ -1,3 +1,5 @@
+import type { BranchBriefing } from './briefing';
+
 // ── Thread (Prediction-Market Model) ────────────────────────────────────────
 //
 // Threads are prediction markets over named outcomes. Each scene emits
@@ -1283,6 +1285,10 @@ export type Branch = {
   coordinationPlan?: BranchPlan;
   /** Explicit version pointers — sceneId → version pointers (optional, absent = auto-resolve) */
   versionPointers?: Record<string, SceneVersionPointers>;
+  /** Last market briefing the operator generated for this branch — held so
+   *  the Brief tab can hydrate without re-calling the LLM, and so a stale
+   *  briefing flags itself when the branch head moves on. */
+  lastBriefing?: BranchBriefing;
   createdAt: number;
 };
 
@@ -1744,8 +1750,10 @@ export type StorySettings = {
   povMode: POVMode;
   /** Character IDs designated as POV characters (empty = use all anchors) */
   povCharacterIds: string[];
-  /** High-level story direction / north star prompt */
+  /** High-level story direction / north star prompt for scene generation */
   storyDirection: string;
+  /** High-level world direction / north star prompt for world expansion */
+  worldDirection: string;
   /** Negative prompt — things the AI should avoid */
   storyConstraints: string;
   /** Target arc length in scenes */
@@ -1828,20 +1836,13 @@ export type StorySettings = {
    * persistent north-star.
    */
   autoClearDirection: boolean;
-  /**
-   * Cached AI-generated health report (markdown brief). Populated when
-   * HealthReportModal streams a report; re-opening the modal shows the
-   * cached version without re-calling the LLM. Cleared when a health
-   * expansion commits (the report has been acted on). Empty = no cached
-   * report, modal auto-generates on open.
-   */
-  lastHealthReport: string;
 };
 
 export const DEFAULT_STORY_SETTINGS: StorySettings = {
   povMode: "free",
   povCharacterIds: [],
   storyDirection: "",
+  worldDirection: "",
   storyConstraints: "",
   targetArcLength: 4,
   rhythmPreset: "",
@@ -1865,7 +1866,6 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   defaultReasoningSize: "medium",
   defaultNetworkBias: "neutral",
   autoClearDirection: true,
-  lastHealthReport: "",
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────
@@ -2225,6 +2225,7 @@ export type GraphViewMode =
   | "reasoning"
   | "network"
   | "market"
+  | "brief"
   | "phase";
 
 // ── Chat Threads ──────────────────────────────────────────────────────────────

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  IconActivity,
   IconAutoLoop,
   IconChevronLeft,
   IconChevronRight,
@@ -19,23 +18,8 @@ import type { InspectorContext } from "@/types/narrative";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useStore } from "@/lib/store";
 import { resolvePlanForBranch, resolveProseForBranch } from "@/lib/narrative-utils";
-import {
-  computeNarrativeHealth,
-  renderHealthReportForPrompt,
-  type HealthBand,
-} from "@/lib/narrative-health";
-import { HealthReportModal } from "@/components/health/HealthReportModal";
 import SceneRangeSelector, { type SceneRange } from "@/components/timeline/SceneRangeSelector";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-// Colour per health band — matches the existing palette (emerald for good,
-// amber for watch, orange for needs maintenance, rose for critical).
-const HEALTH_BAND_STYLE: Record<HealthBand, { text: string; bg: string; label: string }> = {
-  healthy: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', label: 'Healthy' },
-  watch: { text: 'text-amber-400', bg: 'bg-amber-500/10', label: 'Watch' },
-  needs_maintenance: { text: 'text-orange-400', bg: 'bg-orange-500/10', label: 'Needs maintenance' },
-  critical: { text: 'text-rose-400', bg: 'bg-rose-500/10', label: 'Critical' },
-};
 
 type FloatingPaletteProps = {
   isBulkActive?: boolean;
@@ -70,127 +54,12 @@ export default function FloatingPalette({
       )
     : false;
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [healthOpen, setHealthOpen] = useState(false);
   // Shared range state for bulk auto buttons across plan/prose/game/audio
   // modes. Only one mode is visible at a time so a single state is enough,
   // and persisting across modes lets the user keep their selection while
   // jumping between bulk passes.
   const [bulkRange, setBulkRange] = useState<SceneRange>(null);
-  // Report modal sits one step beyond the popover overview: user sees the
-  // high-level diagnostic in the popover, requests a full report, reviews
-  // it, then decides whether to trigger the health expansion.
-  const [healthReportModalOpen, setHealthReportModalOpen] = useState(false);
-  // Wrapper ref covers BOTH the trigger button and the popover — without this
-  // the mousedown outside-click listener fires before the button's click,
-  // closing the popover so the subsequent toggle-click reopens it instead of
-  // closing it.
-  const healthWrapperRef = useRef<HTMLDivElement | null>(null);
 
-  // Lazy health evaluation — recomputed only while the popover OR the report
-  // modal is open so we don't pay the cost on every render. Without the
-  // modal branch, clicking "View health report" closes the popover, which
-  // drops healthReport to null, which prevents the modal from ever mounting
-  // (its render gate depends on a truthy healthReport).
-  const healthReport = useMemo(() => {
-    if ((!healthOpen && !healthReportModalOpen) || !narrative) return null;
-    return computeNarrativeHealth(
-      narrative,
-      state.resolvedEntryKeys,
-      state.viewState.currentSceneIndex,
-      state.autoConfig,
-    );
-  }, [
-    healthOpen,
-    healthReportModalOpen,
-    narrative,
-    state.resolvedEntryKeys,
-    state.viewState.currentSceneIndex,
-    state.autoConfig,
-  ]);
-
-  // Scenes since the most recent world expansion — the primary reminder
-  // signal for the Diagnose button. A world commit is encouraged every ~3
-  // arcs or 12 scenes to keep the portfolio fresh; the button gradient
-  // nudges the user when they're overdue. Shift points: 8 (aging), 12
-  // (warning), 16 (critical). No expansion ever → counts every scene.
-  const scenesSinceLastExpansion = useMemo(() => {
-    if (!narrative) return 0;
-    const keys = state.resolvedEntryKeys;
-    let count = 0;
-    for (let i = keys.length - 1; i >= 0; i--) {
-      const key = keys[i];
-      if (narrative.worldBuilds?.[key]) return count;
-      if (narrative.scenes?.[key]) count++;
-    }
-    return count;
-  }, [narrative, state.resolvedEntryKeys]);
-
-  const freshnessClass = useMemo(() => {
-    // Green (fresh) → orange (getting stale) → red (overdue). The button's
-    // open state still gets a slightly brighter variant of the same band.
-    const open = healthOpen;
-    if (scenesSinceLastExpansion < 8) {
-      return open
-        ? 'text-emerald-300 bg-emerald-500/20'
-        : 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20';
-    }
-    if (scenesSinceLastExpansion < 12) {
-      return open
-        ? 'text-lime-300 bg-lime-500/20'
-        : 'text-lime-400 bg-lime-500/10 hover:bg-lime-500/20';
-    }
-    if (scenesSinceLastExpansion < 16) {
-      return open
-        ? 'text-orange-300 bg-orange-500/20'
-        : 'text-orange-400 bg-orange-500/10 hover:bg-orange-500/20';
-    }
-    return open
-      ? 'text-red-300 bg-red-500/20'
-      : 'text-red-400 bg-red-500/10 hover:bg-red-500/20';
-  }, [healthOpen, scenesSinceLastExpansion]);
-
-  // Standalone badge palette — stronger contrast than the button background
-  // so the count is legible even on hover. Matches the same 8/12/16 bands.
-  const freshnessBadgeClass = useMemo(() => {
-    if (scenesSinceLastExpansion < 8) return 'bg-emerald-500/90 text-bg-base';
-    if (scenesSinceLastExpansion < 12) return 'bg-lime-500/90 text-bg-base';
-    if (scenesSinceLastExpansion < 16) return 'bg-orange-500/90 text-bg-base';
-    return 'bg-red-500/90 text-bg-base';
-  }, [scenesSinceLastExpansion]);
-
-  // Dismiss the popover on outside click.
-  useEffect(() => {
-    if (!healthOpen) return;
-    function onDown(e: MouseEvent) {
-      if (!healthWrapperRef.current) return;
-      if (!healthWrapperRef.current.contains(e.target as Node)) setHealthOpen(false);
-    }
-    window.addEventListener('mousedown', onDown);
-    return () => window.removeEventListener('mousedown', onDown);
-  }, [healthOpen]);
-
-
-  const runHealthExpansion = useCallback((briefOverride?: string) => {
-    if (!healthReport) return;
-    setHealthOpen(false);
-    // Prefer the AI-generated brief (when the user launched from the report
-    // modal) — it's richer and more context-aware than the deterministic
-    // rule-based report. Fall back to the rule-based render otherwise.
-    const directive = briefOverride?.trim().length
-      ? briefOverride
-      : renderHealthReportForPrompt(healthReport);
-    window.dispatchEvent(
-      new CustomEvent('open-generate-panel', {
-        detail: {
-          healthMode: true,
-          healthReport: directive,
-          // Quick-action mode: auto-kick the expansion reasoning graph on
-          // open so the user sees streaming immediately without re-clicking.
-          autoRun: true,
-        },
-      }),
-    );
-  }, [healthReport]);
   const isAutoActive = !!(
     state.viewState.autoRunState?.isRunning || state.viewState.autoRunState?.isPaused
   );
@@ -1190,7 +1059,6 @@ export default function FloatingPalette({
   }
 
   return (
-    <>
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
       {/* Palette row: bar + delete button side by side */}
       <div className="flex items-center gap-2">
@@ -1285,96 +1153,6 @@ export default function FloatingPalette({
                 <IconAutoLoop size={14} />
               </button>
 
-              {/* Diagnose — narrative health check + maintenance top-up.
-                  Colour grades green → orange → red as scenes since the
-                  last world expansion cross 8 / 12 / 16. Badge shows the
-                  exact count so the user can see exactly where they sit
-                  against the 12-scene top-up guideline. */}
-              <div className="relative" ref={healthWrapperRef}>
-                <button
-                  type="button"
-                  className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${freshnessClass}`}
-                  onClick={() => setHealthOpen((v) => !v)}
-                  title={`Diagnose narrative health — ${scenesSinceLastExpansion} scene${scenesSinceLastExpansion === 1 ? '' : 's'} since last world expansion (encouraged every ~12 scenes)`}
-                >
-                  <IconActivity size={14} />
-                </button>
-                {scenesSinceLastExpansion > 0 && (
-                  <span
-                    className={`pointer-events-none absolute -top-1 -right-1 min-w-3.5 h-3.5 px-1 rounded-full flex items-center justify-center text-[9px] font-mono tabular-nums font-semibold leading-none ${freshnessBadgeClass}`}
-                    aria-label={`${scenesSinceLastExpansion} scenes since last world expansion`}
-                  >
-                    {scenesSinceLastExpansion}
-                  </span>
-                )}
-                {healthOpen && healthReport && (() => {
-                  const t = healthReport.dimensions.threads;
-                  const dangerCount = t.deficits.filter((d) => d.startsWith('DANGER')).length;
-                  const warningCount = t.deficits.length - dangerCount;
-                  return (
-                    <div
-                      className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-80 rounded-xl border border-border bg-bg-elevated shadow-2xl overflow-hidden"
-                      style={{ zIndex: 40 }}
-                    >
-                      <div className="p-3 flex flex-col gap-2.5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full ${HEALTH_BAND_STYLE[t.band].text} ${HEALTH_BAND_STYLE[t.band].bg}`}
-                            >
-                              {HEALTH_BAND_STYLE[t.band].label}
-                            </span>
-                            <span className="text-sm font-mono tabular-nums text-text-primary">
-                              {Math.round(t.score * 100)}%
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setHealthOpen(false)}
-                            className="text-text-dim hover:text-text-secondary"
-                            title="Close"
-                          >
-                            <IconClose size={12} />
-                          </button>
-                        </div>
-                        <span className="text-[9px] uppercase tracking-widest text-text-dim">
-                          Portfolio at a glance
-                        </span>
-                        <p className="text-[11px] text-text-secondary leading-snug font-mono">
-                          {t.summary}
-                        </p>
-                        <div className="flex items-center gap-3 text-[10px] pt-1 border-t border-white/5">
-                          {dangerCount > 0 && (
-                            <span className="text-red-400">
-                              {dangerCount} danger{dangerCount === 1 ? '' : 's'}
-                            </span>
-                          )}
-                          {warningCount > 0 && (
-                            <span className="text-amber-400">
-                              {warningCount} warning{warningCount === 1 ? '' : 's'}
-                            </span>
-                          )}
-                          {dangerCount === 0 && warningCount === 0 && (
-                            <span className="text-text-dim">No issues flagged</span>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setHealthOpen(false);
-                            setHealthReportModalOpen(true);
-                          }}
-                          className="mt-1 text-[11px] font-semibold px-3 py-1.5 rounded-md transition-colors uppercase tracking-wider text-sky-300 bg-sky-500/15 hover:bg-sky-500/25"
-                          title="Generate the full analyst report"
-                        >
-                          View health report
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
               {/* Divider */}
               <div className="w-px h-4 bg-white/12 mx-1" />
             </>
@@ -1447,19 +1225,5 @@ export default function FloatingPalette({
           ))}
       </div>
     </div>
-    {healthReportModalOpen && healthReport && narrative && (
-      <HealthReportModal
-        report={healthReport}
-        narrative={narrative}
-        resolvedKeys={state.resolvedEntryKeys}
-        currentIndex={state.viewState.currentSceneIndex}
-        onClose={() => setHealthReportModalOpen(false)}
-        onRunExpansion={(brief) => {
-          setHealthReportModalOpen(false);
-          runHealthExpansion(brief);
-        }}
-      />
-    )}
-    </>
   );
 }

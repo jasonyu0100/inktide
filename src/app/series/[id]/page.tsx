@@ -56,9 +56,10 @@ export default function SeriesPage() {
   const isMobile = useIsMobile();
   const [generateOpen, setGenerateOpen] = useState(false);
   const [generatePreset, setGeneratePreset] = useState<{
-    healthMode?: boolean;
-    healthReport?: string;
-    autoRun?: boolean;
+    worldMode?: boolean;
+    worldDirection?: string;
+    continuationMode?: boolean;
+    storyDirection?: string;
   } | null>(null);
   const [forkOpen, setForkOpen] = useState(false);
   const [autoSettingsOpen, setAutoSettingsOpen] = useState(false);
@@ -103,9 +104,16 @@ export default function SeriesPage() {
   // Custom event listeners for opening panels
   useEffect(() => {
     function handleOpenGenerate(e: Event) {
-      const detail = (e as CustomEvent<{ healthMode?: boolean; healthReport?: string; autoRun?: boolean }>).detail;
-      if (detail?.healthMode) {
-        setGeneratePreset({ healthMode: true, healthReport: detail.healthReport, autoRun: detail.autoRun });
+      const detail = (e as CustomEvent<{
+        worldMode?: boolean;
+        worldDirection?: string;
+        continuationMode?: boolean;
+        storyDirection?: string;
+      }>).detail;
+      if (detail?.worldMode) {
+        setGeneratePreset({ worldMode: true, worldDirection: detail.worldDirection });
+      } else if (detail?.continuationMode) {
+        setGeneratePreset({ continuationMode: true, storyDirection: detail.storyDirection });
       } else {
         setGeneratePreset(null);
       }
@@ -341,9 +349,10 @@ export default function SeriesPage() {
             setGenerateOpen(false);
             setGeneratePreset(null);
           }}
-          initialHealthMode={generatePreset?.healthMode}
-          initialHealthReport={generatePreset?.healthReport}
-          initialAutoRun={generatePreset?.autoRun}
+          initialWorldMode={generatePreset?.worldMode}
+          initialWorldDirection={generatePreset?.worldDirection}
+          initialContinuationMode={generatePreset?.continuationMode}
+          initialStoryDirection={generatePreset?.storyDirection}
         />
       )}
       {forkOpen && <BranchModal onClose={() => setForkOpen(false)} />}

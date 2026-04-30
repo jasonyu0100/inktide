@@ -95,6 +95,10 @@ export const DEFAULT_EXPANSION_FILTER: ExpansionEntityFilter = {
  * Field names match WorldExpansion so the store can spread directly.
  */
 export type WorldExpansionResponse = {
+  /** 1-2 sentence intent of the expansion — what creative space it opens.
+   *  Used by downstream arc generation as steering context. Empty when the
+   *  LLM omits it; the store reducer falls back to a derived count string. */
+  summary?: string;
   characters: Character[];
   locations: Location[];
   artifacts: Artifact[];
@@ -568,7 +572,10 @@ ${m.recommendation === 'depth' ? EXPANSION_STRATEGY_PROMPTS.depth : m.recommenda
     ...(parsed.relationshipDeltas ?? []),
   ];
 
+  const summary = typeof parsed.summary === 'string' ? parsed.summary.trim() : '';
+
   const result: WorldExpansionResponse = {
+    summary: summary || undefined,
     characters: f.characters ? normalizedCharacters : [],
     locations: f.locations ? normalizedLocations : [],
     artifacts: f.artifacts ? normalizedArtifacts : [],
@@ -697,12 +704,19 @@ export async function generateNarrative(
 
   // Create initial WorldBuild with entities and empty systemDeltas
   // This mirrors the analysis pattern: entities are structural (in WorldBuild),
-  // all knowledge (system + world deltas) flows through scenes
+  // all knowledge (system + world deltas) flows through scenes.
+  // Reuse the AI's `worldSummary` as the WB summary — it captures what the
+  // initial world IS, which is exactly what downstream arc generation wants
+  // when it reads <world-build-focus> for steering. Fall back to a derived
+  // count string when the AI omits it.
   const worldBuildId = `WB-${now}-INIT`;
+  const aiWorldSummary = typeof parsed.worldSummary === 'string' ? parsed.worldSummary.trim() : '';
   const initialWorldBuild: WorldBuild = {
     kind: 'world_build',
     id: worldBuildId,
-    summary: `Initial world: ${Object.keys(characters).length} characters, ${Object.keys(locations).length} locations, ${Object.keys(threads).length} threads`,
+    summary:
+      aiWorldSummary ||
+      `Initial world: ${Object.keys(characters).length} characters, ${Object.keys(locations).length} locations, ${Object.keys(threads).length} threads`,
     expansionManifest: {
       newCharacters: Object.values(characters),
       newLocations: Object.values(locations),

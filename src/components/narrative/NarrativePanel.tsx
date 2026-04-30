@@ -57,6 +57,14 @@ export default function NarrativePanel() {
           </span>
         </div>
         <div className="flex flex-col gap-1.5">
+          {entry.summary && (
+            <div className="text-xs text-text-secondary">
+              <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">
+                Summary
+              </span>
+              {entry.summary}
+            </div>
+          )}
           {m.newCharacters.length > 0 && (
             <div className="text-xs text-text-secondary">
               <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">

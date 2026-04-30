@@ -368,6 +368,83 @@ async function callAnalysis(
   }
 }
 
+// ── World-build intent summariser ────────────────────────────────────────────
+//
+// Each WorldBuild is summarised by a small LLM call so downstream arc
+// generation can read the *intent* of the expansion (what creative space it
+// opens, what tension it primes), not just a count of additions. Used by the
+// text-analysis pipeline; the live world-expansion path generates the same
+// kind of summary inline through expand-world.ts.
+
+type WorldBuildSummaryInput = {
+  worldBuildId: string;
+  isInitial: boolean;
+  newCharNames: string[];
+  newLocNames: string[];
+  newThreadDescs: string[];
+  newArtifactNames: string[];
+  leadChapter: string;
+};
+
+const WORLD_BUILD_SUMMARY_SYSTEM = `You are summarising the INTENT of a world expansion that just landed in an analysed text. The summary will be read by another LLM that plans the next narrative arc — so name the load-bearing additions, the creative space the expansion opens, and the tension it primes. Do not enumerate counts. Output 1-2 sentences (≤ 40 words). Plain prose. No markdown, no preamble.`;
+
+function buildWorldBuildSummaryPrompt(input: WorldBuildSummaryInput): string {
+  const intro = input.isInitial
+    ? "This is the INITIAL world commit — set the stage."
+    : "This is a follow-up world expansion — name what it newly brings into play.";
+  const blocks: string[] = [];
+  if (input.newCharNames.length > 0)
+    blocks.push(`<new-characters>${input.newCharNames.slice(0, 8).join(", ")}</new-characters>`);
+  if (input.newLocNames.length > 0)
+    blocks.push(`<new-locations>${input.newLocNames.slice(0, 6).join(", ")}</new-locations>`);
+  if (input.newArtifactNames.length > 0)
+    blocks.push(`<new-artifacts>${input.newArtifactNames.slice(0, 4).join(", ")}</new-artifacts>`);
+  if (input.newThreadDescs.length > 0)
+    blocks.push(
+      `<new-threads>\n${input.newThreadDescs.slice(0, 4).map((d) => `  - ${d}`).join("\n")}\n</new-threads>`,
+    );
+  if (input.leadChapter)
+    blocks.push(`<lead-chapter-summary>${input.leadChapter}</lead-chapter-summary>`);
+  return `<context>${intro}</context>\n${blocks.join("\n")}\n\nReturn the summary as a single line of plain prose.`;
+}
+
+async function summariseWorldBuildBatch(input: WorldBuildSummaryInput): Promise<string> {
+  const prompt = buildWorldBuildSummaryPrompt(input);
+  const raw = await callAnalysis(prompt, WORLD_BUILD_SUMMARY_SYSTEM);
+  // Trim wrapping quotes / code fences if the model adds them.
+  return raw
+    .trim()
+    .replace(/^```(?:\w+)?\n?/i, "")
+    .replace(/\n?```\s*$/i, "")
+    .replace(/^["'`]|["'`]$/g, "")
+    .trim();
+}
+
+function fallbackBatchSummary(input: WorldBuildSummaryInput): string {
+  const introBits: string[] = [];
+  if (input.newCharNames.length > 0)
+    introBits.push(
+      input.newCharNames.slice(0, 4).join(", ") +
+        (input.newCharNames.length > 4 ? " and others" : ""),
+    );
+  if (input.newLocNames.length > 0) introBits.push(input.newLocNames.slice(0, 3).join(", "));
+  const introClause = introBits.length > 0 ? `Introduces ${introBits.join(" / ")}.` : "";
+  const threadClause =
+    input.newThreadDescs.length > 0
+      ? `Opens questions: ${input.newThreadDescs.slice(0, 2).join(" · ")}`
+      : "";
+  return [
+    input.isInitial ? "Sets up the world." : "",
+    introClause,
+    input.leadChapter,
+    threadClause,
+  ]
+    .filter((s) => s.length > 0)
+    .join(" ")
+    .slice(0, 320)
+    .trim();
+}
+
 // ── JSON Extraction ──────────────────────────────────────────────────────────
 
 function extractJSON(raw: string): string {
@@ -2160,6 +2237,18 @@ export async function assembleNarrative(
   const worldBuilds: Record<string, WorldBuild> = {};
   // Map from the first scene id of a batch → the world build commit to insert before it
   const worldBuildBeforeScene = new Map<string, string>(); // sceneId → worldBuildId
+  // Collected per-batch context for the LLM intent summariser. Populated in
+  // the loop, then resolved in parallel after to give every WorldBuild a
+  // real intent string downstream arc generation can steer from.
+  const worldBuildSummaryInputs: {
+    worldBuildId: string;
+    isInitial: boolean;
+    newCharNames: string[];
+    newLocNames: string[];
+    newThreadDescs: string[];
+    newArtifactNames: string[];
+    leadChapter: string;
+  }[] = [];
 
   for (
     let batchStart = 0;
@@ -2199,16 +2288,38 @@ export async function assembleNarrative(
 
     const batchNum = Math.floor(batchStart / WORLD_COMMIT_INTERVAL) + 1;
     const worldBuildId = `WB-${PREFIX}-${String(batchNum).padStart(3, "0")}`;
-    const artSuffix =
-      newArtifactIds.length > 0 ? `, ${newArtifactIds.length} artifacts` : "";
-    const summary = isInitial
-      ? `Initial world: ${newCharIds.length} characters, ${newLocIds.length} locations, ${newThreadIds.length} threads${artSuffix}`
-      : `Chunks ${batchStart + 1}–${batchEnd}: +${newCharIds.length} characters, +${newLocIds.length} locations, +${newThreadIds.length} threads${artSuffix}`;
+
+    // Collect input data for the LLM intent summariser — applied after the
+    // loop so all batches summarise in parallel. The placeholder here is
+    // fine; downstream consumers see the real intent string once the
+    // promises resolve below.
+    const newCharNames = newCharIds
+      .map((id) => characters[id]?.name)
+      .filter((n): n is string => !!n);
+    const newLocNames = newLocIds
+      .map((id) => locations[id]?.name)
+      .filter((n): n is string => !!n);
+    const newThreadDescs = newThreadIds
+      .map((id) => threads[id]?.description)
+      .filter((d): d is string => !!d);
+    const newArtifactNames = newArtifactIds
+      .map((id) => artifactEntities[id]?.name)
+      .filter((n): n is string => !!n);
+    const leadChapter = results[batchStart]?.chapterSummary?.trim() ?? '';
+    worldBuildSummaryInputs.push({
+      worldBuildId,
+      isInitial,
+      newCharNames,
+      newLocNames,
+      newThreadDescs,
+      newArtifactNames,
+      leadChapter,
+    });
 
     worldBuilds[worldBuildId] = {
       kind: "world_build",
       id: worldBuildId,
-      summary,
+      summary: "",
       expansionManifest: {
         newCharacters: newCharIds.map((id) => characters[id]).filter(Boolean),
         newLocations: newLocIds.map((id) => locations[id]).filter(Boolean),
@@ -2230,6 +2341,29 @@ export async function assembleNarrative(
       }
     }
   }
+
+  // Resolve the LLM intent summaries for every WorldBuild in parallel. Each
+  // summariser sees the entities + lead chapter for its batch and returns a
+  // 1-2 sentence description of what creative space the expansion opens.
+  // On failure, fall back to a derived count string so a flaky LLM doesn't
+  // sink the whole analysis.
+  await Promise.all(
+    worldBuildSummaryInputs.map(async (input) => {
+      try {
+        const summary = await summariseWorldBuildBatch(input);
+        const wb = worldBuilds[input.worldBuildId];
+        if (wb) wb.summary = summary;
+      } catch (err) {
+        logWarning(
+          `World-build summary failed for ${input.worldBuildId}`,
+          err,
+          { source: "analysis", operation: "summariseWorldBuildBatch" },
+        );
+        const wb = worldBuilds[input.worldBuildId];
+        if (wb) wb.summary = fallbackBatchSummary(input);
+      }
+    }),
+  );
 
   // Build entryIds: world build commits interleaved before their batch's first scene
   const entryIds: string[] = [];

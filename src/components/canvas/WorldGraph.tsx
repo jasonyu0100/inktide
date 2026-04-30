@@ -25,6 +25,7 @@ import { ReasoningGraphView } from './ReasoningGraphView';
 import { PhaseGraphCanvas } from './PhaseGraphView';
 import NetworkView from './NetworkView';
 import MarketView from './MarketView';
+import MarketBriefingView from './MarketBriefingView';
 import {
   type GraphNode,
   type GraphLink,
@@ -1153,6 +1154,8 @@ export default function WorldGraph() {
         <NetworkView />
       ) : graphViewMode === 'market' ? (
         <MarketView />
+      ) : graphViewMode === 'brief' ? (
+        <MarketBriefingView />
       ) : graphViewMode === 'phase' ? (
         <PhaseGraphCanvas />
       ) : graphViewMode === 'reasoning' ? (

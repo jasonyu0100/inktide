@@ -192,7 +192,14 @@ function JobDetail({ job }: { job: AnalysisJob }) {
       }
       for (const s of result.scenes ?? []) {
         for (const n of s.systemDeltas?.addedNodes ?? []) {
-          const shortConcept = n.concept.includes(' — ') ? n.concept.split(' — ')[0] : n.concept;
+          // The live word-cloud renders against `liveJob.results` while a
+          // job is mid-run. The LLM occasionally emits a system node with
+          // no concept; the scene-structure prompt now forbids this, but
+          // we keep this defensive skip so the UI never crashes on a
+          // straggler that slips through.
+          const concept = typeof n.concept === 'string' ? n.concept : '';
+          if (!concept) continue;
+          const shortConcept = concept.includes(' — ') ? concept.split(' — ')[0] : concept;
           const key = `knowledge-${shortConcept}`;
           const existing = map.get(key);
           if (existing) { existing.count++; }
@@ -495,12 +502,12 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                 ) : liveJob.status === 'completed' ? (
                   <p className="text-white/20 text-sm">Analysis complete — no entities extracted</p>
                 ) : (
-                  <div className="max-w-sm space-y-4">
+                  <div className="max-w-md space-y-4">
                     <p className="text-white/40 text-sm font-medium">Ready to analyze</p>
                     <p className="text-white/20 text-[11px] leading-relaxed">
-                      The text has been split into {totalScenes} scene{totalScenes !== 1 ? 's' : ''} (~1200 words each). Each scene gets a beat plan, then structure is extracted from the exact prose. Scenes are grouped into arcs of ~4, reconciled, and assembled.
+                      The text has been split into {totalScenes} scene{totalScenes !== 1 ? 's' : ''} (~1200 words each). Each scene's structure is extracted in parallel, then a beat plan is reverse-engineered from the prose. Scenes are grouped into arcs of ~4, reconciled, finalised, and assembled.
                     </p>
-                    <div className="grid grid-cols-6 gap-2 pt-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
                       {[
                         { label: 'Structure', desc: 'Per-scene entity extraction' },
                         { label: 'Plans', desc: 'Extract beats & propositions' },

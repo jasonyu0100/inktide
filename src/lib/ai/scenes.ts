@@ -265,11 +265,25 @@ export async function generateScenes(
   const briefBlock = (() => {
     if (reasoningGraph) {
       const directives = extractPatternWarningDirectives(reasoningGraph);
+      // Carry forward the prose seeds the CRG was generated from — the graph
+      // compiles direction + coord-plan directive into a causal spine, but
+      // tonal / scope / register intent in the original phrasing isn't fully
+      // recoverable from nodes and edges. Layer them under the graph so the
+      // graph still drives structure while the source phrasing fills gaps.
+      const sourceDirection = direction.trim();
+      const planDirective = coordinationPlanContext?.directive?.trim();
+      const layered: string[] = [];
+      if (planDirective) {
+        layered.push(`<plan-directive hint="The coordination-plan directive that seeded this CRG. The graph encodes it structurally; this preserves the original phrasing for nuance the nodes don't carry.">${planDirective}</plan-directive>`);
+      }
+      if (sourceDirection) {
+        layered.push(`<source-direction hint="The prose direction that seeded this CRG (and any user constraints in story-settings still apply). Honour it alongside the graph — the graph dictates structure, the direction shapes what the structure leaves open.">${sourceDirection}</source-direction>`);
+      }
       return `<brief type="reasoning-graph" hint="PRIMARY BRIEF — execute this path exactly; don't skip nodes or invent reasoning not shown. REASONING nodes are core logic; CHARACTER/LOCATION/ARTIFACT/SYSTEM nodes provide grounding; OUTCOME nodes are thread effects to deliver. Edge labels carry meaning (enables, requires, causes, etc.).">
   <arc-summary>${reasoningGraph.summary}</arc-summary>
   <reasoning-path>
 ${buildSequentialPath(reasoningGraph)}
-  </reasoning-path>${directives ? `\n  <course-correction-directives>\n${directives}\n  </course-correction-directives>` : ''}
+  </reasoning-path>${directives ? `\n  <course-correction-directives>\n${directives}\n  </course-correction-directives>` : ''}${layered.length > 0 ? '\n  ' + layered.join('\n  ') : ''}
 </brief>`;
     }
     if (coordinationPlanContext) {

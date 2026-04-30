@@ -181,6 +181,10 @@ export function GeneratePanel({
 
   // Reasoning graph state (for scene generation)
   const [reasoningGraph, setReasoningGraph] = useState<ReasoningGraph | null>(null);
+  // The direction string used to seed the CRG — passed through to scene
+  // generation so the prose phrasing (tonal / scope / register) survives
+  // alongside the compiled graph.
+  const [reasoningGraphDirection, setReasoningGraphDirection] = useState<string>("");
   const [showReasoningModal, setShowReasoningModal] = useState(false);
   const [generatingGraph, setGeneratingGraph] = useState(false);
   // Arc reasoning options — initialized from story-level defaults so the
@@ -376,6 +380,7 @@ export function GeneratePanel({
         { forcePreference, reasoningLevel: reasoningSize, reasoningMode, networkBias },
       );
       setReasoningGraph(graph);
+      setReasoningGraphDirection(fullDirection);
       setShowReasoningModal(true);
     } catch (err) {
       logError("Reasoning graph generation failed", err, {
@@ -424,7 +429,9 @@ export function GeneratePanel({
         state.resolvedEntryKeys,
         headIndex,
         reasoningGraph.sceneCount,
-        "", // Direction is embedded in reasoning graph
+        // The CRG was compiled from this direction; passing it through layers
+        // the prose phrasing under the graph so tonal / scope intent survives.
+        reasoningGraphDirection,
         {
           existingArc,
           pacingSequence: previewSequence ?? undefined,
@@ -1277,6 +1284,7 @@ export function GeneratePanel({
           onClose={() => {
             setShowReasoningModal(false);
             setReasoningGraph(null);
+            setReasoningGraphDirection("");
           }}
         />
       )}

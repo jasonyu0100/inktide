@@ -74,7 +74,7 @@ Return JSON with this exact structure.
       "locationId": "existing location ID",
       "povId": "character ID (must be a participant)${povRestrictedHint}",
       "participantIds": ["existing character IDs"],
-      "summary": "3-6 sentences in prose using NAMES not IDs. Write what HAPPENED / was SAID / visibly CHANGED. Include concrete specifics (objects, dialogue, data). No generic summaries, no sentences that end in private emotions.",
+      "summary": "Prose in NAMES not IDs. Length is ADAPTIVE — 3-6 sentences for routine scenes (physical action, dialogue, single-thread movement), but expand WITHOUT UPPER BOUND for cognition-dense scenes (multi-step planning, scenario modelling, scheme construction, complex world-rule reveals). For dense scenes, name each scenario weighed, each tradeoff accepted, each conclusion reached — NOT 'he considered his options' or 'she planned carefully'. The summary is the prose writer's only brief and the only artifact other scenes can read; under-writing dense cognition is the dominant failure mode. See <summary-requirement> for the full division-of-labour rule.",
       "timeDelta": {"value": 1, "unit": "minute|hour|day|week|month|year"},
       "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
       "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "how they travelled"}},

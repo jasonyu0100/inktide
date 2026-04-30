@@ -1,9 +1,9 @@
 /**
  * Market briefing data types — shared between the prompt builder, the AI
- * call, the canvas view, and the persistent storage on Branch. Kept here
- * (and not in prompts/ or ai/) to break the cycle: Branch.lastBriefing
- * references MarketBriefing, and prompts/briefing + ai/market-brief both
- * reference NarrativeState.
+ * call, the canvas view, and the persistent storage on NarrativeState. Kept
+ * here (and not in prompts/ or ai/) to break the cycle:
+ * NarrativeState.lastBriefing references MarketBriefing, and
+ * prompts/briefing + ai/market-brief both reference NarrativeState.
  */
 
 export const MOVE_PRIORITIES = ['high', 'medium', 'low'] as const;
@@ -59,12 +59,16 @@ export type MarketBriefing = {
 };
 
 /**
- * Persisted on a branch: the most recent briefing the operator generated,
- * plus the head index it was generated against. Used to hydrate the brief
- * view on tab-switch and to flag staleness when the head has moved on.
+ * Persisted on a narrative: the most recent briefing the operator
+ * generated, plus the head index and branch it was generated against.
+ * Used to hydrate the brief view on tab-switch and to flag staleness when
+ * the active branch's head has moved on (or the active branch changed).
  */
-export type BranchBriefing = {
+export type StoredBriefing = {
   briefing: MarketBriefing;
+  /** Branch the briefing was generated against. Used to flag staleness when
+   *  the active branch changes. */
+  branchId: string;
   /** Index in resolvedEntryKeys at which the briefing was generated.
    *  Briefings always read from the head of the branch, so this is the
    *  head index at generation time. */

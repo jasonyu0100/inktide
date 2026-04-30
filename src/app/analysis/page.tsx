@@ -4,7 +4,7 @@ import { Suspense, useState, useRef, useCallback, useEffect, useMemo } from 'rea
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLogs } from '@/lib/logs-context';
 import { useStore } from '@/lib/store';
-import { splitCorpusIntoScenes } from '@/lib/text-analysis';
+import { splitCorpusIntoScenes, type AssembleStage } from '@/lib/text-analysis';
 import { analysisRunner } from '@/lib/analysis-runner';
 import type { AnalysisJob, AnalysisChunkResult, ApiLogEntry } from '@/types/narrative';
 import { BEAT_FN_LIST } from '@/types/narrative';
@@ -14,6 +14,29 @@ import { IconCheck } from '@/components/icons/EvalIcons';
 import { calculateTotalCost } from '@/lib/api-logger';
 import { loadAnalysisApiLogs, saveAnalysisApiLogs } from '@/lib/persistence';
 import { ApiLogsViewer } from '@/components/apilogs/ApiLogsViewer';
+
+/* ── Assemble stage labels ─────────────────────────────────────────────── */
+//
+// Exhaustive Record over the AssembleStage union — adding a new stage to the
+// type forces a label addition here at compile time. Iterable stages render
+// `(current/total)` when those are present, so a single formatter handles
+// both one-shot and progressive phases.
+const ASSEMBLE_STAGE_LABEL: Record<AssembleStage, string> = {
+  ingest: 'Ingesting chunks',
+  arcs: 'Wiring arcs',
+  'world-builds': 'Composing world commits',
+  'world-summaries': 'Summarising worlds',
+  'meta-extraction': 'Extracting style + profile',
+  finalize: 'Finalising narrative',
+};
+
+function formatAssembleStage(stage: AssembleStage, current?: number, total?: number): string {
+  const label = ASSEMBLE_STAGE_LABEL[stage];
+  if (current !== undefined && total !== undefined && total > 0) {
+    return `${label} (${current}/${total})...`;
+  }
+  return `${label}...`;
+}
 
 /* ── Elapsed timer ─────────────────────────────────────────────────────── */
 function useElapsed(startTime: number, running: boolean) {
@@ -46,6 +69,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const [sceneStreamTexts, setSceneStreamTexts] = useState<Map<number, string>>(new Map());
   const [viewingSceneStream, setViewingSceneStream] = useState<number | null>(null);
   const [assembling, setAssembling] = useState(false);
+  const [assembleStage, setAssembleStage] = useState<string | null>(null);
   const [selectedPlanKey, setSelectedPlanKey] = useState<string | null>(null);
   const [planInFlightKeys, setPlanInFlightKeys] = useState<string[]>(() => analysisRunner.getPlanInFlightKeys(job.id));
   const [planStreamTexts, setPlanStreamTexts] = useState<Map<string, string>>(new Map());
@@ -415,10 +439,15 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                   router.push(`/series/${liveJob.narrativeId}?slides=1`);
                 } else {
                   setAssembling(true);
+                  setAssembleStage('Assembling narrative...');
                   try {
                     const { assembleNarrative } = await import('@/lib/text-analysis');
                     const completedResults = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
-                    const narrative = await assembleNarrative(liveJob.title, completedResults, {});
+                    const narrative = await assembleNarrative(liveJob.title, completedResults, {}, {
+                      onStage: (stage, current, total) => {
+                        setAssembleStage(formatAssembleStage(stage, current, total));
+                      },
+                    });
                     dispatch({ type: 'ADD_NARRATIVE', narrative });
                     dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: liveJob.id, updates: { narrativeId: narrative.id } });
                     router.push(`/series/${narrative.id}?slides=1`);
@@ -426,12 +455,13 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     console.error('[analysis] assembly failed:', err);
                   } finally {
                     setAssembling(false);
+                    setAssembleStage(null);
                   }
                 }
               }}
               className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[10px] font-semibold px-4 py-1 rounded transition disabled:opacity-50"
             >
-              {assembling ? 'Assembling...' : liveJob.narrativeId ? 'Open Narrative' : 'Create Narrative'}
+              {assembling ? (assembleStage ?? 'Assembling...') : liveJob.narrativeId ? 'Open Narrative' : 'Create Narrative'}
             </button>
           )}
         </div>
@@ -1327,6 +1357,12 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [extractPlans, setExtractPlans] = useState(true);
+  const [extractionMode, setExtractionMode] = useState<'world' | 'full'>('full');
+  // Plan extraction is meaningless without scenes — when the operator
+  // switches to world-only, force the plan flag off so the worker pipeline
+  // and the UI agree.
+  const planExtractionAllowed = extractionMode === 'full';
+  const effectiveExtractPlans = planExtractionAllowed && extractPlans;
 
   const scenes = splitCorpusIntoScenes(sourceText);
   const chunks = scenes.map(s => ({ index: s.index, text: s.prose, sectionCount: Math.ceil(s.wordCount / 100) }));
@@ -1361,7 +1397,8 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
         status: 'running', // Start as 'running' so JobDetail shows correct state immediately
         phase: 'structure',
         currentChunkIndex: 0,
-        ...(!extractPlans && { skipPlanExtraction: true }),
+        ...(extractionMode === 'world' && { extractionMode: 'world' as const }),
+        ...(!effectiveExtractPlans && { skipPlanExtraction: true }),
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -1420,28 +1457,68 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
           />
         </div>
 
-        <div className="text-[11px] text-white/20 leading-relaxed">
-          {chunks.length} scenes analyzed in parallel — extracts characters, locations, threads, scenes, system knowledge, and beat plans, then reconciles and assembles.
+        <div>
+          <label className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-mono block mb-1.5">
+            Extraction mode
+          </label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {([
+              {
+                value: 'full' as const,
+                label: 'World + Scenes',
+                desc: 'Scenes, arcs, and per-batch world commits — ready to read.',
+              },
+              {
+                value: 'world' as const,
+                label: 'World only',
+                desc: 'Per-batch world commits only — a seed to start your own continuity from.',
+              },
+            ]).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setExtractionMode(opt.value)}
+                className={`text-left rounded-lg border px-3 py-2.5 transition ${
+                  extractionMode === opt.value
+                    ? 'border-emerald-500/40 bg-emerald-500/8'
+                    : 'border-white/8 bg-white/2 hover:border-white/16 hover:bg-white/5'
+                }`}
+              >
+                <div className={`text-[11px] font-medium ${extractionMode === opt.value ? 'text-emerald-200' : 'text-white/70'}`}>
+                  {opt.label}
+                </div>
+                <div className="text-[10px] text-white/40 leading-snug mt-0.5">{opt.desc}</div>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="flex items-center gap-2 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={extractPlans}
-              onChange={(e) => setExtractPlans(e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-emerald-500 cursor-pointer"
-            />
-            <span className="text-[11px] text-white/40 group-hover:text-white/60 transition select-none">
-              Extract beat plans
-            </span>
-          </label>
-          {!extractPlans && (
-            <p className="text-[10px] text-amber-400/60 leading-relaxed pl-5.5">
-              Beat plans power AI semantic search. Skipping saves time, but search over this narrative will be unavailable.
-            </p>
-          )}
+        <div className="text-[11px] text-white/20 leading-relaxed">
+          {extractionMode === 'world'
+            ? `${chunks.length} scenes analyzed in parallel — entities, knowledge, and relationships are extracted but only the world commits land in the narrative.`
+            : `${chunks.length} scenes analyzed in parallel — extracts characters, locations, threads, scenes, system knowledge, and beat plans, then reconciles and assembles.`}
         </div>
+
+        {planExtractionAllowed && (
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={extractPlans}
+                onChange={(e) => setExtractPlans(e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-emerald-500 cursor-pointer"
+              />
+              <span className="text-[11px] text-white/40 group-hover:text-white/60 transition select-none">
+                Extract beat plans
+              </span>
+            </label>
+            {!extractPlans && (
+              <p className="text-[10px] text-amber-400/60 leading-relaxed pl-5.5">
+                Beat plans power AI semantic search. Skipping saves time, but search over this narrative will be unavailable.
+              </p>
+            )}
+          </div>
+        )}
 
         {startError && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3">

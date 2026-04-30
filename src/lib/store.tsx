@@ -829,7 +829,7 @@ export type Action =
   | { type: "SET_ARTIFACT_IMAGE_PROMPT"; artifactId: string; imagePrompt: string }
   | { type: "SET_IMAGE_STYLE"; style: string }
   | { type: "SET_STORY_SETTINGS"; settings: StorySettings }
-  | { type: "SET_BRANCH_BRIEFING"; branchId: string; briefing: import("@/types/briefing").BranchBriefing | undefined }
+  | { type: "SET_BRIEFING"; briefing: import("@/types/briefing").StoredBriefing | undefined }
   | { type: "SET_PROSE_PROFILE"; profile: ProseProfile | undefined }
   | { type: "SET_PATTERNS"; patterns: string[] }
   | { type: "SET_ANTI_PATTERNS"; antiPatterns: string[] }
@@ -2611,17 +2611,15 @@ function reducer(state: AppState, action: Action): AppState {
         storySettings: action.settings,
       }));
 
-    case "SET_BRANCH_BRIEFING":
+    case "SET_BRIEFING":
       return updateNarrative(state, (n) => {
-        const branch = n.branches[action.branchId];
-        if (!branch) return n;
-        const next = { ...branch };
+        const next = { ...n };
         if (action.briefing === undefined) {
           delete next.lastBriefing;
         } else {
           next.lastBriefing = action.briefing;
         }
-        return { ...n, branches: { ...n.branches, [action.branchId]: next } };
+        return next;
       });
 
     case "SET_PROSE_PROFILE":

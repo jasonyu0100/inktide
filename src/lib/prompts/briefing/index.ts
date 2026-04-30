@@ -29,8 +29,8 @@ Each EXPANSION suggests a creative need for new world content — characters, lo
 Use the OUTLINE (arcs and current phase) as ground for what the story is structurally doing right now — moves and expansions should respect or productively defy that structure, never ignore it.`;
 
 // Briefing data taxonomy lives in `@/types/briefing` to break the cycle
-// between the prompt builder and `Branch.lastBriefing`. Re-exported here so
-// existing callers (UI, AI module) don't need to chase the move.
+// between the prompt builder and `NarrativeState.lastBriefing`. Re-exported
+// here so existing callers (UI, AI module) don't need to chase the move.
 export {
   MOVE_PRIORITIES,
   MOVE_TYPES,

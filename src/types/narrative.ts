@@ -1,4 +1,4 @@
-import type { BranchBriefing } from './briefing';
+import type { StoredBriefing } from './briefing';
 
 // ── Thread (Prediction-Market Model) ────────────────────────────────────────
 //
@@ -1285,10 +1285,6 @@ export type Branch = {
   coordinationPlan?: BranchPlan;
   /** Explicit version pointers — sceneId → version pointers (optional, absent = auto-resolve) */
   versionPointers?: Record<string, SceneVersionPointers>;
-  /** Last market briefing the operator generated for this branch — held so
-   *  the Brief tab can hydrate without re-calling the LLM, and so a stale
-   *  briefing flags itself when the branch head moves on. */
-  lastBriefing?: BranchBriefing;
   createdAt: number;
 };
 
@@ -1358,6 +1354,11 @@ export type NarrativeState = {
    * field is the only mutation users perform on phase-graph state.
    */
   currentPhaseGraphId?: string;
+  /** Last market briefing the operator generated for this narrative — held
+   *  so the Brief tab can hydrate without re-calling the LLM, and so a
+   *  stale briefing flags itself when the head moves on or the active
+   *  branch changes. */
+  lastBriefing?: StoredBriefing;
   createdAt: number;
   updatedAt: number;
 };
@@ -2141,8 +2142,16 @@ export type AnalysisJob = {
   narrativeId?: string;
   /** Embedding progress tracking */
   embeddingProgress?: { completed: number; total: number };
-  /** Skip the beat plan extraction phase (Phase 2) — structure-only analysis */
+  /** Skip the beat plan extraction phase (Phase 2) — structure-only analysis.
+   *  Forced true when extractionMode === 'world' (no scenes → no plans). */
   skipPlanExtraction?: boolean;
+  /** What the assembled NarrativeState should contain.
+   *  - 'full' (default): scenes + arcs + per-batch world commits — ready to read.
+   *  - 'world': one consolidated world commit only — a seed the operator
+   *    builds their own continuity on top of. The scene-by-scene LLM
+   *    extraction still runs (we need it to discover entities); only the
+   *    assembled output differs. */
+  extractionMode?: 'world' | 'full';
   createdAt: number;
   updatedAt: number;
 };

@@ -62,20 +62,21 @@ export default function MarketBriefingView() {
   const narrative = state.activeNarrative;
   const resolvedKeys = state.resolvedEntryKeys;
   const activeBranchId = state.viewState.activeBranchId;
-  const activeBranch = narrative && activeBranchId ? narrative.branches[activeBranchId] : null;
 
   // Briefings are always generated against the head of the branch (the last
   // resolved key). Even if the operator scrubbed back to read an earlier
   // scene, the brief reads the current state of the portfolio.
   const headIndex = resolvedKeys.length - 1;
 
-  // Persisted briefing lives on the branch — hydrate from there so the brief
-  // survives tab switches and reloads. Local state holds in-flight loading,
-  // streaming reasoning, and editor overrides only.
-  const persisted = activeBranch?.lastBriefing ?? null;
+  // Persisted briefing lives on the narrative — hydrate from there so the
+  // brief survives tab switches and reloads. Local state holds in-flight
+  // loading, streaming reasoning, and editor overrides only.
+  const persisted = narrative?.lastBriefing ?? null;
   const briefing = persisted?.briefing ?? null;
   const briefingTimestamp = persisted?.timestamp ?? null;
   const briefingScene = persisted?.sceneIndex ?? null;
+  const briefingBranchId = persisted?.branchId ?? null;
+  const branchChanged = briefingBranchId !== null && briefingBranchId !== activeBranchId;
 
   const [loading, setLoading] = useState(false);
   const [reasoning, setReasoning] = useState('');
@@ -105,9 +106,13 @@ export default function MarketBriefingView() {
         onReasoning: (token) => setReasoning((prev) => prev + token),
       });
       dispatch({
-        type: 'SET_BRANCH_BRIEFING',
-        branchId: activeBranchId,
-        briefing: { briefing: result, sceneIndex: targetHead, timestamp: Date.now() },
+        type: 'SET_BRIEFING',
+        briefing: {
+          briefing: result,
+          branchId: activeBranchId,
+          sceneIndex: targetHead,
+          timestamp: Date.now(),
+        },
       });
       setSelectedArcIndices([]);
       setSelectedWorldIndices([]);
@@ -212,12 +217,15 @@ export default function MarketBriefingView() {
 
   const headSceneOrdinal = Math.max(1, sceneOrdinalAt(narrative, resolvedKeys, headIndex));
   const sceneTotal = countScenes(narrative, resolvedKeys);
+  // Scene ordinal + drift only meaningful when brief was generated against
+  // the currently-active branch. If the operator switched branches, surface
+  // that as the staleness signal instead of a misleading ordinal diff.
   const briefingSceneOrdinal =
-    briefingScene !== null
+    briefingScene !== null && !branchChanged
       ? Math.max(1, sceneOrdinalAt(narrative, resolvedKeys, briefingScene))
       : null;
   const scenesSinceBriefing =
-    briefingScene !== null ? Math.max(0, headIndex - briefingScene) : null;
+    briefingScene !== null && !branchChanged ? Math.max(0, headIndex - briefingScene) : null;
 
   return (
     <div className="h-full w-full overflow-y-auto">
@@ -231,6 +239,7 @@ export default function MarketBriefingView() {
           sceneTotal={sceneTotal}
           briefingSceneOrdinal={briefingSceneOrdinal}
           scenesSinceBriefing={scenesSinceBriefing}
+          branchChanged={branchChanged}
           timestamp={briefingTimestamp}
         />
 
@@ -263,7 +272,7 @@ export default function MarketBriefingView() {
             {briefing.moves.length > 0 && (
               <Section
                 title="Arc directions"
-                hint={`${selectedArcIndices.length} selected · click to stack`}
+                hint={`${String(briefing.moves.length).padStart(2, '0')} ITEMS · ${String(selectedArcIndices.length).padStart(2, '0')} STACKED`}
               >
                 <ArcCarousel
                   moves={briefing.moves}
@@ -291,7 +300,7 @@ export default function MarketBriefingView() {
             {briefing.expansions.length > 0 && (
               <Section
                 title="World directions"
-                hint={`${selectedWorldIndices.length} selected · click to stack`}
+                hint={`${String(briefing.expansions.length).padStart(2, '0')} ITEMS · ${String(selectedWorldIndices.length).padStart(2, '0')} STACKED`}
               >
                 <WorldCarousel
                   expansions={briefing.expansions}
@@ -346,6 +355,7 @@ function Header({
   sceneTotal,
   briefingSceneOrdinal,
   scenesSinceBriefing,
+  branchChanged,
   timestamp,
 }: {
   headline: string;
@@ -356,12 +366,14 @@ function Header({
   sceneTotal: number;
   briefingSceneOrdinal: number | null;
   scenesSinceBriefing: number | null;
+  branchChanged: boolean;
   timestamp: number | null;
 }) {
   const stamp = timestamp
     ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : null;
-  const stale = scenesSinceBriefing !== null && scenesSinceBriefing > 0;
+  const headMoved = scenesSinceBriefing !== null && scenesSinceBriefing > 0;
+  const stale = headMoved || branchChanged;
 
   return (
     <div className="flex items-start justify-between gap-4">
@@ -374,7 +386,7 @@ function Header({
               <span className="font-mono tabular-nums">
                 generated for scene {briefingSceneOrdinal} of {sceneTotal}
               </span>
-              {stale && (
+              {headMoved && (
                 <>
                   <span className="text-text-dim/40">·</span>
                   <span className="font-mono tabular-nums text-amber-300/80">
@@ -383,6 +395,8 @@ function Header({
                 </>
               )}
             </>
+          ) : hasBriefing && branchChanged ? (
+            <span className="font-mono tabular-nums text-amber-300/80">generated on a different branch</span>
           ) : (
             <span className="font-mono tabular-nums">head at scene {headSceneOrdinal} of {sceneTotal}</span>
           )}
@@ -425,9 +439,18 @@ function Section({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-end justify-between gap-3">
-        <h3 className="text-[11px] uppercase tracking-wider text-text-dim">{title}</h3>
-        {hint && <span className="text-[10px] text-text-dim/70">{hint}</span>}
+      <div className="flex items-end justify-between gap-3 border-b border-white/5 pb-1.5">
+        <div className="flex items-center gap-2">
+          <span className="w-1 h-1 rounded-full bg-text-dim/40" />
+          <h3 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono">
+            {title}
+          </h3>
+        </div>
+        {hint && (
+          <span className="text-[9px] uppercase tracking-[0.15em] text-text-dim/70 font-mono tabular-nums">
+            {hint}
+          </span>
+        )}
       </div>
       {children}
     </div>
@@ -453,6 +476,29 @@ function WatchCard({ title, analysis }: { title: string; analysis: string }) {
   );
 }
 
+// ── Carousel chrome ────────────────────────────────────────────────────────
+//
+// Vertical playing-card format. Each card declares its sections from top to
+// bottom: status strip → ID slot → title → target → rationale → directive.
+// Corner brackets give the operations-panel feel without leaning on military
+// terminology.
+
+const CARD_WIDTH = 'w-52'; // 208px — playing-card aspect when paired with min-h
+const CARD_MIN_HEIGHT = 'min-h-92'; // 368px
+
+function CornerBrackets({ accent }: { accent: string }) {
+  // Four corner ticks — pure presentational, no clicks. Coloured by accent so
+  // selected cards pop against unselected.
+  return (
+    <>
+      <span className="pointer-events-none absolute top-0 left-0 w-2.5 h-2.5 border-t border-l rounded-tl-md" style={{ borderColor: accent }} />
+      <span className="pointer-events-none absolute top-0 right-0 w-2.5 h-2.5 border-t border-r rounded-tr-md" style={{ borderColor: accent }} />
+      <span className="pointer-events-none absolute bottom-0 left-0 w-2.5 h-2.5 border-b border-l rounded-bl-md" style={{ borderColor: accent }} />
+      <span className="pointer-events-none absolute bottom-0 right-0 w-2.5 h-2.5 border-b border-r rounded-br-md" style={{ borderColor: accent }} />
+    </>
+  );
+}
+
 // ── Arc carousel (story directions) ────────────────────────────────────────
 
 function ArcCarousel({
@@ -466,11 +512,13 @@ function ArcCarousel({
 }) {
   const selectedSet = new Set(selected);
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory">
+    <div className="flex gap-2.5 overflow-x-auto pb-3 -mx-1 px-1 snap-x snap-mandatory">
       {moves.map((m, i) => (
         <ArcCard
           key={`${m.label}-${i}`}
           move={m}
+          index={i + 1}
+          total={moves.length}
           selected={selectedSet.has(i)}
           selectionOrder={selectedSet.has(i) ? selected.indexOf(i) + 1 : null}
           onClick={() => onToggle(i)}
@@ -482,59 +530,97 @@ function ArcCarousel({
 
 function ArcCard({
   move,
+  index,
+  total,
   selected,
   selectionOrder,
   onClick,
 }: {
   move: SuggestedMove;
+  index: number;
+  total: number;
   selected: boolean;
   selectionOrder: number | null;
   onClick: () => void;
 }) {
   const pri = PRIORITY_STYLE[move.priority];
+  const bracketColor = selected ? 'rgba(52, 211, 153, 0.5)' : 'rgba(255, 255, 255, 0.12)';
 
   return (
     <button
       onClick={onClick}
-      className={`group snap-start shrink-0 w-72 text-left flex flex-col gap-2.5 p-3.5 rounded-xl border transition-colors ${
+      className={`group relative snap-start shrink-0 ${CARD_WIDTH} ${CARD_MIN_HEIGHT} text-left flex flex-col rounded-md border transition-colors ${
         selected
-          ? 'border-emerald-400/50 bg-emerald-500/5'
+          ? 'border-emerald-400/40 bg-emerald-500/5'
           : 'border-white/8 bg-white/2 hover:border-white/20 hover:bg-white/4'
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pri.dot}`} />
-          <span className={`text-[10px] uppercase tracking-wider ${pri.color}`}>{pri.label}</span>
-          <span className="text-text-dim/40">·</span>
-          <span className="text-[10px] text-text-dim uppercase tracking-wider truncate">
-            {MOVE_TYPE_LABEL[move.moveType]}
+      <CornerBrackets accent={bracketColor} />
+
+      {/* Status strip — priority + slot index */}
+      <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-white/5">
+        <div className="flex items-center gap-1.5">
+          <span className={`w-1.5 h-1.5 rounded-full ${pri.dot}`} />
+          <span className={`text-[9px] uppercase tracking-[0.2em] font-mono ${pri.color}`}>
+            {pri.label}
           </span>
         </div>
-        {selected && selectionOrder !== null && (
-          <span className="w-4 h-4 rounded-full bg-emerald-400 text-bg-base text-[9px] font-bold flex items-center justify-center">
+        <span className="text-[9px] uppercase tracking-[0.15em] text-text-dim/60 font-mono tabular-nums">
+          {String(index).padStart(2, '0')}/{String(total).padStart(2, '0')}
+        </span>
+      </div>
+
+      {/* Type + selection badge */}
+      <div className="flex items-center justify-between px-3 py-1.5">
+        <span className="text-[9px] uppercase tracking-[0.18em] text-text-dim font-mono truncate">
+          {MOVE_TYPE_LABEL[move.moveType]}
+        </span>
+        {selected && selectionOrder !== null ? (
+          <span className="w-4 h-4 rounded-sm bg-emerald-400 text-bg-base text-[9px] font-bold font-mono flex items-center justify-center tabular-nums">
             {selectionOrder}
+          </span>
+        ) : (
+          <span className="w-4 h-4 rounded-sm border border-white/10 text-[9px] text-text-dim/40 font-mono flex items-center justify-center">
+            ·
           </span>
         )}
       </div>
 
-      <h3 className="text-[13px] text-text-primary font-medium leading-snug">{move.label}</h3>
+      {/* Title */}
+      <div className="px-3 pt-1 pb-2">
+        <h3 className="text-[13px] text-text-primary font-medium leading-tight">
+          {move.label}
+        </h3>
+      </div>
 
+      {/* Target */}
       {move.target && (
-        <div className="text-[10px] text-text-dim truncate" title={move.target}>
-          → {move.target}
+        <div className="px-3 pb-2">
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono">
+            <span className="text-text-dim/50">target</span>
+            <span className="text-text-secondary normal-case tracking-normal truncate" title={move.target}>
+              {move.target}
+            </span>
+          </span>
         </div>
       )}
 
+      {/* Rationale — body */}
       {move.rationale && (
-        <p className="text-[11px] text-text-secondary leading-snug line-clamp-3">
-          {move.rationale}
-        </p>
+        <div className="px-3 pb-2 flex-1">
+          <p className="text-[11px] text-text-secondary leading-snug line-clamp-6">
+            {move.rationale}
+          </p>
+        </div>
       )}
 
-      <div className="rounded-md bg-bg-elevated/50 border border-white/5 p-2 mt-auto">
-        <p className="text-[11px] text-text-secondary leading-snug italic">
-          &ldquo;{move.direction}&rdquo;
+      {/* Directive — pinned footer */}
+      <div className="mx-3 mb-3 mt-auto rounded-sm border border-white/8 bg-bg-elevated/60 p-2">
+        <span className="text-[8px] uppercase tracking-[0.2em] text-text-dim/60 font-mono block mb-1">
+          Direction
+        </span>
+        <p className="text-[10.5px] text-text-secondary leading-snug italic line-clamp-4">
+          {move.direction}
         </p>
       </div>
     </button>
@@ -554,11 +640,13 @@ function WorldCarousel({
 }) {
   const selectedSet = new Set(selected);
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory">
+    <div className="flex gap-2.5 overflow-x-auto pb-3 -mx-1 px-1 snap-x snap-mandatory">
       {expansions.map((e, i) => (
         <WorldCard
           key={`${e.label}-${i}`}
           expansion={e}
+          index={i + 1}
+          total={expansions.length}
           selected={selectedSet.has(i)}
           selectionOrder={selectedSet.has(i) ? selected.indexOf(i) + 1 : null}
           onClick={() => onToggle(i)}
@@ -570,49 +658,81 @@ function WorldCarousel({
 
 function WorldCard({
   expansion,
+  index,
+  total,
   selected,
   selectionOrder,
   onClick,
 }: {
   expansion: WorldExpansion;
+  index: number;
+  total: number;
   selected: boolean;
   selectionOrder: number | null;
   onClick: () => void;
 }) {
+  const bracketColor = selected ? 'rgba(167, 139, 250, 0.5)' : 'rgba(255, 255, 255, 0.12)';
+
   return (
     <button
       onClick={onClick}
-      className={`group snap-start shrink-0 w-72 text-left flex flex-col gap-2.5 p-3.5 rounded-xl border transition-colors ${
+      className={`group relative snap-start shrink-0 ${CARD_WIDTH} ${CARD_MIN_HEIGHT} text-left flex flex-col rounded-md border transition-colors ${
         selected
-          ? 'border-violet-400/50 bg-violet-500/5'
+          ? 'border-violet-400/40 bg-violet-500/5'
           : 'border-white/8 bg-white/2 hover:border-white/20 hover:bg-white/4'
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />
-          <span className="text-[10px] uppercase tracking-wider text-violet-300">
+      <CornerBrackets accent={bracketColor} />
+
+      {/* Status strip — kind + slot index */}
+      <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-white/5">
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+          <span className="text-[9px] uppercase tracking-[0.2em] text-violet-300 font-mono">
             {EXPANSION_KIND_LABEL[expansion.kind]}
           </span>
         </div>
-        {selected && selectionOrder !== null && (
-          <span className="w-4 h-4 rounded-full bg-violet-400 text-bg-base text-[9px] font-bold flex items-center justify-center">
+        <span className="text-[9px] uppercase tracking-[0.15em] text-text-dim/60 font-mono tabular-nums">
+          {String(index).padStart(2, '0')}/{String(total).padStart(2, '0')}
+        </span>
+      </div>
+
+      {/* Selection badge */}
+      <div className="flex items-center justify-end px-3 py-1.5">
+        {selected && selectionOrder !== null ? (
+          <span className="w-4 h-4 rounded-sm bg-violet-400 text-bg-base text-[9px] font-bold font-mono flex items-center justify-center tabular-nums">
             {selectionOrder}
+          </span>
+        ) : (
+          <span className="w-4 h-4 rounded-sm border border-white/10 text-[9px] text-text-dim/40 font-mono flex items-center justify-center">
+            ·
           </span>
         )}
       </div>
 
-      <h3 className="text-[13px] text-text-primary font-medium leading-snug">{expansion.label}</h3>
+      {/* Title */}
+      <div className="px-3 pt-1 pb-2">
+        <h3 className="text-[13px] text-text-primary font-medium leading-tight">
+          {expansion.label}
+        </h3>
+      </div>
 
+      {/* Rationale — body */}
       {expansion.rationale && (
-        <p className="text-[11px] text-text-secondary leading-snug line-clamp-3">
-          {expansion.rationale}
-        </p>
+        <div className="px-3 pb-2 flex-1">
+          <p className="text-[11px] text-text-secondary leading-snug line-clamp-6">
+            {expansion.rationale}
+          </p>
+        </div>
       )}
 
-      <div className="rounded-md bg-bg-elevated/50 border border-white/5 p-2 mt-auto">
-        <p className="text-[11px] text-text-secondary leading-snug italic">
-          &ldquo;{expansion.direction}&rdquo;
+      {/* Directive — pinned footer */}
+      <div className="mx-3 mb-3 mt-auto rounded-sm border border-white/8 bg-bg-elevated/60 p-2">
+        <span className="text-[8px] uppercase tracking-[0.2em] text-text-dim/60 font-mono block mb-1">
+          Direction
+        </span>
+        <p className="text-[10.5px] text-text-secondary leading-snug italic line-clamp-4">
+          {expansion.direction}
         </p>
       </div>
     </button>

@@ -1698,6 +1698,134 @@ describe('assembleNarrative', () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
+// assembleNarrative — world-only extraction mode
+//
+// Same per-chunk LLM extraction runs; only the assembled output differs.
+// Scenes + arcs drop, and every delta the scenes carried (system, world,
+// thread, relationship, ownership, tie) gets migrated onto the WorldBuild
+// they belong to so the seed is fully populated.
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe('assembleNarrative — world-only extraction', () => {
+  beforeEach(() => {
+    // Mock the meta-extraction LLM call so the prose-profile branch resolves
+    // cleanly in tests (otherwise it logs a warning and continues — works,
+    // but noisier than necessary).
+    const metaJSON = JSON.stringify({
+      imageStyle: 'Test style',
+      proseProfile: { register: 'literary', stance: 'close_third', devices: [], rules: [] },
+      planGuidance: '',
+    });
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ content: metaJSON }),
+      text: async () => metaJSON,
+      body: null,
+    } as Response);
+  });
+
+  it('emits per-batch world commits and zero scenes / arcs', async () => {
+    const results = [createRichAnalysisResult(0), createRichAnalysisResult(1)];
+    const narrative = await assembleNarrative('World Seed', results, {}, {
+      extractionMode: 'world',
+    });
+    expect(Object.keys(narrative.scenes).length).toBe(0);
+    expect(Object.keys(narrative.arcs).length).toBe(0);
+    expect(Object.keys(narrative.worldBuilds).length).toBeGreaterThan(0);
+  });
+
+  it('keeps full extraction unchanged when extractionMode is omitted or "full"', async () => {
+    const results = [createRichAnalysisResult(0), createRichAnalysisResult(1)];
+    const narrative = await assembleNarrative('Full Story', results, {}, {
+      extractionMode: 'full',
+    });
+    expect(Object.keys(narrative.scenes).length).toBe(2);
+    expect(Object.keys(narrative.arcs).length).toBeGreaterThan(0);
+  });
+
+  it('branch entryIds are the WB ids in batch order — no scene ids', async () => {
+    const results = [createRichAnalysisResult(0)];
+    const narrative = await assembleNarrative('Test', results, {}, {
+      extractionMode: 'world',
+    });
+    const branch = Object.values(narrative.branches)[0];
+    expect(branch.entryIds.length).toBeGreaterThan(0);
+    for (const id of branch.entryIds) {
+      expect(id).toMatch(/^WB-/);
+    }
+  });
+
+  it('migrates scene system deltas onto the WorldBuild', async () => {
+    const results = [createRichAnalysisResult(0)];
+    const narrative = await assembleNarrative('Test', results, {}, {
+      extractionMode: 'world',
+    });
+    const wb = Object.values(narrative.worldBuilds)[0];
+    // The rich fixture's scene declares two system nodes ("Ancient Magic",
+    // "Royal Bloodline") and one edge — they should land on the WB now that
+    // the scene itself is dropped.
+    expect(wb.expansionManifest.systemDeltas?.addedNodes.length).toBeGreaterThan(0);
+    expect(wb.expansionManifest.systemDeltas?.addedEdges.length).toBeGreaterThan(0);
+  });
+
+  it('migrates scene world / thread / relationship / tie deltas onto the WorldBuild', async () => {
+    const results = [createRichAnalysisResult(0)];
+    const narrative = await assembleNarrative('Test', results, {}, {
+      extractionMode: 'world',
+    });
+    const wb = Object.values(narrative.worldBuilds)[0];
+    expect(wb.expansionManifest.worldDeltas?.length ?? 0).toBeGreaterThan(0);
+    expect(wb.expansionManifest.threadDeltas?.length ?? 0).toBeGreaterThan(0);
+    expect(wb.expansionManifest.relationshipDeltas?.length ?? 0).toBeGreaterThan(0);
+    expect(wb.expansionManifest.tieDeltas?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it('full mode leaves WB delta arrays empty — deltas live on scenes there', async () => {
+    const results = [createRichAnalysisResult(0)];
+    const narrative = await assembleNarrative('Test', results, {}, {
+      extractionMode: 'full',
+    });
+    const wb = Object.values(narrative.worldBuilds)[0];
+    // In full mode the per-scene system graph is replayed at load time, so
+    // the WB itself carries no system deltas. Same for the other delta
+    // channels — they live on scenes.
+    expect(wb.expansionManifest.systemDeltas?.addedNodes.length ?? 0).toBe(0);
+    expect(wb.expansionManifest.worldDeltas?.length ?? 0).toBe(0);
+    expect(wb.expansionManifest.threadDeltas?.length ?? 0).toBe(0);
+  });
+
+  it('rewires thread.openedAt to the WB id (not a dropped scene)', async () => {
+    const results = [createRichAnalysisResult(0)];
+    const narrative = await assembleNarrative('Test', results, {}, {
+      extractionMode: 'world',
+    });
+    const wbIds = new Set(Object.keys(narrative.worldBuilds));
+    // Every thread must point at a WB that actually exists in the final
+    // state — otherwise the sidebar's resolver renders "No threads yet"
+    // because the openedAt scene has been dropped.
+    for (const thread of Object.values(narrative.threads)) {
+      expect(thread.openedAt).toBeDefined();
+      expect(wbIds.has(thread.openedAt!)).toBe(true);
+    }
+  });
+
+  it('still produces WB intent summaries in world-only mode', async () => {
+    const results = [createRichAnalysisResult(0)];
+    const stages: string[] = [];
+    const narrative = await assembleNarrative('Test', results, {}, {
+      extractionMode: 'world',
+      onStage: (stage) => stages.push(stage),
+    });
+    // The world-summaries phase must still fire even with no scenes.
+    expect(stages).toContain('world-summaries');
+    // Each WB carries some summary string (LLM-generated or fallback).
+    for (const wb of Object.values(narrative.worldBuilds)) {
+      expect(wb.summary.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
 // reextractFateWithLifecycle — two-pass lifecycle-aware re-scoring
 // ──────────────────────────────────────────────────────────────────────────────
 

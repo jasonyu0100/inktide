@@ -26,15 +26,21 @@ import type {
   WorldNodeType,
   Location,
   NarrativeState,
+  OwnershipDelta,
   ProseProfile,
+  RelationshipDelta,
   RelationshipEdge,
   Scene,
   SceneVersionPointers,
+  SystemDelta,
   SystemNodeType,
   Thread,
+  ThreadDelta,
   ThreadLogNodeType,
+  TieDelta,
   TimeDelta,
   WorldBuild,
+  WorldDelta,
 } from "@/types/narrative";
 import {
   DEFAULT_STORY_SETTINGS,
@@ -1519,13 +1525,65 @@ function buildMetaContext(
 
 // ── Assemble Narrative ───────────────────────────────────────────────────────
 
+/**
+ * Phases of the `assembleNarrative` pass. Every phase below fires at least
+ * once via `onStage`; iterable phases (currently `world-summaries`) also tick
+ * with `current/total` progress until completion. Sync phases pass quickly
+ * but still emit so the analysis sidebar advances cleanly through the whole
+ * pipeline rather than freezing on a single label.
+ *
+ * Order is causal:
+ *   ingest          → walk every chunk result and build entities + scenes
+ *   arcs            → bind scenes into Arc records (uses upstream arcGroups)
+ *   world-builds    → batch entities into WorldBuild commits (no LLM)
+ *   world-summaries → LLM intent summary per WorldBuild (parallel pool)
+ *   meta-extraction → LLM call for image style + prose profile + genre
+ *   finalize        → wire branch/version pointers and emit the narrative
+ *
+ * Note: arc summarisation (directionVector / worldState) happens UPSTREAM
+ * of this function, in `groupScenesIntoArcs`. It's already a discrete
+ * pipeline phase before assemble runs.
+ */
+export const ASSEMBLE_STAGES = [
+  'ingest',
+  'arcs',
+  'world-builds',
+  'world-summaries',
+  'meta-extraction',
+  'finalize',
+] as const;
+export type AssembleStage = (typeof ASSEMBLE_STAGES)[number];
+
+export type AssembleNarrativeOptions = {
+  onToken?: (token: string, accumulated: string) => void;
+  arcGroups?: { name: string; directionVector?: string; worldState?: string; sceneIndices: number[] }[];
+  /** Stage-level progress for the analysis sidebar. `current`/`total` are
+   *  populated for iterable stages (currently `world-summaries`). */
+  onStage?: (stage: AssembleStage, current?: number, total?: number) => void;
+  /** Cancellation hook. Currently honoured by the world-summary worker pool. */
+  cancelled?: () => boolean;
+  /** What to emit:
+   *  - 'full' (default): scenes + arcs + per-batch world commits.
+   *  - 'world': per-batch world commits only — scenes drop, arcs drop, and
+   *    the system deltas the LLM emitted on those scenes are aggregated onto
+   *    the WB they belong to (otherwise the knowledge would be lost). */
+  extractionMode?: 'world' | 'full';
+};
+
 export async function assembleNarrative(
   title: string,
   results: AnalysisChunkResult[],
   threadDependencies: Record<string, string[]>,
-  onToken?: (token: string, accumulated: string) => void,
-  arcGroups?: { name: string; directionVector?: string; worldState?: string; sceneIndices: number[] }[],
+  onTokenOrOptions?: ((token: string, accumulated: string) => void) | AssembleNarrativeOptions,
+  arcGroupsLegacy?: { name: string; directionVector?: string; worldState?: string; sceneIndices: number[] }[],
 ): Promise<NarrativeState> {
+  // Support legacy positional args while exposing the new options object.
+  const options: AssembleNarrativeOptions =
+    typeof onTokenOrOptions === 'function'
+      ? { onToken: onTokenOrOptions, arcGroups: arcGroupsLegacy }
+      : (onTokenOrOptions ?? { arcGroups: arcGroupsLegacy });
+  const { onToken, arcGroups, onStage, cancelled } = options;
+  const extractionMode: 'world' | 'full' = options.extractionMode ?? 'full';
   const PREFIX =
     title
       .replace(/[^a-zA-Z]/g, "")
@@ -1606,9 +1664,12 @@ export async function assembleNarrative(
   const threadFirstChunk = new Map<string, number>();
   const artifactFirstChunk = new Map<string, number>();
   const chunkFirstSceneId = new Map<number, string>(); // chunkIdx → first scene id
+  const chunkSceneIds = new Map<number, string[]>(); // chunkIdx → all scene ids in chunk
   const allOrderedSceneIds: string[] = []; // flat ordered list for arc group assignment
   const seenSysNodeIds = new Set<string>(); // track knowledge nodes already added by prior scenes
   const seenSysEdgeKeys = new Set<string>(); // track knowledge edges already added (from→to→relation)
+
+  onStage?.('ingest');
 
   for (let chunkIdx = 0; chunkIdx < results.length; chunkIdx++) {
     const ch = results[chunkIdx];
@@ -2072,7 +2133,9 @@ export async function assembleNarrative(
     }
 
     // Track scene order for arc group assignment below
-    allOrderedSceneIds.push(...chScenes.map((s) => s.id));
+    const chSceneIds = chScenes.map((s) => s.id);
+    chunkSceneIds.set(chunkIdx, chSceneIds);
+    allOrderedSceneIds.push(...chSceneIds);
 
     for (const tm of chScenes.flatMap((s) => s.threadDeltas)) {
       if (threads[tm.threadId] && !threads[tm.threadId].openedAt) {
@@ -2120,6 +2183,7 @@ export async function assembleNarrative(
   }
 
   // ── Create arcs from arcGroups ──────────────────────────────────────────────
+  onStage?.('arcs');
   if (arcGroups && arcGroups.length > 0) {
     for (const group of arcGroups) {
       const arcId = nextArcId();
@@ -2233,6 +2297,7 @@ export async function assembleNarrative(
 
   // World builds — one per ~3 arcs (12 scenes), only when new entities are introduced.
   // The first batch always gets a commit; later batches are skipped if nothing new appeared.
+  onStage?.('world-builds');
   const WORLD_COMMIT_INTERVAL = SCENES_PER_ARC * 3; // ~12 scenes = 3 arcs
   const worldBuilds: Record<string, WorldBuild> = {};
   // Map from the first scene id of a batch → the world build commit to insert before it
@@ -2316,6 +2381,72 @@ export async function assembleNarrative(
       leadChapter,
     });
 
+    // World-only mode: the scenes that carried these deltas get dropped
+    // from the final NarrativeState, so we migrate EVERYTHING they extracted
+    // onto the WB they belong to — system, world (entity continuity),
+    // thread (fate), relationships, ownership, location ties. The store's
+    // existing replay machinery applies WB-level deltas the same way it
+    // applies scene-level deltas, so nothing downstream needs to know which
+    // mode produced the WB. In full mode the scenes survive and these stay
+    // empty (the system / entity / thread state is replayed from scene
+    // deltas at load time).
+    const aggregatedSystemDeltas: SystemDelta = { addedNodes: [], addedEdges: [] };
+    const aggregatedWorldDeltas: WorldDelta[] = [];
+    const aggregatedThreadDeltas: ThreadDelta[] = [];
+    const aggregatedRelationshipDeltas: RelationshipDelta[] = [];
+    const aggregatedOwnershipDeltas: OwnershipDelta[] = [];
+    const aggregatedTieDeltas: TieDelta[] = [];
+    if (extractionMode === 'world') {
+      const seenNodeIds = new Set<string>();
+      const seenEdgeKeys = new Set<string>();
+      for (const ci of batchChunkIndices) {
+        const sceneIdsInChunk = chunkSceneIds.get(ci) ?? [];
+        for (const sceneId of sceneIdsInChunk) {
+          const scene = scenes[sceneId];
+          if (!scene) continue;
+
+          // System graph — dedupe by node id and edge key so the WB carries
+          // a clean union of what the chunk's scenes discovered.
+          const sd = scene.systemDeltas;
+          if (sd) {
+            for (const node of sd.addedNodes ?? []) {
+              if (seenNodeIds.has(node.id)) continue;
+              seenNodeIds.add(node.id);
+              aggregatedSystemDeltas.addedNodes.push(node);
+            }
+            for (const edge of sd.addedEdges ?? []) {
+              const key = `${edge.from}→${edge.to}→${edge.relation}`;
+              if (seenEdgeKeys.has(key)) continue;
+              seenEdgeKeys.add(key);
+              aggregatedSystemDeltas.addedEdges.push(edge);
+            }
+          }
+
+          // Entity continuity, thread evidence, relationship valence,
+          // artifact ownership, character ↔ location ties — pass through
+          // verbatim. Replay code dedupes downstream.
+          for (const wd of scene.worldDeltas ?? []) aggregatedWorldDeltas.push(wd);
+          for (const td of scene.threadDeltas ?? []) aggregatedThreadDeltas.push(td);
+          for (const rd of scene.relationshipDeltas ?? []) aggregatedRelationshipDeltas.push(rd);
+          for (const od of scene.ownershipDeltas ?? []) aggregatedOwnershipDeltas.push(od);
+          for (const td of scene.tieDeltas ?? []) aggregatedTieDeltas.push(td);
+        }
+      }
+    }
+
+    // World-only mode: rewire each thread's `openedAt` to the WB that
+    // introduces it. The chunk loop set `openedAt` to the scene that first
+    // touched the thread, but those scenes get dropped from the final state
+    // — leaving the sidebar with dangling references and rendering "No
+    // threads yet". In full mode the scenes survive, so the original scene
+    // anchor is correct and we leave it alone.
+    if (extractionMode === 'world') {
+      for (const tid of newThreadIds) {
+        const t = threads[tid];
+        if (t) t.openedAt = worldBuildId;
+      }
+    }
+
     worldBuilds[worldBuildId] = {
       kind: "world_build",
       id: worldBuildId,
@@ -2327,8 +2458,12 @@ export async function assembleNarrative(
         newArtifacts: newArtifactIds
           .map((id) => artifactEntities[id])
           .filter(Boolean),
-        systemDeltas: { addedNodes: [], addedEdges: [] },
-        relationshipDeltas: [],
+        systemDeltas: aggregatedSystemDeltas,
+        worldDeltas: aggregatedWorldDeltas,
+        threadDeltas: aggregatedThreadDeltas,
+        relationshipDeltas: aggregatedRelationshipDeltas,
+        ownershipDeltas: aggregatedOwnershipDeltas,
+        tieDeltas: aggregatedTieDeltas,
       },
     };
 
@@ -2342,35 +2477,78 @@ export async function assembleNarrative(
     }
   }
 
-  // Resolve the LLM intent summaries for every WorldBuild in parallel. Each
-  // summariser sees the entities + lead chapter for its batch and returns a
-  // 1-2 sentence description of what creative space the expansion opens.
-  // On failure, fall back to a derived count string so a flaky LLM doesn't
-  // sink the whole analysis.
-  await Promise.all(
-    worldBuildSummaryInputs.map(async (input) => {
-      try {
-        const summary = await summariseWorldBuildBatch(input);
-        const wb = worldBuilds[input.worldBuildId];
-        if (wb) wb.summary = summary;
-      } catch (err) {
-        logWarning(
-          `World-build summary failed for ${input.worldBuildId}`,
-          err,
-          { source: "analysis", operation: "summariseWorldBuildBatch" },
-        );
-        const wb = worldBuilds[input.worldBuildId];
-        if (wb) wb.summary = fallbackBatchSummary(input);
-      }
-    }),
-  );
+  // Resolve the LLM intent summaries for every WorldBuild via a worker pool
+  // capped at ANALYSIS_CONCURRENCY — same sliding-window pattern as
+  // reextractFateWithLifecycle. Progress feeds the analysis sidebar so the
+  // operator sees "(N/M)" tick up. On per-summary failure we drop in a
+  // deterministic fallback string so a flaky LLM doesn't sink the assembly.
+  // Stage always fires (even with zero summaries) so the sidebar advances.
+  onStage?.('world-summaries', 0, worldBuildSummaryInputs.length);
+  if (worldBuildSummaryInputs.length > 0) {
+    let summaryDone = 0;
+    const queue = [...worldBuildSummaryInputs];
+    const workerCount = Math.min(ANALYSIS_CONCURRENCY, queue.length);
+    const workers: Promise<void>[] = [];
+    for (let w = 0; w < workerCount; w++) {
+      workers.push(
+        (async () => {
+          while (queue.length > 0 && !cancelled?.()) {
+            const input = queue.shift();
+            if (!input) return;
+            try {
+              const summary = await summariseWorldBuildBatch(input);
+              const wb = worldBuilds[input.worldBuildId];
+              if (wb) wb.summary = summary;
+            } catch (err) {
+              logWarning(
+                `World-build summary failed for ${input.worldBuildId}`,
+                err,
+                { source: 'analysis', operation: 'summariseWorldBuildBatch' },
+              );
+              const wb = worldBuilds[input.worldBuildId];
+              if (wb) wb.summary = fallbackBatchSummary(input);
+            } finally {
+              summaryDone++;
+              onStage?.('world-summaries', summaryDone, worldBuildSummaryInputs.length);
+            }
+          }
+        })(),
+      );
+    }
+    await Promise.all(workers);
+  }
 
-  // Build entryIds: world build commits interleaved before their batch's first scene
+  // Build entryIds.
+  //
+  // Full mode:  world commits interleaved before their batch's first scene,
+  //             then every scene in order — the canonical chronological view.
+  // World mode: world commits only, in batch order. Scenes are dropped (the
+  //             deltas they carried have been migrated onto the WBs above)
+  //             so the operator can build their own continuity from the seed.
   const entryIds: string[] = [];
-  for (const sceneId of Object.keys(scenes)) {
-    const worldBuildId = worldBuildBeforeScene.get(sceneId);
-    if (worldBuildId) entryIds.push(worldBuildId);
-    entryIds.push(sceneId);
+  if (extractionMode === 'world') {
+    // Walk batches in their original ordering by reusing the lookup map.
+    const orderedWbIds: string[] = [];
+    const seenWb = new Set<string>();
+    for (const sceneId of Object.keys(scenes)) {
+      const wbId = worldBuildBeforeScene.get(sceneId);
+      if (wbId && !seenWb.has(wbId)) {
+        seenWb.add(wbId);
+        orderedWbIds.push(wbId);
+      }
+    }
+    // Append any WBs that didn't get attached to a scene (shouldn't happen,
+    // but cheap safety net).
+    for (const wbId of Object.keys(worldBuilds)) {
+      if (!seenWb.has(wbId)) orderedWbIds.push(wbId);
+    }
+    entryIds.push(...orderedWbIds);
+  } else {
+    for (const sceneId of Object.keys(scenes)) {
+      const worldBuildId = worldBuildBeforeScene.get(sceneId);
+      if (worldBuildId) entryIds.push(worldBuildId);
+      entryIds.push(sceneId);
+    }
   }
 
   // Branch — build version pointers for analyzed scenes
@@ -2410,6 +2588,7 @@ export async function assembleNarrative(
   const worldSummary = results.map((ch) => ch.chapterSummary).join(" ");
 
   // Generate image style and prose profile from the analyzed content
+  onStage?.('meta-extraction');
   let imageStyle: string | undefined;
   let proseProfile: ProseProfile | undefined;
   let planGuidance = "";
@@ -2483,6 +2662,14 @@ export async function assembleNarrative(
     );
   }
 
+  // World-only mode emits a seed: entities + per-batch world commits, no
+  // chronology. The deltas every dropped scene carried have already been
+  // migrated onto the WB they belong to (see the WB construction block
+  // above), so the operator's first scene generation off this seed will
+  // see a fully-populated world graph + system graph + thread state.
+  const emitScenes = extractionMode === 'world' ? {} : scenes;
+  const emitArcs = extractionMode === 'world' ? {} : arcs;
+
   const narrative: NarrativeState = {
     id: `N-${PREFIX}-${Date.now().toString(36)}`,
     title,
@@ -2491,8 +2678,8 @@ export async function assembleNarrative(
     locations,
     threads,
     artifacts: artifactEntities,
-    arcs,
-    scenes,
+    arcs: emitArcs,
+    scenes: emitScenes,
     worldBuilds,
     branches,
     relationships,
@@ -2511,5 +2698,6 @@ export async function assembleNarrative(
     updatedAt: Date.now(),
   };
 
+  onStage?.('finalize');
   return narrative;
 }

@@ -29,6 +29,9 @@ export const FATE_REEXTRACT_SYSTEM = `You re-score prediction-market evidence fo
 export type FateReextractThread = {
   description: string;
   outcomes: string[];
+  /** Structural distance to resolution — drives Principle 8 attenuation.
+   *  short / medium / long / epic. Undefined defaults to medium downstream. */
+  horizon?: 'short' | 'medium' | 'long' | 'epic';
   /** Outcome with the largest net summed evidence across the full corpus.
    *  Treat as the observed winner — the resolution the story lands on. */
   observedWinner: string;
@@ -87,7 +90,8 @@ export function buildFateReextractPrompt(opts: {
           ? ` — resolution fires around scene ${t.resolutionSceneIndex + 1}`
           : '';
         const volNote = typeof t.totalVolume === 'number' ? ` (total vol=${t.totalVolume.toFixed(1)})` : '';
-        return `THREAD ${i + 1}: "${t.description}"
+        const horizonNote = ` [horizon: ${t.horizon ?? 'medium'}]`;
+        return `THREAD ${i + 1}: "${t.description}"${horizonNote}
   outcomes: [${outcomesFmt}]${volNote}${resolveAt}`;
       }).join('\n\n');
 

@@ -126,6 +126,24 @@ export type ThreadLog = {
 /** Storyline: long-running thread spanning multiple arcs. Incident: short-lived, resolves within 1-2 arcs. */
 export type ThreadKind = "storyline" | "incident";
 
+/**
+ * How far the thread's resolution sits from any given step.
+ *
+ *   - short  ~ 2-3 scenes (immediate trust, fight outcome, single reveal)
+ *   - medium ~ within one arc, 4-8 scenes (sect rivalry, stolen artifact)
+ *   - long   ~ multi-arc, segment-spanning (faction war, succession)
+ *   - epic   ~ series-spanning or open-ended (eternal life, dynastic
+ *              succession, ascending the cultivation ladder). May never
+ *              close cleanly; carries fractional evidence even at the
+ *              upper end of the magnitude scale.
+ *
+ * Used by the market-calibration prompts (Principle 8: scope-distance
+ * attenuation) to scale evidence magnitude. A local win that resolves a
+ * `short` thread at +3 contributes only +0.2..+0.5 to a coupled `epic`
+ * thread on the same scene.
+ */
+export type ThreadHorizon = 'short' | 'medium' | 'long' | 'epic';
+
 export type Thread = {
   id: string;
   participants: ThreadParticipant[];
@@ -135,6 +153,11 @@ export type Thread = {
    *  Multi-outcome enumerates possibilities. The softmax over per-outcome
    *  logits gives the probability distribution. */
   outcomes: string[];
+  /** Structural distance from any given scene to the thread's resolution.
+   *  Set when the thread opens; static for the thread's lifetime. Drives
+   *  evidence-magnitude attenuation via Principle 8 in the calibration
+   *  prompts. Undefined treated as 'medium' for backwards compatibility. */
+  horizon?: ThreadHorizon;
   /** Per-agent beliefs over the outcomes. Phase 1: beliefs[NARRATOR_AGENT_ID]
    *  is the only entry and serves as the "market price." Phase 5 adds
    *  per-character beliefs; market price becomes an aggregate. */
@@ -2051,6 +2074,9 @@ export type AnalysisChunkResult = {
     participantNames: string[];
     /** Named outcomes the market prices. ≥2 entries. Default ["yes","no"]. */
     outcomes: string[];
+    /** Structural distance from any scene to resolution. Drives evidence
+     *  attenuation downstream. Undefined treated as 'medium'. */
+    horizon?: ThreadHorizon;
     development: string;
     relatedThreadDescriptions?: string[];
   }[];

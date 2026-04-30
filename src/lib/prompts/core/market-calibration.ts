@@ -24,6 +24,20 @@ export const PROMPT_MARKET_PRINCIPLES = `<market-discipline hint="Treat this lik
     <principle index="5" name="liabilities-stay-on-the-books">Stated costs exist until paid, waived, or proven inapplicable. A scene showing successful action without the cost being realized is evidence for DEBT-DEFERRED, not for NO-COST — the two readings are distinguishable only at a resolution event. Do not saturate a "no-cost / undetected / free / without consequence" outcome while structural debt accumulates. Cost absence from the scene is evidence the debt has not yet been collected, nothing more.</principle>
     <principle index="6" name="outcomes-name-specific-futures">A market can only price between concrete alternatives the resolution space actually contains. Trivially-true labels ("reveals complex connection", "has meaningful effect", "turns out to be significant") describe that SOMETHING happens, not what — they cannot be re-priced and close at low quality, losing the thread's structural continuity. Outcomes must be unambiguously adjudicable at resolution; if concrete alternatives can't be enumerated, the underlying question is under-specified.</principle>
     <principle index="7" name="cascades-scale-with-driving-quality">One decisive reveal can legitimately reprice several coupled threads in the same scene. Cascade strength scales with the quality of the driving event — a decisive payoff cascades cleanly; a trivial or low-quality closure barely propagates. Each cascade emission cites its driving sentence. Do not use coupling to smuggle evidence into threads the scene did not actually touch.</principle>
+
+    <principle index="8" name="scope-distance-attenuation" hint="Magnitude scales inversely with structural distance to resolution. Read the thread's horizon field before picking a band.">A scene's evidence magnitude must be attenuated by the thread's HORIZON — a static field on every thread classifying how far its resolution sits from any given step. Use these caps for typical incremental events:
+      <horizon name="short" cap="±3..±4 (full band available)">Resolves in 2-3 scenes (immediate trust, fight outcome, single reveal). Local events touch resolution directly — no attenuation.</horizon>
+      <horizon name="medium" cap="±1..±2 typical, ±3 only on direct contact">Within one arc (~4-8 scenes). A scene that materially advances or sets back the question prices full setup/escalation magnitude; tangential scenes pulse.</horizon>
+      <horizon name="long" cap="±0.5..±1 typical, ±2 only on structural pivot">Multi-arc, segment-spanning. Most scenes pulse or contribute small directional pressure; reserve magnitude for events that change the playing field.</horizon>
+      <horizon name="epic" cap="±0.2..±0.5 typical, ±2 only on world-altering pivot">Series-spanning or open-ended (eternal life, dynastic succession, transcending mortality). Almost everything is a tiny pulse against the immense span; markets fluctuate gently across hundreds of inputs.</horizon>
+      <example>
+        <event>Protagonist marginally wins a cultivation duel against a peer.</event>
+        <scoring market="Will protagonist win this duel?" horizon="short" magnitude="+3..+4 (payoff)">Direct resolution.</scoring>
+        <scoring market="Will protagonist surpass the sect master this arc?" horizon="medium" magnitude="+1..+2 (setup/escalation)">Material progress on a contested but reachable goal.</scoring>
+        <scoring market="Will protagonist achieve eternal life?" horizon="epic" magnitude="+0.2..+0.5 (directional pulse)">One rung of an immense ladder.</scoring>
+      </example>
+      The same attenuation applies symmetrically to setbacks. The result is a market that fluctuates gently across many small inputs while remaining responsive to genuine structural pivots — a forbidden technique acquired, a fundamental resource lost, a benefactor revealed as adversarial — which DO move long/epic-horizon goals at full magnitude (|e| ≥ 2) because they re-shape the resolution path itself, not walk a step along it. The wrong move is treating every local win on the central agent as evidence-for-everything-they-want; that is the fan bias at scale. If a thread's horizon is undefined, treat it as 'medium'.
+    </principle>
   </principles>
 
   <pre-emission-checklist hint="Apply to every threadDelta. If any answer is wrong, downgrade to pulse or revise.">
@@ -31,7 +45,8 @@ export const PROMPT_MARKET_PRINCIPLES = `<market-discipline hint="Treat this lik
     <check name="steelman">Could this scene exist if the target outcome were false?</check>
     <check name="informed-flow">Am I pricing a reading the page shows, or a reading I want?</check>
     <check name="liquidity">If this market is saturated, would I take the other side at current price?</check>
-    <check name="principle">Can I cite which of the seven principles justifies the magnitude?</check>
+    <check name="scope-match">Is the magnitude attenuated for the goal's distance? A local win on a long-horizon goal is fractional, not full-band — unless this scene structurally re-shapes the path to resolution.</check>
+    <check name="principle">Can I cite which of the eight principles justifies the magnitude?</check>
   </pre-emission-checklist>
 </market-discipline>`;
 
@@ -62,11 +77,11 @@ export const PROMPT_PORTFOLIO_PRINCIPLES = `<portfolio-discipline hint="How the 
   </state-change>
 </portfolio-discipline>`;
 
-export const PROMPT_MARKET_EVIDENCE_SCALE = `<evidence-scale hint="Real number in [-4, +4] per affected outcome. Decimals encouraged; system rounds to 1dp.">
-  <band magnitude="±0..1" kind="small">pulse, minor shift.</band>
+export const PROMPT_MARKET_EVIDENCE_SCALE = `<evidence-scale hint="Real number in [-4, +4] per affected outcome. Decimals encouraged; system rounds to 1dp. Bands describe the event's relationship to the SPECIFIC market — a payoff for a near-horizon market is decisive; the same on-page event for a long-horizon market may only be a small directional pulse. Apply Principle 8 (scope-distance-attenuation) before picking a band.">
+  <band magnitude="±0..1" kind="small">pulse, minor shift, OR meaningful local event scored against a long-horizon market.</band>
   <band magnitude="±1..2" kind="meaningful">setup, resistance.</band>
   <band magnitude="±2..3" kind="significant">escalation, twist.</band>
-  <band magnitude="±3..4" kind="decisive">payoff, reversal — uncertainty collapses.</band>
+  <band magnitude="±3..4" kind="decisive">payoff, reversal — uncertainty collapses on the market being scored.</band>
 </evidence-scale>`;
 
 export const PROMPT_MARKET_LOGTYPE_TABLE = `<logtype-table hint="logType MUST agree with direction + magnitude.">

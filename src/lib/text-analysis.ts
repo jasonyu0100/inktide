@@ -36,6 +36,7 @@ import type {
   SystemNodeType,
   Thread,
   ThreadDelta,
+  ThreadHorizon,
   ThreadLogNodeType,
   TieDelta,
   TimeDelta,
@@ -871,6 +872,9 @@ export async function reconcileResults(
         // from two chunks). Coalesce was already applied above, so both
         // sides are canonical sets — union them.
         outcomes: [...new Set([...a.outcomes, ...b.outcomes])],
+        // First non-empty horizon wins. A later chunk re-mentioning the
+        // thread without a classification doesn't downgrade the original.
+        horizon: a.horizon ?? b.horizon,
         development: `${a.development}; ${b.development}`,
       }),
     ),
@@ -1114,7 +1118,7 @@ export async function reextractFateWithLifecycle(
     cancelled?: () => boolean;
   },
 ): Promise<AnalysisChunkResult[]> {
-  const canonicalByDesc = new Map<string, { outcomes: string[]; participants: string[] }>();
+  const canonicalByDesc = new Map<string, { outcomes: string[]; participants: string[]; horizon?: ThreadHorizon }>();
   for (const r of results) {
     for (const t of r.threads ?? []) {
       const existing = canonicalByDesc.get(t.description);
@@ -1122,11 +1126,16 @@ export async function reextractFateWithLifecycle(
         canonicalByDesc.set(t.description, {
           outcomes: [...(t.outcomes ?? [])],
           participants: [...(t.participantNames ?? [])],
+          horizon: t.horizon,
         });
       } else {
         const merged = new Set(existing.outcomes);
         for (const o of t.outcomes ?? []) merged.add(o);
         existing.outcomes = [...merged];
+        // First non-empty horizon wins — chunks that re-mention the same
+        // thread without a horizon classification are treated as silence,
+        // not a downgrade.
+        if (!existing.horizon && t.horizon) existing.horizon = t.horizon;
       }
     }
   }
@@ -1170,7 +1179,7 @@ export async function reextractFateWithLifecycle(
 
   // Assemble the per-thread lifecycle summary the LLM will see.
   const canonicalThreads: FateReextractThread[] = [];
-  for (const [description, { outcomes }] of canonicalByDesc.entries()) {
+  for (const [description, { outcomes, horizon }] of canonicalByDesc.entries()) {
     if (outcomes.length < 2) continue;
     const evidenceMap = evidenceByThread.get(description) ?? new Map<string, number>();
     let winner = outcomes[0];
@@ -1187,6 +1196,7 @@ export async function reextractFateWithLifecycle(
     canonicalThreads.push({
       description,
       outcomes,
+      horizon,
       observedWinner: winner,
       resolutionSceneIndex,
       totalVolume: volumeByThread.get(description),
@@ -1803,11 +1813,18 @@ export async function assembleNarrative(
           )
         : undefined;
       if (!threads[id]) {
+        const rawHorizon = (t as { horizon?: unknown }).horizon;
+        const horizon: ThreadHorizon = (typeof rawHorizon === 'string' &&
+          (rawHorizon === 'short' || rawHorizon === 'medium' ||
+            rawHorizon === 'long' || rawHorizon === 'epic'))
+          ? rawHorizon
+          : 'medium';
         threads[id] = {
           id,
           participants: newAnchors,
           description: t.description,
           outcomes,
+          horizon,
           beliefs: {
             [NARRATOR_AGENT_ID]: newNarratorBelief(
               outcomes.length,

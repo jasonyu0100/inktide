@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, Character, Location, Thread, ThreadDelta, RelationshipEdge, SystemNode, SystemDelta, SystemNodeType, Artifact, OwnershipDelta, TieDelta, WorldDelta, RelationshipDelta, WorldBuild } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, ThreadDelta, ThreadHorizon, RelationshipEdge, SystemNode, SystemDelta, SystemNodeType, Artifact, OwnershipDelta, TieDelta, WorldDelta, RelationshipDelta, WorldBuild } from '@/types/narrative';
 import { resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS, NARRATOR_AGENT_ID } from '@/types/narrative';
 import { clampEvidence, isThreadAbandoned, isThreadClosed, FORCE_REFERENCE_MEANS, FORCE_BANDS, fmtBand } from '@/lib/narrative-utils';
 import { nextId, nextIds } from '@/lib/narrative-utils';
@@ -36,6 +36,18 @@ import {
 // World expansion no longer uses a causal reasoning graph — creative
 // planning happens upstream in the directive (hand-written or AI health
 // report). The CRG generation path has been removed.
+
+/**
+ * Coerce a horizon string from the LLM (or undefined) into a valid
+ * `ThreadHorizon`. Defaults to `'medium'` — the right neutral for any
+ * thread the model didn't classify, since Principle 8 (scope-distance
+ * attenuation) treats medium as the unbiased baseline.
+ */
+const VALID_HORIZONS: ReadonlySet<string> = new Set(['short', 'medium', 'long', 'epic']);
+function normaliseHorizon(raw: unknown): ThreadHorizon {
+  if (typeof raw === 'string' && VALID_HORIZONS.has(raw)) return raw as ThreadHorizon;
+  return 'medium';
+}
 
 /**
  * Normalize LLM-emitted entity world into the World graph shape
@@ -494,6 +506,7 @@ ${m.recommendation === 'depth' ? EXPANSION_STRATEGY_PROMPTS.depth : m.recommenda
       participants: t.participants ?? [],
       description: t.description,
       outcomes,
+      horizon: normaliseHorizon(t.horizon),
       dependents,
       openedAt: '', // Store reducer stamps worldBuildId at apply time
       beliefs: { [NARRATOR_AGENT_ID]: newNarratorBelief(outcomes.length, 2) },
@@ -678,6 +691,7 @@ export async function generateNarrative(
       ...rest,
       participants: rest.participants ?? anchors ?? [],
       outcomes,
+      horizon: normaliseHorizon(rest.horizon),
       beliefs,
       threadLog: { nodes: {}, edges: [] },
     };

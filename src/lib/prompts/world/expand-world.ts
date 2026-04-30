@@ -153,6 +153,7 @@ Return JSON with this exact structure:
       "participants": [{"id": "character or location ID", "type": "character|location|artifact"}],
       "description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific conflict",
       "outcomes": ["Named possibilities the market prices. Binary default: ['yes','no']. Multi-outcome when the resolution is N-way, e.g. 'Who claims the artifact?' → ['hero','villain','destroyed','lost']. Must be distinct and mutually exclusive; 2–6 entries."],
+      "horizon": "short | medium | long | epic — structural distance from any scene to this thread's resolution. short = 2-3 scenes (immediate trust, fight outcome). medium = within an arc, 4-8 scenes (sect rivalry, stolen artifact). long = multi-arc, segment-spanning (faction war, succession). epic = series-spanning or open-ended (eternal life, dynastic ambition). Drives evidence-magnitude attenuation downstream — pick honestly, since over-marking a goal as short inflates every evidence emission against it.",
       "dependents": ["T-XX (existing thread IDs this thread connects to, accelerates, or converges with — see THREAD CONVERGENCE below)"]
     }
   ],

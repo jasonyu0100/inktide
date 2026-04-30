@@ -688,7 +688,8 @@ export function narrativeContext(
       const logBlock = logNodes.length > 0
         ? `\n  <log>${logNodes.map((ln) => `[${ln.type}] ${ln.content}`).join(' | ')}</log>`
         : '';
-      return `<thread id="${t.id}"${marketAttr}${age > 0 ? ` age="${age}" deltas="${deltas}"` : ''}${participantNames ? ` participants="${participantNames}"` : ''}${depsAttr}${networkAttrs(tierLookup.get(t.id))}>${t.description}\n  <market>${outcomeSummary}</market>${logBlock}\n</thread>`;
+      const horizonAttr = ` horizon="${t.horizon ?? 'medium'}"`;
+      return `<thread id="${t.id}"${marketAttr}${horizonAttr}${age > 0 ? ` age="${age}" deltas="${deltas}"` : ''}${participantNames ? ` participants="${participantNames}"` : ''}${depsAttr}${networkAttrs(tierLookup.get(t.id))}>${t.description}\n  <market>${outcomeSummary}</market>${logBlock}\n</thread>`;
     })
     .filter(Boolean)
     .join('\n');

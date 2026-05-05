@@ -788,6 +788,9 @@ export type Action =
       type: "EXPAND_WORLD";
       worldBuildId: string;
       branchId: string;
+      /** AI-generated 1-2 sentence intent of this expansion. When omitted,
+       *  the reducer falls back to a derived count string. */
+      summary?: string;
       characters: Character[];
       locations: Location[];
       artifacts: Artifact[];
@@ -826,6 +829,7 @@ export type Action =
   | { type: "SET_ARTIFACT_IMAGE_PROMPT"; artifactId: string; imagePrompt: string }
   | { type: "SET_IMAGE_STYLE"; style: string }
   | { type: "SET_STORY_SETTINGS"; settings: StorySettings }
+  | { type: "SET_BRIEFING"; briefing: import("@/types/briefing").StoredBriefing | undefined }
   | { type: "SET_PROSE_PROFILE"; profile: ProseProfile | undefined }
   | { type: "SET_PATTERNS"; patterns: string[] }
   | { type: "SET_ANTI_PATTERNS"; antiPatterns: string[] }
@@ -1953,10 +1957,14 @@ function reducer(state: AppState, action: Action): AppState {
       if (relCount > 0) parts.push(`${relCount} relationship${relCount > 1 ? "s" : ""}`);
       if (wkNodeCount > 0) parts.push(`${wkNodeCount} knowledge node${wkNodeCount > 1 ? "s" : ""}`);
       if (wkEdgeCount > 0) parts.push(`${wkEdgeCount} knowledge edge${wkEdgeCount > 1 ? "s" : ""}`);
-      const worldBuildSummary =
+      // Prefer the AI-generated intent summary — it tells downstream arc
+      // generation what creative space this expansion opens. Fall back to a
+      // derived count string when the model didn't supply one.
+      const derivedSummary =
         parts.length > 0
           ? `World expanded: ${parts.join(", ")}`
           : "World expansion (no new elements)";
+      const worldBuildSummary = action.summary?.trim() || derivedSummary;
 
       // Build manifest systemGraph: explicit deltas + auto-generated nodes for threads/locations
       const autoNodes: SystemDelta["addedNodes"] = [];
@@ -2602,6 +2610,17 @@ function reducer(state: AppState, action: Action): AppState {
         ...n,
         storySettings: action.settings,
       }));
+
+    case "SET_BRIEFING":
+      return updateNarrative(state, (n) => {
+        const next = { ...n };
+        if (action.briefing === undefined) {
+          delete next.lastBriefing;
+        } else {
+          next.lastBriefing = action.briefing;
+        }
+        return next;
+      });
 
     case "SET_PROSE_PROFILE":
       return updateNarrative(state, (n) => ({

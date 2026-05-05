@@ -286,14 +286,15 @@ describe("aggregateNetworkGraph", () => {
   });
 
   test("progressive aggregation respects the current-scene cutoff", () => {
-    // A-01 has scene S-01 (index 0); A-02 has scene S-02 (index 1). Each
-    // arc references a distinct character. With cutoff=0, only A-01's
-    // attribution should appear.
+    // A-01 has scene S-01 (index 0) which introduces C-01; A-02 has scene
+    // S-02 (index 1) which introduces C-02. Each arc references its own
+    // character. With cutoff=0, only A-01's attribution and C-01 should
+    // appear — C-02 doesn't exist yet at that point in the timeline.
     const narrative = makeNarrative({
       characters: { "C-01": makeCharacter("C-01"), "C-02": makeCharacter("C-02") },
       scenes: {
-        "S-01": { kind: "scene", id: "S-01", arcId: "A-01" } as never,
-        "S-02": { kind: "scene", id: "S-02", arcId: "A-02" } as never,
+        "S-01": { kind: "scene", id: "S-01", arcId: "A-01", newCharacters: [makeCharacter("C-01")] } as never,
+        "S-02": { kind: "scene", id: "S-02", arcId: "A-02", newCharacters: [makeCharacter("C-02")] } as never,
       },
       arcs: {
         "A-01": makeArc("A-01", ["S-01"], makeReasoningGraph([
@@ -309,11 +310,53 @@ describe("aggregateNetworkGraph", () => {
     const upToFirst = aggregateNetworkGraph(narrative, resolvedKeys, 0);
     expect(upToFirst.graphCount).toBe(1);
     expect(upToFirst.nodes.find((n) => n.id === "C-01")!.attributions).toBe(1);
-    expect(upToFirst.nodes.find((n) => n.id === "C-02")!.attributions).toBe(0);
+    // C-02 is introduced later in the timeline — must not appear yet.
+    expect(upToFirst.nodes.find((n) => n.id === "C-02")).toBeUndefined();
 
     const upToSecond = aggregateNetworkGraph(narrative, resolvedKeys, 1);
     expect(upToSecond.graphCount).toBe(2);
     expect(upToSecond.nodes.find((n) => n.id === "C-02")!.attributions).toBe(1);
+  });
+
+  test("progressive aggregation hides entities introduced by later world builds", () => {
+    // Initial world build (index 0) seeds C-01; a later world expansion
+    // (index 2, after one scene) introduces C-02 + thread T-02 + system
+    // node SYS-02. When the user scrubs back to index 0 or 1, none of the
+    // expansion's new nodes should appear.
+    const expansionWorldBuild = makeWorldBuild("WB-02");
+    expansionWorldBuild.expansionManifest = {
+      newCharacters: [makeCharacter("C-02")],
+      newLocations: [],
+      newArtifacts: [],
+      newThreads: [makeThread("T-02")],
+      systemDeltas: { addedNodes: [{ id: "SYS-02", concept: "late rule", type: "principle" }], addedEdges: [] },
+    };
+    const initWorldBuild = makeWorldBuild("WB-01");
+    initWorldBuild.expansionManifest = {
+      newCharacters: [makeCharacter("C-01")],
+      newLocations: [],
+      newArtifacts: [],
+      newThreads: [],
+    };
+    const narrative = makeNarrative({
+      characters: { "C-01": makeCharacter("C-01"), "C-02": makeCharacter("C-02") },
+      threads: { "T-02": makeThread("T-02") },
+      systemGraph: { nodes: { "SYS-02": { id: "SYS-02", concept: "late rule", type: "principle" } }, edges: [] },
+      scenes: {
+        "S-01": { kind: "scene", id: "S-01", arcId: "A-01" } as never,
+      },
+      arcs: { "A-01": makeArc("A-01", ["S-01"]) },
+      worldBuilds: { "WB-01": initWorldBuild, "WB-02": expansionWorldBuild },
+    });
+    const resolvedKeys = ["WB-01", "S-01", "WB-02"];
+
+    const beforeExpansion = aggregateNetworkGraph(narrative, resolvedKeys, 1);
+    const ids = beforeExpansion.nodes.map((n) => n.id).sort();
+    expect(ids).toEqual(["C-01"]);
+
+    const afterExpansion = aggregateNetworkGraph(narrative, resolvedKeys, 2);
+    const idsAfter = afterExpansion.nodes.map((n) => n.id).sort();
+    expect(idsAfter).toEqual(["C-01", "C-02", "SYS-02", "T-02"]);
   });
 
   test("firstSeenIndex tracks the first reasoning graph that referenced a node", () => {

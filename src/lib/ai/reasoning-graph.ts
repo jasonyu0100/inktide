@@ -43,6 +43,7 @@ import type {
   ReasoningGraph,
   ReasoningMode,
   ArcReasoningOptions,
+  ArcSettings,
   ExpansionReasoningGraph,
   ReasoningNodeBase,
   ReasoningGraphBase,
@@ -80,12 +81,36 @@ export type {
   ReasoningGraph,
   ReasoningMode,
   ArcReasoningOptions,
+  ArcSettings,
   ExpansionReasoningGraph,
   ReasoningNodeBase,
   ReasoningGraphBase,
   ForcePreference,
 };
 export { reasoningScale, buildSequentialPath, extractPatternWarningDirectives };
+
+/**
+ * Resolve the engine settings the CRG was built under. Pulls forcePreference
+ * and reasoningMode from the per-call options; falls back to the narrative's
+ * default network bias if the call didn't override. Returns undefined when
+ * no settings would be persisted (keeps the snapshot clean for default runs).
+ */
+function extractArcSettings(
+  options: ArcReasoningOptions | undefined,
+  narrative: NarrativeState,
+): ArcSettings | undefined {
+  const forcePreference = options?.forcePreference;
+  const reasoningMode = options?.reasoningMode;
+  const networkBias = options?.networkBias ?? narrative.storySettings?.defaultNetworkBias;
+  if (!forcePreference && !reasoningMode && (!networkBias || networkBias === "neutral")) {
+    return undefined;
+  }
+  const settings: ArcSettings = {};
+  if (forcePreference) settings.forcePreference = forcePreference;
+  if (reasoningMode) settings.reasoningMode = reasoningMode;
+  if (networkBias && networkBias !== "neutral") settings.networkBias = networkBias;
+  return settings;
+}
 
 /**
  * Find the most recent arc that has a stored reasoning graph, walking
@@ -260,7 +285,7 @@ ${buildSequentialPath({ nodes: lastArcGraph.graph.nodes, edges: lastArcGraph.gra
       : undefined,
     direction,
     priorGraphSection,
-    phaseGraphSection: buildActivePhaseGraphSection(narrative),
+    phaseGraphSection: buildActivePhaseGraphSection(narrative, "reasoning-arc"),
     forcePreferenceBlockText: forcePreferenceBlock("arc", options?.forcePreference),
     reasoningModeBlockText: reasoningModeBlock(options?.reasoningMode),
     networkBiasBlockText: networkBiasBlock(options?.networkBias ?? narrative.storySettings?.defaultNetworkBias),
@@ -345,6 +370,7 @@ ${buildSequentialPath({ nodes: lastArcGraph.graph.nodes, edges: lastArcGraph.gra
       sceneCount,
       summary: typeof data.summary === "string" ? data.summary : `Reasoning graph for ${arcName}`,
       plannedNodeCount: typeof data.plannedNodeCount === "number" ? data.plannedNodeCount : undefined,
+      arcSettings: extractArcSettings(options, narrative),
     };
   } catch (err) {
     logError("Failed to parse reasoning graph", err, {
@@ -637,7 +663,7 @@ export async function generateCoordinationPlan(
     nodeGuidance,
     forcePreferenceBlockText: forcePreferenceBlock("plan", guidance.forcePreference),
     reasoningModeBlockText: reasoningModeBlock(guidance.reasoningMode),
-    phaseGraphSection: buildActivePhaseGraphSection(narrative),
+    phaseGraphSection: buildActivePhaseGraphSection(narrative, "reasoning-plan"),
   });
 
   const reasoningBudget = defaultReasoningBudget(narrative);

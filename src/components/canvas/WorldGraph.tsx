@@ -25,6 +25,7 @@ import { ReasoningGraphView } from './ReasoningGraphView';
 import { PhaseGraphCanvas } from './PhaseGraphView';
 import NetworkView from './NetworkView';
 import MarketView from './MarketView';
+import MarketBriefingView from './MarketBriefingView';
 import {
   type GraphNode,
   type GraphLink,
@@ -1043,7 +1044,7 @@ export default function WorldGraph() {
     <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Legend strip — only for spatial/overview when NOT viewing an entity's inner graph */}
       {(graphViewMode === 'spatial' || graphViewMode === 'overview') && !selectedKnowledgeEntity && (
-        <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border bg-bg-base/60">
+        <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border glass-panel">
           {([
             { key: 'labels', label: 'Labels', checked: showEdgeLabels, toggle: () => setShowEdgeLabels((v) => !v) },
             { key: 'heat', label: 'Heat', checked: showHeatmap, toggle: () => setShowHeatmap((v) => !v) },
@@ -1153,6 +1154,8 @@ export default function WorldGraph() {
         <NetworkView />
       ) : graphViewMode === 'market' ? (
         <MarketView />
+      ) : graphViewMode === 'brief' ? (
+        <MarketBriefingView />
       ) : graphViewMode === 'phase' ? (
         <PhaseGraphCanvas />
       ) : graphViewMode === 'reasoning' ? (
@@ -1255,9 +1258,9 @@ export default function WorldGraph() {
           className="absolute z-40 pointer-events-none"
           style={{ left: nodeTooltip.x, top: nodeTooltip.y - 12, transform: 'translate(-50%, -100%)' }}
         >
-          <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl w-72">
-            <div className="text-xs font-semibold text-text-primary mb-1">{nodeTooltip.label}</div>
-            <div className="text-[10px] text-text-dim leading-relaxed">{nodeTooltip.imagePrompt}</div>
+          <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl max-w-sm">
+            <div className="text-xs font-semibold text-text-primary mb-1 whitespace-normal wrap-break-word">{nodeTooltip.label}</div>
+            <div className="text-[10px] text-text-dim leading-relaxed whitespace-normal wrap-break-word">{nodeTooltip.imagePrompt}</div>
           </div>
           <div className="flex justify-center"><div className="w-2.5 h-2.5 bg-bg-elevated border-r border-b border-border rotate-45 -mt-1.5" /></div>
         </div>

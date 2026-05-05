@@ -227,7 +227,7 @@ export default function ThreadLogGraphView({
   return (
     <div className="absolute inset-0 z-20 flex flex-col">
       {/* Legend strip */}
-      <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border bg-bg-base/60 z-30">
+      <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border glass-panel z-30">
         <button
           onClick={() => dispatch({ type: 'SELECT_THREAD_LOG', threadId: null })}
           className="text-[10px] text-text-dim hover:text-text-secondary transition-colors flex items-center gap-1 mr-2"
@@ -270,11 +270,11 @@ export default function ThreadLogGraphView({
             className="absolute z-40 pointer-events-none"
             style={{ left: tooltip.x, top: tooltip.y - 12, transform: 'translate(-50%, -100%)' }}
           >
-            <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl w-72">
+            <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl max-w-sm">
               <div className="flex items-start gap-2 mb-1">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ background: THREAD_LOG_FILL[tooltip.type] ?? '#888', boxShadow: `0 0 6px ${THREAD_LOG_FILL[tooltip.type] ?? '#888'}80` }} />
                 <div>
-                  <span className="text-xs font-semibold text-text-primary">{tooltip.content.slice(0, 120)}{tooltip.content.length > 120 ? '...' : ''}</span>
+                  <span className="text-xs font-semibold text-text-primary whitespace-normal wrap-break-word">{tooltip.content}</span>
                   <span className="text-[10px] text-text-dim capitalize ml-1">({tooltip.type})</span>
                 </div>
               </div>

@@ -79,6 +79,9 @@ export interface ReasoningGraph {
    * final `nodes.length` if the LLM revised mid-generation.
    */
   plannedNodeCount?: number;
+  /** Settings under which the CRG was built — propagated to scene gen so
+   *  the same engine tilt drives downstream stages. */
+  arcSettings?: ArcSettings;
 }
 
 // ── Minimal shapes for sequential-path building ─────────────────────────────
@@ -130,6 +133,18 @@ export type ArcReasoningOptions = {
   /** How the reasoner thinks. */
   reasoningMode?: ReasoningMode;
   /** Network thinking bias. */
+  networkBias?: "inside" | "outside" | "neutral";
+};
+
+/**
+ * Settings under which an arc's CRG was constructed. Persisted on the
+ * reasoning graph (and on Arc.reasoningGraph) so downstream stages —
+ * scene generation, beat planning, prose — can inherit the same engine
+ * tilt the CRG was built under. The "sync" between CRG and scene gen.
+ */
+export type ArcSettings = {
+  forcePreference?: ForcePreference;
+  reasoningMode?: ReasoningMode;
   networkBias?: "inside" | "outside" | "neutral";
 };
 

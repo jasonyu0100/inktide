@@ -42,7 +42,6 @@ import {
 } from "@/types/narrative";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ForcePreference, ReasoningMode } from "@/lib/ai";
-import { extractContinuationDirection } from "@/lib/ai/health-report";
 import {
   ThinkingSettings,
   type ReasoningSize,
@@ -108,33 +107,50 @@ function StreamingOutput({ label, text }: { label: string; text: string }) {
 
 export function GeneratePanel({
   onClose,
-  initialHealthMode,
-  initialHealthReport,
-  initialAutoRun,
+  initialWorldMode,
+  initialWorldDirection,
+  initialContinuationMode,
+  initialStoryDirection,
 }: {
   onClose: () => void;
-  /** When true, the panel opens with worldSize='health' selected and the
-   *  health-report text prefilled into the directive. Fired by the Diagnose
-   *  action in FloatingPalette. */
-  initialHealthMode?: boolean;
-  initialHealthReport?: string;
-  /** Quick-action flag: when true together with initialHealthMode, the
-   *  expansion reasoning graph auto-kicks on mount so the user sees
-   *  streaming output without a second click. */
-  initialAutoRun?: boolean;
+  /** When true, the panel opens straight into the world-expansion tab with
+   *  `initialWorldDirection` prefilled into the direction field. Fired by
+   *  brief-driven expansion suggestions. */
+  initialWorldMode?: boolean;
+  initialWorldDirection?: string;
+  /** When true, the panel opens in continuation mode with
+   *  `initialStoryDirection` prefilled into the per-generation direction
+   *  field. Fired by brief-driven Generate Arc CTAs. */
+  initialContinuationMode?: boolean;
+  initialStoryDirection?: string;
 }) {
   const { state, dispatch } = useStore();
-  // Health-mode opens the panel straight into the world-expansion tab; the
-  // user is repairing a portfolio, not continuing scenes.
-  const [mode, setMode] = useState<Mode>(initialHealthMode ? "world" : "continuation");
+  const [mode, setMode] = useState<Mode>(initialWorldMode ? "world" : "continuation");
 
   // Continuation state
   const [newArc, setNewArc] = useState(true);
   const [arcName, setArcName] = useState("");
-  const [direction, setDirection] = useState("");
+  const [direction, setDirection] = useState(
+    initialContinuationMode && initialStoryDirection ? initialStoryDirection : "",
+  );
   const [directionCount, setDirectionCount] = useState(4); // Number of scenes to generate
+  // Seed worldBuildFocusId from the saved worldFocus setting so manual scene
+  // generation respects the same focus the auto-play loop uses. 'latest' →
+  // most recent WB on the resolved branch; 'custom' → the saved id; 'none'
+  // (default) → null.
+  const initialWorldBuildFocusId = (() => {
+    const settings = state.activeNarrative?.storySettings;
+    const mode = settings?.worldFocus ?? 'none';
+    if (mode === 'custom' && settings?.worldFocusId) return settings.worldFocusId;
+    if (mode === 'latest') {
+      const wbs = state.activeNarrative?.worldBuilds ?? {};
+      const lastKey = [...state.resolvedEntryKeys].reverse().find((k) => wbs[k]);
+      return lastKey ?? null;
+    }
+    return null;
+  })();
   const [worldBuildFocusId, setWorldBuildFocusId] = useState<string | null>(
-    null,
+    initialWorldBuildFocusId,
   );
   const [guidanceDirection, setGuidanceDirection] = useState("");
   const [guidanceConstraints, setGuidanceConstraints] = useState("");
@@ -147,14 +163,15 @@ export function GeneratePanel({
   const [animating, setAnimating] = useState(false);
   const [editingStep, setEditingStep] = useState<number | null>(null);
 
-  // World state — health-mode preset: start with size='health' and the health
-  // report prefilled so the user sees the diagnosis that motivated this run.
+  // World state — explicit pre-fill from a brief CTA wins; otherwise the
+  // persistent worldDirection setting seeds the field so the operator's
+  // saved north-star is always the starting point.
   const [worldDirective, setWorldDirective] = useState(
-    initialHealthMode && initialHealthReport ? initialHealthReport : "",
+    initialWorldMode && initialWorldDirection
+      ? initialWorldDirection
+      : state.activeNarrative?.storySettings?.worldDirection?.trim() ?? "",
   );
-  const [worldSize, setWorldSize] = useState<WorldExpansionSize>(
-    initialHealthMode ? "health" : "exact",
-  );
+  const [worldSize, setWorldSize] = useState<WorldExpansionSize>("exact");
   const [worldStrategy, setWorldStrategy] = useState<WorldExpansionStrategy>(
     state.activeNarrative?.storySettings?.expansionStrategy ?? "dynamic",
   );
@@ -164,6 +181,10 @@ export function GeneratePanel({
 
   // Reasoning graph state (for scene generation)
   const [reasoningGraph, setReasoningGraph] = useState<ReasoningGraph | null>(null);
+  // The direction string used to seed the CRG — passed through to scene
+  // generation so the prose phrasing (tonal / scope / register) survives
+  // alongside the compiled graph.
+  const [reasoningGraphDirection, setReasoningGraphDirection] = useState<string>("");
   const [showReasoningModal, setShowReasoningModal] = useState(false);
   const [generatingGraph, setGeneratingGraph] = useState(false);
   // Arc reasoning options — initialized from story-level defaults so the
@@ -244,30 +265,13 @@ export function GeneratePanel({
     }
   }, [hasActivePlan, planArcName, planSceneCount]);
 
-  // Quick-action auto-kick: when the panel was opened from the health
-  // diagnostic's "Run health expansion" button (healthMode + autoRun), go
-  // straight to a direct expansion — no causal-reasoning-graph review. The
-  // AI health report already contains the creative material (threads,
-  // system, entities) that should drop into the world; a CRG step would
-  // redo work the report already did. Ref-guarded for strict-mode double
-  // invocation.
-  const autoRunFired = useRef(false);
-  useEffect(() => {
-    if (!initialAutoRun || !initialHealthMode) return;
-    if (autoRunFired.current) return;
-    autoRunFired.current = true;
-    void handleExpandWorld();
-    // Mount-only; handler closes over current form state which is already
-    // initialised from props at this point.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Auto-clear saved direction fields after they've guided a generation, per
+  // the autoClearDirection setting (on by default). Prevents a one-off steer
+  // from silently shaping every subsequent run without the user re-opting in.
+  // Scene generation clears storyDirection + storyConstraints; world expansion
+  // clears worldDirection. Narrative Guidance is intentionally never cleared.
 
-  // Auto-clear saved storyDirection + storyConstraints after they've guided a
-  // generation, per the autoClearDirection setting (on by default). Prevents
-  // a one-off directive from silently steering every subsequent run without
-  // the user re-opting in. No-op when the setting is off or the fields were
-  // already empty.
-  const clearDirectionAfterUse = useCallback(() => {
+  const clearSceneDirectionAfterUse = useCallback(() => {
     const s = narrative?.storySettings;
     if (!s?.autoClearDirection) return;
     const hasContent = !!(s.storyDirection?.trim() || s.storyConstraints?.trim());
@@ -275,6 +279,16 @@ export function GeneratePanel({
     dispatch({
       type: "SET_STORY_SETTINGS",
       settings: { ...s, storyDirection: "", storyConstraints: "" },
+    });
+  }, [narrative?.storySettings, dispatch]);
+
+  const clearWorldDirectionAfterUse = useCallback(() => {
+    const s = narrative?.storySettings;
+    if (!s?.autoClearDirection) return;
+    if (!s.worldDirection?.trim()) return;
+    dispatch({
+      type: "SET_STORY_SETTINGS",
+      settings: { ...s, worldDirection: "" },
     });
   }, [narrative?.storySettings, dispatch]);
 
@@ -366,6 +380,7 @@ export function GeneratePanel({
         { forcePreference, reasoningLevel: reasoningSize, reasoningMode, networkBias },
       );
       setReasoningGraph(graph);
+      setReasoningGraphDirection(fullDirection);
       setShowReasoningModal(true);
     } catch (err) {
       logError("Reasoning graph generation failed", err, {
@@ -414,7 +429,9 @@ export function GeneratePanel({
         state.resolvedEntryKeys,
         headIndex,
         reasoningGraph.sceneCount,
-        "", // Direction is embedded in reasoning graph
+        // The CRG was compiled from this direction; passing it through layers
+        // the prose phrasing under the graph so tonal / scope intent survives.
+        reasoningGraphDirection,
         {
           existingArc,
           pacingSequence: previewSequence ?? undefined,
@@ -439,13 +456,14 @@ export function GeneratePanel({
           arcName: reasoningGraph.arcName,
           sceneCount: reasoningGraph.sceneCount,
           summary: reasoningGraph.summary,
+          arcSettings: reasoningGraph.arcSettings,
         },
       });
       // Advance coordination plan if active (regardless of whether settings were changed)
       if (hasActivePlan && activeBranchId) {
         dispatch({ type: "ADVANCE_COORDINATION_PLAN", branchId: activeBranchId });
       }
-      clearDirectionAfterUse();
+      clearSceneDirectionAfterUse();
       onClose();
     } catch (err) {
       logError("Scene generation from reasoning graph failed", err, {
@@ -512,7 +530,7 @@ export function GeneratePanel({
       if (hasActivePlan && activeBranchId) {
         dispatch({ type: "ADVANCE_COORDINATION_PLAN", branchId: activeBranchId });
       }
-      clearDirectionAfterUse();
+      clearSceneDirectionAfterUse();
       onClose();
     } catch (err) {
       logError("Manual scene generation failed", err, {
@@ -554,9 +572,8 @@ export function GeneratePanel({
     }
   }
 
-  // The expansion-CRG path was removed: expansion now goes directly from
-  // directive (either hand-written or an AI health report) to creative
-  // material. A CRG review step was redundant — the directive IS the plan.
+  // Expansion goes directly from directive to creative material — no
+  // intermediate CRG review step. The directive IS the plan.
 
 
   // Quick expand without reasoning (for exact size or when user skips planning)
@@ -582,6 +599,7 @@ export function GeneratePanel({
         type: "EXPAND_WORLD",
         worldBuildId: nextId("WB", Object.keys(narrative.worldBuilds), 3),
         branchId: state.viewState.activeBranchId!,
+        summary: expansion.summary,
         characters: expansion.characters,
         locations: expansion.locations,
         artifacts: expansion.artifacts,
@@ -594,46 +612,7 @@ export function GeneratePanel({
         tieDeltas: expansion.tieDeltas,
       });
 
-      // Quick-action continuation kick: after a health expansion commits,
-      // (a) persist the AI brief's "Continuation direction" section into
-      // storySettings as the new north-star, and (b) switch the panel into
-      // continuation mode with a seeded direction drawn from the AI brief
-      // and the expansion's new thread questions. The user reviews and
-      // clicks Generate to carry the story forward.
-      if (initialAutoRun && initialHealthMode) {
-        const aiContinuation = extractContinuationDirection(worldDirective);
-        const newThreadQuestions = (expansion.threads ?? [])
-          .map((t) => t.description)
-          .filter((d): d is string => !!d && d.length > 0);
-
-        // The health report has been acted on — clear the cached brief so
-        // next time the user opens the modal, they get a fresh read of the
-        // (now-updated) portfolio state. Also persist the AI's continuation
-        // paragraph as the new storyDirection north-star when present.
-        if (narrative.storySettings) {
-          dispatch({
-            type: "SET_STORY_SETTINGS",
-            settings: {
-              ...narrative.storySettings,
-              ...(aiContinuation ? { storyDirection: aiContinuation } : {}),
-              lastHealthReport: "",
-            },
-          });
-        }
-
-        const seeded = aiContinuation
-          ? aiContinuation
-          : newThreadQuestions.length > 0
-            ? `Continue the story in the direction opened by the health expansion. New questions to engage: ${newThreadQuestions.map((q) => `"${q}"`).join(' / ')}. Build scenes that move these markets forward; lean on the newly-introduced entities and rules as the vehicle of change.`
-            : 'Continue the story in the direction opened by the health expansion, engaging the newly-added entities, rules, and threads.';
-        setMode('continuation');
-        setDirection(seeded);
-        setNewArc(true);
-        setArcName('');
-        setStreamText('');
-        return;
-      }
-
+      clearWorldDirectionAfterUse();
       onClose();
     } catch (err) {
       logError("World expansion generation failed", err, {
@@ -1274,11 +1253,7 @@ export function GeneratePanel({
                 </details>
                 {/* Single expansion action — direct from directive to
                     creative material (threads, system, entities). No CRG
-                    review step: the directive IS the plan. Users who want
-                    targeted expansion write a specific directive; users
-                    who want diagnostic-driven top-ups use the health
-                    workflow, which pre-fills the directive from an AI
-                    report. */}
+                    review step: the directive IS the plan. */}
                 <button
                   onClick={handleExpandWorld}
                   disabled={loading}
@@ -1309,13 +1284,11 @@ export function GeneratePanel({
           onClose={() => {
             setShowReasoningModal(false);
             setReasoningGraph(null);
+            setReasoningGraphDirection("");
           }}
         />
       )}
 
-      {/* Expansion no longer has a reasoning-graph review — see
-          handleExpandWorld comment. Creative planning is what the directive
-          (hand-written or AI health report) is for. */}
     </Modal>
   );
 }

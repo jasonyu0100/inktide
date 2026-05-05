@@ -93,10 +93,7 @@ export function NowPlayingPill() {
 
       {/* Dropdown */}
       {open && (
-        <div
-          className="absolute top-full mt-2 right-0 w-80 rounded-xl border border-white/10 overflow-hidden z-50"
-          style={{ background: '#1a1a1a', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
-        >
+        <div className="absolute top-full mt-2 right-0 w-80 rounded-xl glass overflow-hidden z-50">
           <div className="px-4 py-3">
             {hasAnyAudio ? (
               <>

@@ -118,6 +118,7 @@ export function ReasoningGraphView({
   const [layoutNodes, setLayoutNodes] = useState<LayoutNode[]>([]);
   const [layoutEdges, setLayoutEdges] = useState<LayoutEdge[]>([]);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
 
   const resolveNodeColor: NodeColorResolver = useCallback(
     (type: string) => (nodeColors ? nodeColors(type) : getNodeColor(type)),
@@ -319,31 +320,13 @@ export function ReasoningGraphView({
       .attr("stroke", (d) => resolveNodeColor(d.data.type).stroke)
       .attr("stroke-width", 2);
 
-    // Index badge (top-left)
-    nodeGroups
-      .append("circle")
-      .attr("cx", 0)
-      .attr("cy", 0)
-      .attr("r", 12)
-      .attr("fill", "#0f172a")
-      .attr("stroke", "#475569")
-      .attr("stroke-width", 1);
-
-    nodeGroups
-      .append("text")
-      .attr("x", 0)
-      .attr("y", 0)
-      .attr("text-anchor", "middle")
-      .attr("dominant-baseline", "middle")
-      .attr("font-size", "10px")
-      .attr("font-weight", "bold")
-      .attr("fill", "#e2e8f0")
-      .attr("pointer-events", "none")
-      .text((d) => d.data.index);
+    // (Per-node index badge removed — the FloatingPalette nav already
+    //  surfaces the current position as N/total, so showing the index
+    //  on every node duplicated the same signal in two places.)
 
     // Generation-order pill — only when it differs from index (backward
-    // thinking modes). Small, bottom-right of the index circle, visible
-    // signature of abductive/inductive thinking.
+    // thinking modes). Small, top-left of the node, visible signature of
+    // abductive/inductive thinking.
     const divergentNodes = nodeGroups.filter(
       (d) =>
         typeof d.data.order === "number" &&
@@ -481,7 +464,7 @@ export function ReasoningGraphView({
   }
 
   return (
-    <div ref={containerRef} className="flex-1 w-full h-full overflow-hidden">
+    <div ref={containerRef} className="flex-1 w-full h-full overflow-hidden relative">
       <svg
         ref={svgRef}
         width="100%"
@@ -489,6 +472,53 @@ export function ReasoningGraphView({
         className="cursor-grab active:cursor-grabbing"
         style={{ display: 'block' }}
       />
+      {/* Floating summary card — top-left. Shows the graph's name + summary
+          + structural counts so users can read the overall shape without
+          leaving the canvas. Long summaries collapse to ~3 lines with an
+          expand toggle; arcName is suppressed when it duplicates the
+          summary (phase graphs without an explicit name fall back to
+          summary, which would render the same text twice). */}
+      {(() => {
+        const summary = graph.summary?.trim() ?? "";
+        const name = graph.arcName?.trim() ?? "";
+        const showName = !!name && name !== summary;
+        const isLong = summary.length > 180;
+        return (
+          <div className="absolute top-3 left-3 max-w-xs glass rounded-lg px-3 py-2">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono mb-1">
+              {inspectorContextType === "phase" ? "Phase Graph" : "Causal Graph"}
+            </div>
+            {showName && (
+              <div className="text-xs font-semibold text-text-primary mb-1 whitespace-normal wrap-break-word">
+                {name}
+              </div>
+            )}
+            {summary && (
+              <div
+                className={`text-[11px] text-text-secondary leading-snug whitespace-normal wrap-break-word ${
+                  !summaryExpanded && isLong ? "line-clamp-3" : ""
+                }`}
+              >
+                {summary}
+              </div>
+            )}
+            <div className="flex items-center justify-between mt-1.5">
+              <div className="text-[10px] text-text-dim/70 font-mono tabular-nums">
+                {graph.nodes.length} node{graph.nodes.length === 1 ? '' : 's'} · {graph.edges.length} edge{graph.edges.length === 1 ? '' : 's'}
+              </div>
+              {isLong && (
+                <button
+                  type="button"
+                  onClick={() => setSummaryExpanded((v) => !v)}
+                  className="text-[10px] text-text-dim hover:text-violet-200 transition-colors font-mono uppercase tracking-wider"
+                >
+                  {summaryExpanded ? "Less" : "More"}
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

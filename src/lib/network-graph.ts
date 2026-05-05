@@ -139,22 +139,39 @@ export function aggregateNetworkGraph(
   };
 
   // Decide which arcs and world builds are in scope for the current cutoff.
+  // In progressive mode we also collect the set of entity / system ids that
+  // have actually been introduced by scenes or world builds at or before the
+  // cutoff, so a later world expansion's nodes don't leak into earlier views.
   const useProgressive = resolvedKeys !== undefined && currentIndex !== undefined;
   let timelineOrderedItems: Array<{ kind: "arc"; id: string } | { kind: "world_build"; id: string }> = [];
+  const introducedEntityIds = new Set<string>();
+  const introducedSystemIds = new Set<string>();
 
   if (useProgressive) {
     const keysInRange = resolvedKeys!.slice(0, currentIndex! + 1);
     const seenArcs = new Set<string>();
     for (const key of keysInRange) {
       const scene = narrative.scenes[key];
-      if (scene && scene.arcId && !seenArcs.has(scene.arcId)) {
-        seenArcs.add(scene.arcId);
-        timelineOrderedItems.push({ kind: "arc", id: scene.arcId });
+      if (scene) {
+        if (scene.arcId && !seenArcs.has(scene.arcId)) {
+          seenArcs.add(scene.arcId);
+          timelineOrderedItems.push({ kind: "arc", id: scene.arcId });
+        }
+        for (const c of scene.newCharacters ?? []) introducedEntityIds.add(c.id);
+        for (const l of scene.newLocations ?? []) introducedEntityIds.add(l.id);
+        for (const a of scene.newArtifacts ?? []) introducedEntityIds.add(a.id);
+        for (const t of scene.newThreads ?? []) introducedEntityIds.add(t.id);
+        for (const sn of scene.systemDeltas?.addedNodes ?? []) introducedSystemIds.add(sn.id);
         continue;
       }
       const wb = narrative.worldBuilds[key];
       if (wb) {
         timelineOrderedItems.push({ kind: "world_build", id: wb.id });
+        for (const c of wb.expansionManifest.newCharacters) introducedEntityIds.add(c.id);
+        for (const l of wb.expansionManifest.newLocations) introducedEntityIds.add(l.id);
+        for (const a of wb.expansionManifest.newArtifacts ?? []) introducedEntityIds.add(a.id);
+        for (const t of wb.expansionManifest.newThreads) introducedEntityIds.add(t.id);
+        for (const sn of wb.expansionManifest.systemDeltas?.addedNodes ?? []) introducedSystemIds.add(sn.id);
       }
     }
   } else {
@@ -177,21 +194,30 @@ export function aggregateNetworkGraph(
   void attributionPerGraph; // per-graph history no longer consumed
 
   // Build the raw nodes — one per real entity/thread/system node, including
-  // unreferenced ones (they appear cold/isolated).
+  // unreferenced ones (they appear cold/isolated). In progressive mode skip
+  // anything not yet introduced by the cutoff so a later world build's
+  // characters / threads / system nodes don't bleed back into earlier scenes.
+  const includeEntity = (id: string) => !useProgressive || introducedEntityIds.has(id);
+  const includeSystem = (id: string) => !useProgressive || introducedSystemIds.has(id);
   const rawNodes: NetworkNode[] = [];
   for (const c of Object.values(narrative.characters)) {
+    if (!includeEntity(c.id)) continue;
     rawNodes.push(blankNode(c.id, "character", c.name, attributions, firstSeen, lastSeen));
   }
   for (const l of Object.values(narrative.locations)) {
+    if (!includeEntity(l.id)) continue;
     rawNodes.push(blankNode(l.id, "location", l.name, attributions, firstSeen, lastSeen));
   }
   for (const a of Object.values(narrative.artifacts ?? {})) {
+    if (!includeEntity(a.id)) continue;
     rawNodes.push(blankNode(a.id, "artifact", a.name, attributions, firstSeen, lastSeen));
   }
   for (const t of Object.values(narrative.threads)) {
+    if (!includeEntity(t.id)) continue;
     rawNodes.push(blankNode(t.id, "thread", t.description, attributions, firstSeen, lastSeen));
   }
   for (const s of Object.values(narrative.systemGraph?.nodes ?? {})) {
+    if (!includeSystem(s.id)) continue;
     rawNodes.push(blankNode(s.id, "system", s.concept, attributions, firstSeen, lastSeen));
   }
 

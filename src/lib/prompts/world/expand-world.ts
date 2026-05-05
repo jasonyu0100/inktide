@@ -7,8 +7,8 @@
 export const EXPAND_WORLD_SYSTEM =
   'You are a world-builder extending an established narrative. Honour the directive, the strategy, and the size budget; weave new entities into the existing fabric through relationships, location hierarchies, and shared threads. Match the world\'s cultural palette and naming conventions. Initialize every new character/location/artifact with at least one world node, and every new thread with a setup threadDelta. Return ONLY valid JSON matching the schema in the user prompt.';
 
-import { PROMPT_PORTFOLIO_PRINCIPLES } from '../core/market-calibration';
 import { PROMPT_ENTITY_INTEGRATION } from '../entities/integration';
+import { phaseGraphPriorityEntry } from '../phase/application';
 import type { ExpansionSizeConfig, WorldExpansionSize } from './expansion-suggestion';
 
 export type WorldExpansionStrategy = 'breadth' | 'depth' | 'dynamic';
@@ -18,10 +18,6 @@ export const EXPANSION_SIZE_CONFIG: Record<WorldExpansionSize, ExpansionSizeConf
   medium: { total: '10-15', characters: '3-5',   locations: '3-4',   threads: '3-5',   label: 'a moderate expansion (~12 total entities)' },
   large:  { total: '20-35', characters: '8-15',  locations: '6-10',  threads: '8-12',  label: 'a large-scale expansion (~30 total entities)' },
   exact:  { total: 'as specified', characters: 'as specified', locations: 'as specified', threads: 'as specified', label: 'exactly what is described in the directive — nothing more, nothing less' },
-  // Maintenance mode: counts are diagnostic-driven, not fixed. The prompt
-  // injects a health report and tells the LLM to add only what the deficits
-  // call for — minimum viable top-up, not bulk.
-  health: { total: 'diagnostic-driven', characters: 'as needed', locations: 'as needed', threads: 'as needed', label: 'a maintenance top-up (diagnostic-driven — adds only what the health report flags)' },
 };
 
 export const EXPANSION_STRATEGY_PROMPTS: Record<WorldExpansionStrategy, string> = {
@@ -48,6 +44,8 @@ export type ExpandWorldArgs = {
   strategyBlock: string;
   /** Pre-built entity-filter block (or empty when no types disabled). */
   entityFilterBlock: string;
+  /** Active phase graph rendered as a `<phase-graph>` block (or empty). */
+  phaseGraphSection?: string;
   existingCharList: string;
   existingLocList: string;
   existingRelList: string;
@@ -66,6 +64,7 @@ export function buildExpandWorldPrompt(args: ExpandWorldArgs): string {
     size,
     strategyBlock,
     entityFilterBlock,
+    phaseGraphSection,
     existingCharList,
     existingLocList,
     existingRelList,
@@ -82,7 +81,7 @@ export function buildExpandWorldPrompt(args: ExpandWorldArgs): string {
   <narrative-context>
 ${context}
   </narrative-context>
-
+${phaseGraphSection ? `\n  ${phaseGraphSection.replace(/\n/g, '\n  ')}\n` : ''}
   <directive hint="${directive.trim() ? 'Primary creative brief — drive the expansion off this.' : 'No directive — analyze the current narrative state and add what would create the most interesting new possibilities based on existing tensions and unexplored areas.'}">
 ${directive.trim() ? directive : 'EXPAND the world — analyze the current narrative state and add characters, locations, and threads that would create the most interesting new possibilities based on existing tensions and unexplored areas.'}
   </directive>
@@ -95,16 +94,7 @@ ${strategyBlock}
 ${entityFilterBlock ? `  <entity-filter>\n${entityFilterBlock}\n  </entity-filter>` : ''}
 
   <size-mode kind="${size}" label="${sizeConfig.label}" total="${sizeConfig.total}">
-${size === 'exact' ? `    <rule>EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra characters, locations, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive says "add a blacksmith named Torin", create exactly that character and nothing else. Every entity in your response must trace directly to something stated in the directive.</rule>` : size === 'health' ? `    <rule>HEALTH EXPANSION — diagnostic-driven portfolio repair, forward-looking. The directive contains a NARRATIVE HEALTH REPORT leading with a PORTFOLIO AUDIT — treat the portfolio as priority #1. Analysed works and long-idle narratives typically come in with a strong premise but no forward vision; the health expansion is where that forward vision is installed by filling portfolio gaps with markets and the rules / entities needed to support them.</rule>
-    <hierarchy hint="Work the FATE → SYSTEM → WORLD hierarchy. POSSIBILITY (fate) → ABSTRACT (system) → PHYSICAL (world). Major events propagate DOWN; rare revelations propagate UP.">
-      <step name="fate">Open markets that close the audit's gaps. For every DANGER in the portfolio audit, open (or re-shape) a thread that directly addresses it. For every WARNING, consider the same. New threads should weave existing under-used entities together first; introduce new entities only when the portfolio genuinely lacks them.</step>
-      <step name="system">Articulate the rules the new markets will resolve against. Every market needs a legible adjudication path; a market with no rule is a question with no closure mechanism. Emit systemDeltas that (a) give each new market its resolution rule, and (b) surface rules existing scenes have implied but left unstated.</step>
-      <step name="world">Add entities only if the new markets or rules genuinely require them to enact. Otherwise deepen existing characters / locations / artifacts via worldDeltas rather than spawning drop-ins. When an entity IS needed, its world graph must attach to a specific market (as a participant) or rule (as the body the rule acts on) — floating entities are decoration.</step>
-    </hierarchy>
-    <portfolio-principles>
-${PROMPT_PORTFOLIO_PRINCIPLES}
-    </portfolio-principles>
-    <minimum-viable hint="A health expansion that opens 2 missing markets, states 1 supporting rule, and deepens 3 existing anchors is correct when that's what the audit calls for. Bulk entity spawns without named markets are overreach, not maintenance. Think diagnostic → prevention → forward vision, not cure." />` : `    <target characters="${sizeConfig.characters}" locations="${sizeConfig.locations}" threads="${sizeConfig.threads}" />`}
+${size === 'exact' ? `    <rule>EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra characters, locations, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive says "add a blacksmith named Torin", create exactly that character and nothing else. Every entity in your response must trace directly to something stated in the directive.</rule>` : `    <target characters="${sizeConfig.characters}" locations="${sizeConfig.locations}" threads="${sizeConfig.threads}" />`}
     <always-include>
       <rule>relationshipDeltas connecting new characters to EXISTING characters (use valenceDelta as initial valence for new pairs).</rule>
       <rule>Artifacts when the directive or narrative calls for them — objects that grant capabilities and drive acquisition, conflict, or discovery. Not every expansion needs artifacts.</rule>
@@ -118,11 +108,20 @@ ${PROMPT_PORTFOLIO_PRINCIPLES}
   </existing-entities>
 </inputs>
 
+<integration-hierarchy hint="When inputs conflict, this is the priority order for expansion decisions.">
+  <priority rank="1">DIRECTIVE / SOURCE-MATERIAL — explicit creative brief; the expansion must serve these directly. Source-material (when present) is verbatim authority over names, roles, and specifics.</priority>
+  <priority rank="2">STRATEGY / SIZE-MODE — depth/breadth/dynamic intent and the entity-count budget; shapes WHAT the expansion adds.</priority>
+  ${phaseGraphPriorityEntry(3, "expand")}
+  <priority rank="4">EXISTING-ENTITIES — the canon the expansion must integrate with; new content references these to avoid orphaning.</priority>
+  <priority rank="5">ENTITY-FILTER — toggles for which delta types are emitted; structural, not creative.</priority>
+</integration-hierarchy>
+
 <output-format>
 Use sequential IDs continuing from the existing ones.
 
 Return JSON with this exact structure:
 {
+  "summary": "1-2 sentences (≤ 40 words). Plain prose. State the INTENT of this expansion — what creative space it opens, what tension it primes, what entities/factions/rules it brings into play. Used downstream to steer arc generation, so name the load-bearing additions, not counts.",
   "characters": [
     {
       "id": "${nextCharId}",
@@ -154,6 +153,7 @@ Return JSON with this exact structure:
       "participants": [{"id": "character or location ID", "type": "character|location|artifact"}],
       "description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific conflict",
       "outcomes": ["Named possibilities the market prices. Binary default: ['yes','no']. Multi-outcome when the resolution is N-way, e.g. 'Who claims the artifact?' → ['hero','villain','destroyed','lost']. Must be distinct and mutually exclusive; 2–6 entries."],
+      "horizon": "short | medium | long | epic — structural distance from any scene to this thread's resolution. short = 2-3 scenes (immediate trust, fight outcome). medium = within an arc, 4-8 scenes (sect rivalry, stolen artifact). long = multi-arc, segment-spanning (faction war, succession). epic = series-spanning or open-ended (eternal life, dynastic ambition). Drives evidence-magnitude attenuation downstream — pick honestly, since over-marking a goal as short inflates every evidence emission against it.",
       "dependents": ["T-XX (existing thread IDs this thread connects to, accelerates, or converges with — see THREAD CONVERGENCE below)"]
     }
   ],

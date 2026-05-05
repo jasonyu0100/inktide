@@ -7,7 +7,7 @@
 export const EXPANSION_SUGGEST_SYSTEM =
   'You are a world-building advisor. Read the current world structure and propose a tight rationale for the next expansion — what new entities (characters, locations, threads, system rules) the world needs and HOW they connect to existing ones. Use entity NAMES, never raw IDs. Return ONLY valid JSON matching the schema in the user prompt.';
 
-export type WorldExpansionSize = 'small' | 'medium' | 'large' | 'exact' | 'health';
+export type WorldExpansionSize = 'small' | 'medium' | 'large' | 'exact';
 
 export type ExpansionSizeConfig = {
   total: string;

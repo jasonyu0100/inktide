@@ -247,9 +247,10 @@ export function ThinkingAnimation({
         .attr('stroke-width', 0.5)
         .attr('stroke-opacity', (d) => d.weight);
 
-      bgLayer.selectAll<SVGCircleElement, NetworkNodeEntry>('circle')
+      bgLayer.selectAll<SVGCircleElement, NetworkNodeEntry>('circle.tk-node')
         .data(network)
         .join('circle')
+        .attr('class', 'tk-node')
         .attr('cx', (d) => d.x)
         .attr('cy', (d) => d.y)
         .attr('r', (d) => d.r)
@@ -286,7 +287,7 @@ export function ThinkingAnimation({
             .sort((a, b) => a.d - b.d)
             .slice(0, 2);
           for (const { n } of neighbours) {
-            bgLayer.selectAll<SVGCircleElement, NetworkNodeEntry>('circle')
+            bgLayer.selectAll<SVGCircleElement, NetworkNodeEntry>('circle.tk-node')
               .filter((d) => d === n)
               .transition().duration(180)
               .attr('fill-opacity', Math.min(0.95, baselineOpacity(n.tier) * 1.8))
@@ -301,7 +302,7 @@ export function ThinkingAnimation({
       const phase1End = lastAnchorAt + PULSE_DURATION;
 
       const dimId = window.setTimeout(() => {
-        bgLayer.selectAll<SVGCircleElement, NetworkNodeEntry>('circle')
+        bgLayer.selectAll<SVGCircleElement, NetworkNodeEntry>('circle.tk-node')
           .filter((d) => !selectedSet.has(d))
           .transition().duration(250)
           .attr('fill-opacity', (d) => baselineOpacity(d.tier) * 0.3)

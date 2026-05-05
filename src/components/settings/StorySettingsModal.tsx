@@ -291,6 +291,21 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
 
               <div>
                 <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  World Direction
+                </label>
+                <textarea
+                  value={settings.worldDirection}
+                  onChange={(e) => update({ worldDirection: e.target.value })}
+                  placeholder="e.g. &quot;Build out the merchant guild as a hidden faction with rival cells. Add a port location and the artifact ledger that ties the cells together&quot;..."
+                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-24"
+                />
+                <p className="text-[9px] text-text-dim/50 mt-1">
+                  High-level guidance for the next world expansion. Pre-fills the world directive in the generation panel.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
                   Constraints
                 </label>
                 <textarea
@@ -310,7 +325,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                     Auto-clear after use
                   </span>
                   <span className="text-[9px] text-text-dim/50">
-                    Clear Direction + Constraints after they guide a scene or CRG generation. Default on — prevents a one-off steer from silently shaping every subsequent run.
+                    Clear Story Direction + Constraints after they guide a scene generation, and World Direction after it guides a world expansion. Default on — prevents a one-off steer from silently shaping every subsequent run. Narrative Guidance is unaffected.
                   </span>
                 </div>
                 <button

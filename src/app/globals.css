@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #111111;
+  --color-background: #0c0a14;
   --color-foreground: #e8e8e8;
-  --color-bg-base: #111111;
-  --color-bg-panel: #191919;
-  --color-bg-elevated: #212121;
-  --color-bg-overlay: #2a2a2a;
+  --color-bg-base: #0c0a14;
+  --color-bg-panel: #16131e;
+  --color-bg-elevated: #1d1a26;
+  --color-bg-overlay: #25212f;
   --color-text-primary: #e8e8e8;
   --color-text-secondary: #888888;
   --color-text-dim: #666666;
-  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border: rgba(196, 181, 253, 0.1);
   --color-fate: #ef4444;
   --color-world: #22c55e;
   --color-variety: #3b82f6;
@@ -43,34 +43,38 @@ button,
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(196, 181, 253, 0.14);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(196, 181, 253, 0.26);
 }
 
-/* Glass utility */
+/* Glass utility — violet-tinted dark, lavender border + halo */
 .glass {
-  background: rgba(30, 30, 30, 0.97);
+  background: rgba(22, 19, 30, 0.94);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(196, 181, 253, 0.11);
+  box-shadow:
+    0 8px 32px rgba(8, 6, 20, 0.55),
+    0 0 0 1px rgba(196, 181, 253, 0.04);
 }
 
 .glass-pill {
-  background: rgba(30, 30, 30, 0.75);
+  background: rgba(22, 19, 30, 0.72);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(196, 181, 253, 0.11);
+  box-shadow:
+    0 8px 32px rgba(8, 6, 20, 0.5),
+    0 0 0 1px rgba(196, 181, 253, 0.04);
   border-radius: 999px;
 }
 
-/* Glass panel — semi-transparent panels for workspace */
+/* Glass panel — semi-transparent so cosmos seeps through */
 .glass-panel {
-  background: rgba(20, 20, 20, 0.78);
+  background: rgba(14, 12, 22, 0.74);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -84,17 +88,17 @@ button,
   opacity: 0.85;
 }
 .graph-edge {
-  stroke: rgba(255, 255, 255, 0.15);
+  stroke: rgba(196, 181, 253, 0.18);
   stroke-width: 1;
 }
 .graph-label {
-  fill: #888888;
+  fill: #9ca0b0;
   font-size: 10px;
   pointer-events: none;
   user-select: none;
 }
 .node-selected {
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4));
+  filter: drop-shadow(0 0 8px rgba(196, 181, 253, 0.55));
 }
 
 /* Landing page animations */
@@ -142,234 +146,200 @@ button,
   animation: bg-drift 30s ease-in-out infinite;
 }
 
-/* ── Aurora / Northern Lights effect ───────────────────────────────────── */
-.aurora-container {
+/* ── Cosmos / astrology theme ──────────────────────────────────────────── */
+.cosmos-container {
   opacity: 1;
-  mask-image: linear-gradient(
-    to top,
-    black 0%,
-    rgba(0, 0, 0, 0.7) 35%,
-    rgba(0, 0, 0, 0.3) 55%,
-    rgba(0, 0, 0, 0.08) 75%,
-    transparent 85%
-  );
-  -webkit-mask-image: linear-gradient(
-    to top,
-    black 0%,
-    rgba(0, 0, 0, 0.7) 35%,
-    rgba(0, 0, 0, 0.3) 55%,
-    rgba(0, 0, 0, 0.08) 75%,
-    transparent 85%
-  );
-  animation: aurora-fade-in 2.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: cosmos-fade-in 2.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Dimmer workspace variant — ambient glow behind panels */
-.aurora-workspace {
-  opacity: 0.35;
-  mask-image: none;
-  -webkit-mask-image: none;
+/* Dimmer workspace variant — ambient nebulae behind panels */
+.cosmos-workspace {
+  opacity: 0.4;
   animation: none;
 }
 
-@keyframes aurora-fade-in {
+@keyframes cosmos-fade-in {
   from {
     opacity: 0;
-    transform: translateY(20%);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
-@keyframes aurora-drift {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  33% {
-    transform: translate(5%, -8%) scale(1.05);
-  }
-  66% {
-    transform: translate(-3%, 5%) scale(0.95);
-  }
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-}
-
-/* Each curtain is a tall vertical ribbon rising from the bottom */
-.aurora-curtain {
+/* Soft drifting cosmic clouds */
+.nebula {
   position: absolute;
-  top: 0;
-  bottom: -10%;
-  filter: blur(35px);
+  border-radius: 50%;
+  filter: blur(80px);
   mix-blend-mode: screen;
   will-change: transform, opacity;
 }
 
-/* ── Aurora curtains — green/cyan duotone ───────────────────────────────── */
-/* Curtain 1: Emerald green */
-.aurora-curtain-1 {
-  left: -5%;
-  width: 50%;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    rgba(34, 197, 94, 0.85) 15%,
-    rgba(16, 185, 129, 0.6) 40%,
-    rgba(74, 222, 128, 0.3) 70%,
-    transparent 100%
+/* Nebula 1 — deep indigo / royal violet, top-left */
+.nebula-1 {
+  top: -10%;
+  left: -15%;
+  width: 65%;
+  height: 70%;
+  background: radial-gradient(
+    circle at 35% 40%,
+    rgba(139, 92, 246, 0.55) 0%,
+    rgba(91, 33, 182, 0.28) 35%,
+    transparent 70%
   );
   animation:
-    curtain-sway-1 14s ease-in-out infinite,
-    curtain-shimmer 9s ease-in-out infinite;
-}
-/* Curtain 2: Teal (green-cyan blend) */
-.aurora-curtain-2 {
-  left: 25%;
-  width: 50%;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    rgba(45, 212, 191, 0.75) 15%,
-    rgba(20, 184, 166, 0.55) 40%,
-    rgba(13, 148, 136, 0.25) 70%,
-    transparent 100%
-  );
-  animation:
-    curtain-sway-2 16s ease-in-out infinite,
-    curtain-shimmer 10s ease-in-out 1s infinite;
-}
-/* Curtain 3: Bright cyan */
-.aurora-curtain-3 {
-  left: 55%;
-  width: 50%;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    rgba(34, 211, 238, 0.75) 15%,
-    rgba(56, 189, 248, 0.55) 40%,
-    rgba(14, 165, 233, 0.25) 70%,
-    transparent 100%
-  );
-  animation:
-    curtain-sway-3 18s ease-in-out infinite,
-    curtain-shimmer 11s ease-in-out 2s infinite;
+    nebula-drift-1 38s ease-in-out infinite,
+    nebula-pulse 14s ease-in-out infinite;
 }
 
-/* Soft glow at the base */
-.aurora-glow {
-  position: absolute;
-  bottom: 0;
-  left: -10%;
-  right: -10%;
+/* Nebula 2 — magenta / rose, mid-right */
+.nebula-2 {
+  top: 12%;
+  right: -18%;
+  width: 60%;
+  height: 65%;
+  background: radial-gradient(
+    circle at 65% 45%,
+    rgba(217, 70, 239, 0.36) 0%,
+    rgba(124, 58, 237, 0.22) 40%,
+    transparent 75%
+  );
+  animation:
+    nebula-drift-2 44s ease-in-out infinite,
+    nebula-pulse 16s ease-in-out 2s infinite;
+}
+
+/* Nebula 3 — gold / amber, bottom centre */
+.nebula-3 {
+  bottom: -12%;
+  left: 18%;
+  width: 64%;
   height: 55%;
   background: radial-gradient(
-    ellipse 120% 100% at 50% 100%,
-    rgba(80, 200, 160, 0.55),
-    transparent 65%
+    ellipse at 50% 70%,
+    rgba(251, 191, 36, 0.22) 0%,
+    rgba(245, 158, 11, 0.1) 40%,
+    transparent 75%
   );
-  filter: blur(50px);
-  animation: curtain-shimmer 12s ease-in-out infinite;
+  animation:
+    nebula-drift-3 40s ease-in-out infinite,
+    nebula-pulse 18s ease-in-out 3s infinite;
 }
 
-/* Curtain sway — slow, organic movements */
-@keyframes curtain-sway-1 {
+/* Soft halo at the base — moonrise */
+.cosmos-glow {
+  position: absolute;
+  bottom: -10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 130%;
+  height: 65%;
+  background: radial-gradient(
+    ellipse 60% 100% at 50% 100%,
+    rgba(196, 181, 253, 0.32),
+    rgba(139, 92, 246, 0.12) 40%,
+    transparent 70%
+  );
+  filter: blur(60px);
+  animation: nebula-pulse 20s ease-in-out infinite;
+}
+
+@keyframes nebula-drift-1 {
   0%,
   100% {
-    transform: skewX(0deg) translateX(0%);
+    transform: translate(0, 0) scale(1);
   }
-  20% {
-    transform: skewX(3deg) translateX(2%);
+  33% {
+    transform: translate(6%, 4%) scale(1.05);
+  }
+  66% {
+    transform: translate(-4%, -3%) scale(0.97);
+  }
+}
+@keyframes nebula-drift-2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
   }
   40% {
-    transform: skewX(-1deg) translateX(-1%);
+    transform: translate(-6%, 5%) scale(1.07);
   }
-  60% {
-    transform: skewX(2deg) translateX(3%);
-  }
-  80% {
-    transform: skewX(-2deg) translateX(-2%);
+  70% {
+    transform: translate(3%, -3%) scale(0.96);
   }
 }
-@keyframes curtain-sway-2 {
+@keyframes nebula-drift-3 {
   0%,
   100% {
-    transform: skewX(0deg) translateX(0%);
-  }
-  25% {
-    transform: skewX(-4deg) translateX(-3%);
-  }
-  50% {
-    transform: skewX(2deg) translateX(2%);
-  }
-  75% {
-    transform: skewX(-1deg) translateX(-1%);
-  }
-}
-@keyframes curtain-sway-3 {
-  0%,
-  100% {
-    transform: skewX(0deg) translateX(0%);
-  }
-  15% {
-    transform: skewX(2deg) translateX(1%);
+    transform: translate(0, 0) scale(1);
   }
   35% {
-    transform: skewX(-3deg) translateX(-2%);
+    transform: translate(4%, -3%) scale(1.04);
   }
-  55% {
-    transform: skewX(1deg) translateX(2%);
-  }
-  75% {
-    transform: skewX(-2deg) translateX(-1%);
-  }
-  90% {
-    transform: skewX(1deg) translateX(1%);
+  65% {
+    transform: translate(-5%, 4%) scale(0.96);
   }
 }
 
-/* Shimmer — slow breathing */
-@keyframes curtain-shimmer {
+@keyframes nebula-pulse {
   0%,
   100% {
-    opacity: 0.5;
+    opacity: 0.55;
   }
-  30% {
-    opacity: 0.85;
+  40% {
+    opacity: 0.9;
   }
-  60% {
-    opacity: 0.6;
-  }
-  80% {
-    opacity: 0.8;
+  70% {
+    opacity: 0.7;
   }
 }
 
-/* ── Prompt box glow ────────────────────────────────────────────────────── */
+/* Zodiac wheel — concentric rings + spokes, slow rotation */
+.zodiac-wheel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 140vmax;
+  height: 140vmax;
+  pointer-events: none;
+  opacity: 0.11;
+  mix-blend-mode: screen;
+  transform-origin: center center;
+  animation: zodiac-rotate 360s linear infinite;
+}
+@keyframes zodiac-rotate {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* ── Prompt box glow — violet / starlight tint ──────────────────────────── */
 @keyframes prompt-glow {
   0%,
   100% {
     box-shadow:
-      0 0 20px rgba(255, 255, 255, 0.12),
-      0 0 50px rgba(255, 255, 255, 0.07),
-      0 0 90px rgba(255, 255, 255, 0.04),
-      inset 0 0 30px rgba(255, 255, 255, 0.02);
+      0 0 20px rgba(196, 181, 253, 0.16),
+      0 0 50px rgba(167, 139, 250, 0.09),
+      0 0 90px rgba(251, 191, 36, 0.05),
+      inset 0 0 30px rgba(196, 181, 253, 0.03);
   }
   33% {
     box-shadow:
-      0 0 28px rgba(255, 255, 255, 0.18),
-      0 0 65px rgba(255, 255, 255, 0.1),
-      0 0 110px rgba(255, 255, 255, 0.06),
-      inset 0 0 40px rgba(255, 255, 255, 0.03);
+      0 0 28px rgba(196, 181, 253, 0.22),
+      0 0 65px rgba(167, 139, 250, 0.13),
+      0 0 110px rgba(251, 191, 36, 0.07),
+      inset 0 0 40px rgba(196, 181, 253, 0.04);
   }
   66% {
     box-shadow:
-      0 0 24px rgba(255, 255, 255, 0.15),
-      0 0 55px rgba(255, 255, 255, 0.08),
-      0 0 100px rgba(255, 255, 255, 0.05),
-      inset 0 0 35px rgba(255, 255, 255, 0.025);
+      0 0 24px rgba(196, 181, 253, 0.19),
+      0 0 55px rgba(167, 139, 250, 0.11),
+      0 0 100px rgba(251, 191, 36, 0.06),
+      inset 0 0 35px rgba(196, 181, 253, 0.035);
   }
 }
 
@@ -380,10 +350,10 @@ button,
 .prompt-glow:focus-within {
   animation: prompt-glow 2.5s ease-in-out infinite;
   box-shadow:
-    0 0 35px rgba(255, 255, 255, 0.22),
-    0 0 80px rgba(255, 255, 255, 0.14),
-    0 0 130px rgba(255, 255, 255, 0.08),
-    inset 0 0 50px rgba(255, 255, 255, 0.04);
+    0 0 35px rgba(196, 181, 253, 0.28),
+    0 0 80px rgba(167, 139, 250, 0.18),
+    0 0 130px rgba(251, 191, 36, 0.1),
+    inset 0 0 50px rgba(196, 181, 253, 0.05);
 }
 
 /* ── Print / PDF — dark mode report ───────────────────────────────────── */
@@ -472,13 +442,13 @@ button,
 }
 
 .glitch-wrapper::before {
-  color: rgba(239, 68, 68, 0.4);
+  color: rgba(251, 191, 36, 0.45);
   animation: glitch-shift-1 3s infinite;
   clip-path: inset(0 0 65% 0);
 }
 
 .glitch-wrapper::after {
-  color: rgba(59, 130, 246, 0.4);
+  color: rgba(167, 139, 250, 0.45);
   animation: glitch-shift-2 3s infinite;
   clip-path: inset(60% 0 0 0);
 }

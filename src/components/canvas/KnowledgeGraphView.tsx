@@ -417,7 +417,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
     <div className={hideControls ? 'flex flex-col absolute inset-0 z-20' : 'absolute inset-0 z-20'}>
       {/* Legend strip — replaces floating controls */}
       {hideControls && (
-        <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border bg-bg-base/60 z-30">
+        <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border glass-panel z-30">
           {legendStripItems.map(({ key, label, checked, toggle }) => (
             <button key={key} onClick={toggle}
               className={`text-[9px] px-2 py-1 rounded transition-colors select-none ${checked ? 'text-text-secondary' : 'text-text-dim/40 hover:text-text-dim'}`}>
@@ -467,11 +467,11 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
           className="absolute z-40 pointer-events-none"
           style={{ left: tooltip.x, top: tooltip.y - 12, transform: 'translate(-50%, -100%)' }}
         >
-          <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl w-72">
+          <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl max-w-sm">
             <div className="flex items-start gap-2 mb-1">
               <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ background: SYS_TYPE_COLORS[tooltip.type] ?? '#888', boxShadow: `0 0 6px ${SYS_TYPE_COLORS[tooltip.type] ?? '#888'}80` }} />
               <div>
-                <span className="text-xs font-semibold text-text-primary">{tooltip.concept}</span>
+                <span className="text-xs font-semibold text-text-primary whitespace-normal wrap-break-word">{tooltip.concept}</span>
                 <span className="text-[10px] text-text-dim capitalize ml-1">({tooltip.type})</span>
               </div>
             </div>

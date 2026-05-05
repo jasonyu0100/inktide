@@ -26,6 +26,9 @@ ${args.sceneXml}
   <rule name="events-as-prose">For events: the event string is a label, not the proposition. Render the underlying happening as a concrete prose statement.</rule>
   <rule name="no-system-jargon">Avoid framework terms ("state-change", "system-reveal", "thread-shift", "adaptive countermeasure", "karmic debt") unless the world itself uses them as in-character vocabulary.</rule>
   <rule name="single-claim">One proposition = one atomic fact. Don't bundle multiple claims behind "and" or commas-as-ands.</rule>
+  <rule name="no-cognition-collapse" critical="true" hint="The dominant failure mode for cognition-dense scenes. Prose can only render named content; if propositions name only the gesture, prose only has the gesture to dramatise.">
+    Cognitive content in the summary — named scenarios, weighed tradeoffs, derived conclusions, planned contingencies, modelled agent reactions — MUST decompose into one proposition per named element. Never collapse "considered scenarios A, B, and C with their tradeoffs" into a single proposition like "Fang Yuan modelled potential paths." That collapse erases everything the prose writer needs and leaves them with stand-in verbs ("simulated", "calculated risks", "considered options") instead of the actual computation. One scenario = one proposition. One tradeoff = one proposition. One conclusion = one proposition. One planned contingency = one proposition.
+  </rule>
 </phrasing-discipline>
 
 <examples>
@@ -37,11 +40,20 @@ ${args.sceneXml}
   <good>"Heaven's Will is now actively interfering with the Heaven's Loom Gu, distorting its readings."</good>
   <bad reason="bundled claims">"Heaven's Loom Gu was used by Fang Yuan for calibrated fate analysis, but experienced targeted interference and distortion."</bad>
   <good>["Fang Yuan calibrates the Heaven's Loom Gu to read fate strands.", "The Heaven's Loom Gu suffers targeted interference mid-reading."]</good>
+  <bad reason="cognition-collapse — one gesture proposition for an entire chain of reasoning">["Mara refined her approach to the upcoming arbitration, weighing options and assessing risks."]</bad>
+  <good reason="each named scenario, tradeoff, and conclusion gets its own proposition">[
+    "Mara considers opening the arbitration with her strongest precedent and forcing the panel to address it directly — fast resolution, but burns her secondary arguments if the panel rejects it.",
+    "Mara considers sequencing weaker precedents first to anchor the panel's attention before deploying her strongest — depends on the chair's known impatience holding for at least thirty minutes.",
+    "Mara considers conceding the most contentious point upfront in exchange for a tighter scope ruling — sacrifices leverage but eliminates the panel's main objection.",
+    "Mara rejects the strongest-precedent opening because the chair's history shows he hardens against frontal arguments raised in the first ten minutes.",
+    "Mara commits to the sequencing approach for the morning session while preparing the concession approach as a fallback for the afternoon.",
+    "Mara identifies the signal she needs from the chair's opening remarks: if he raises the scope question, sequencing is unsalvageable and she must pivot.",
+  ]</good>
 </examples>
 
-<thoroughness hint="Every structural element in the scene data maps to at least one proposition. A missed delta becomes a continuity hole.">
+<thoroughness hint="Every structural element in the scene data maps to at least one proposition. A missed delta becomes a continuity hole. A missed cognitive element from a dense summary becomes a prose-layer fabrication or, more commonly, a stand-in verb where the actual content should be.">
   <coverage>
-    <source name="summary">Commitments the summary makes that aren't captured by deltas below.</source>
+    <source name="summary" critical="true">PRIMARY SOURCE — extract exhaustively. The summary may be brief (3-6 sentences) for routine scenes or expand to many paragraphs for cognition-dense scenes. In either case, every discrete claim, named scenario, weighed tradeoff, derived conclusion, planned contingency, modelled agent reaction, articulated rule, and stated commitment becomes its own proposition. For dense summaries, expect to emit MANY propositions from the summary alone — that is the design. The deltas below capture the summary's structural footprint (which threads moved, which entities changed); the summary itself carries the semantic content the prose writer must dramatise. If the summary names three scenarios, you emit three scenario-propositions plus whatever weighing and conclusion propositions the summary makes — never collapse them into "considered options." Completeness here is the load-bearing rule; the prose layer cannot recover what extraction discards.</source>
     <source name="threadDelta">The in-world event that moves this thread. Use the thread's description as the anchor for what's at stake; describe the moment that shifts it.</source>
     <source name="worldDelta">One proposition per addedNode, framed as a present-tense fact about the entity ("Fang Yuan now distrusts the Heavenly Court").</source>
     <source name="systemDelta.addedNodes">The world rule itself, stated as the world states it (not "rule X is added").</source>
@@ -57,15 +69,16 @@ ${args.sceneXml}
 
 <rules>
   <rule name="no-dedupe">Do NOT deduplicate across delta types — each delta is its own commitment even if surface wording overlaps. (But the SAME fact restated three times in different words across one source is a single proposition.)</rule>
-  <rule name="no-texture">Do NOT include sensory texture, weather, or background atmosphere.</rule>
+  <rule name="no-texture">Do NOT include sensory texture, weather, or background atmosphere — those belong to plan-layer enrichment, not propositions.</rule>
   <rule name="no-ordering">Do NOT impose ordering — group by source for clarity. Reordering is the planner's job.</rule>
-  <rule name="completeness">Completeness matters more than minimalism.</rule>
+  <rule name="completeness" critical="true">Completeness matters more than minimalism. There is no proposition budget. A 30-sentence summary should produce a long proposition list; under-extraction collapses the prose's resolution back to whatever the summary's gestures named, undoing the depth the summary captured.</rule>
 </rules>
 
 <instructions>
-  <step name="walk">Walk through every block of the scene XML. No structural element uncovered.</step>
-  <step name="extract">Emit one proposition per delta per the coverage rules. Group by source.</step>
-  <step name="phrase">Re-read each proposition. If it contains an identifier, snake_case label, template phrase ("X occurred", "thread Y has shifted"), or quoted thread question — rewrite it as the in-world fact.</step>
+  <step name="walk-summary">Walk the summary first — every sentence may carry one or more propositions. For dense summaries (multi-paragraph cognition, scenario chains, derived conclusions) extract until every named element has a corresponding proposition.</step>
+  <step name="walk-deltas">Walk every other block of the scene XML (deltas, events, new entities). No structural element uncovered.</step>
+  <step name="extract">Emit propositions per the coverage rules. Group by source. Cognition-dense summaries routinely emit 20+ propositions from the summary block alone — that is correct.</step>
+  <step name="phrase">Re-read each proposition. If it contains an identifier, snake_case label, template phrase ("X occurred", "thread Y has shifted"), quoted thread question, or stand-in cognitive verb ("considered options", "modelled scenarios", "weighed factors") — rewrite it as the in-world fact, naming the actual content.</step>
 </instructions>
 
 <output-format>

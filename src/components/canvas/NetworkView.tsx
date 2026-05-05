@@ -268,7 +268,9 @@ export default function NetworkView() {
         event.stopPropagation();
         if (d.kind === 'character') dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: d.id } });
         else if (d.kind === 'location') dispatch({ type: 'SET_INSPECTOR', context: { type: 'location', locationId: d.id } });
+        else if (d.kind === 'artifact') dispatch({ type: 'SET_INSPECTOR', context: { type: 'artifact', artifactId: d.id } });
         else if (d.kind === 'thread') dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: d.id } });
+        else if (d.kind === 'system') dispatch({ type: 'SET_INSPECTOR', context: { type: 'knowledge', nodeId: d.id } });
       });
 
     // Labels — show every node, scale font and opacity by degree (system style).
@@ -316,7 +318,7 @@ export default function NetworkView() {
   return (
     <div className="flex flex-col absolute inset-0 z-20">
       {/* Top legend strip — matches the KnowledgeGraphView pattern */}
-      <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border bg-bg-base/60 z-30 overflow-x-auto">
+      <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border glass-panel z-30 overflow-x-auto">
         <button
           onClick={() => setColorMode('heat')}
           className={`text-[9px] px-2 py-1 rounded transition-colors select-none ${colorMode === 'heat' ? 'text-text-secondary' : 'text-text-dim/40 hover:text-text-dim'}`}
@@ -374,7 +376,7 @@ export default function NetworkView() {
             className="absolute z-40 pointer-events-none"
             style={{ left: tooltip.x, top: tooltip.y - 12, transform: 'translate(-50%, -100%)' }}
           >
-            <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl w-72">
+            <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl max-w-sm">
               <div className="flex items-start gap-2 mb-1">
                 <span
                   className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5"
@@ -384,7 +386,7 @@ export default function NetworkView() {
                   }}
                 />
                 <div>
-                  <span className="text-xs font-semibold text-text-primary">{tooltip.node.label}</span>
+                  <span className="text-xs font-semibold text-text-primary whitespace-normal wrap-break-word">{tooltip.node.label}</span>
                   <span className="text-[10px] text-text-dim capitalize ml-1">({tooltip.node.kind})</span>
                 </div>
               </div>

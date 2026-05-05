@@ -150,6 +150,7 @@ export function useAutoPlay() {
             arcName: reasoningGraph.arcName,
             sceneCount: reasoningGraph.sceneCount,
             summary: reasoningGraph.summary,
+            arcSettings: reasoningGraph.arcSettings,
           },
         };
 
@@ -304,6 +305,7 @@ export function useAutoPlay() {
           arcName: reasoningGraph.arcName,
           sceneCount: reasoningGraph.sceneCount,
           summary: reasoningGraph.summary,
+          arcSettings: reasoningGraph.arcSettings,
         },
       };
 

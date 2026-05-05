@@ -371,27 +371,31 @@ class AnalysisRunner {
     if (entry.cancelled) { d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results] } }); return; }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // Phase 3: ARCS — group every 4 scenes, name each arc
+    // Phase 3: ARCS — group every 4 scenes, name each arc.
+    // Skipped in world-only mode: no scenes will land in the narrative, so
+    // arc records would be unreferenced.
     // ═════════════════════════════════════════════════════════════════════════
-    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'arcs' } });
-
-    const sceneSummaries = results
-      .map((r, i) => ({ index: i, summary: r?.scenes?.[0]?.summary ?? `Scene ${i + 1}` }))
-      .filter((_, i) => results[i] !== null);
-
     let arcGroups: { name: string; sceneIndices: number[] }[] = [];
-    if (sceneSummaries.length > 0) {
-      try {
-        this.emitStream(job.id, `Arcs: grouping ${sceneSummaries.length} scenes...`);
-        arcGroups = await groupScenesIntoArcs(sceneSummaries, (_token, acc) => {
-          this.emitStream(job.id, `Arcs: naming...\n${acc}`);
-        });
-        this.emitStream(job.id, `[OK] ${arcGroups.length} arcs`);
-      } catch (err) {
-        logWarning('Arc grouping failed (non-fatal)', err, { source: 'analysis', operation: 'arc-grouping' });
-        for (let i = 0; i < sceneSummaries.length; i += 4) {
-          const slice = sceneSummaries.slice(i, i + 4);
-          arcGroups.push({ name: `Arc ${Math.floor(i / 4) + 1}`, sceneIndices: slice.map(s => s.index) });
+    if (job.extractionMode !== 'world') {
+      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'arcs' } });
+
+      const sceneSummaries = results
+        .map((r, i) => ({ index: i, summary: r?.scenes?.[0]?.summary ?? `Scene ${i + 1}` }))
+        .filter((_, i) => results[i] !== null);
+
+      if (sceneSummaries.length > 0) {
+        try {
+          this.emitStream(job.id, `Arcs: grouping ${sceneSummaries.length} scenes...`);
+          arcGroups = await groupScenesIntoArcs(sceneSummaries, (_token, acc) => {
+            this.emitStream(job.id, `Arcs: naming...\n${acc}`);
+          });
+          this.emitStream(job.id, `[OK] ${arcGroups.length} arcs`);
+        } catch (err) {
+          logWarning('Arc grouping failed (non-fatal)', err, { source: 'analysis', operation: 'arc-grouping' });
+          for (let i = 0; i < sceneSummaries.length; i += 4) {
+            const slice = sceneSummaries.slice(i, i + 4);
+            arcGroups.push({ name: `Arc ${Math.floor(i / 4) + 1}`, sceneIndices: slice.map(s => s.index) });
+          }
         }
       }
     }
@@ -427,56 +431,62 @@ class AnalysisRunner {
     // reversals never shift early priors. Here we re-score every scene using
     // summaries (fast, cheap) + the canonical thread list + the observed
     // winner per thread, so the trajectory reflects the story's actual shape.
+    //
+    // Skipped in world-only mode: there will be no scene timeline to score
+    // and no thread-dependency graph to walk — the seed commit just carries
+    // the canonical thread list.
     // ═════════════════════════════════════════════════════════════════════════
-    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'finalization' } });
-
-    try {
-      const completed = results.filter((r): r is AnalysisChunkResult => r !== null);
-      const canonicalDescs = new Set(completed.flatMap(r => (r.threads ?? []).map(t => t.description)));
-      if (canonicalDescs.size > 0) {
-        entry.chunkStreams.clear();
-        this.emitStream(job.id, `Fate re-extract: ${completed.length} scenes × ${canonicalDescs.size} threads...`);
-        const reextracted = await reextractFateWithLifecycle(completed, {
-          onProgress: (done, total) => {
-            this.emitStream(job.id, `Fate re-extract: ${done}/${total}`);
-          },
-          onSceneStream: (sceneIdx, acc) => {
-            entry.chunkStreams.set(sceneIdx, acc);
-            this.emitChunkStream(job.id, sceneIdx, acc);
-          },
-          onSceneStart: (sceneIdx) => {
-            entry.inFlightIndices.add(sceneIdx);
-            this.emitInFlight(job.id, [...entry.inFlightIndices]);
-          },
-          onSceneEnd: (sceneIdx) => {
-            entry.inFlightIndices.delete(sceneIdx);
-            this.emitInFlight(job.id, [...entry.inFlightIndices]);
-          },
-          cancelled: () => entry.cancelled,
-        });
-        let ri = 0;
-        for (let i = 0; i < results.length; i++) {
-          if (results[i] !== null) results[i] = reextracted[ri++];
-        }
-        d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
-        this.emitStream(job.id, `[OK] Fate re-extracted`);
-      }
-      if (entry.cancelled) { d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused' } }); return; }
-    } catch (err) {
-      logWarning('Fate re-extract failed (non-fatal)', err, { source: 'analysis', operation: 'fate-reextract' });
-    }
-
     let threadDependencies: Record<string, string[]> = {};
-    try {
-      const completed = results.filter((r): r is AnalysisChunkResult => r !== null);
-      const threads = [...new Set(completed.flatMap(r => (r.threads ?? []).map(t => t.description)))];
-      if (threads.length >= 2) {
-        this.emitStream(job.id, 'Finalizing thread dependencies...');
-        threadDependencies = await analyzeThreading(threads, (_token, acc) => { this.emitStream(job.id, `Finalizing...\n${acc}`); });
+    if (job.extractionMode !== 'world') {
+      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'finalization' } });
+
+      try {
+        const completed = results.filter((r): r is AnalysisChunkResult => r !== null);
+        const canonicalDescs = new Set(completed.flatMap(r => (r.threads ?? []).map(t => t.description)));
+        if (canonicalDescs.size > 0) {
+          entry.chunkStreams.clear();
+          this.emitStream(job.id, `Fate re-extract: ${completed.length} scenes × ${canonicalDescs.size} threads...`);
+          const reextracted = await reextractFateWithLifecycle(completed, {
+            onProgress: (done, total) => {
+              this.emitStream(job.id, `Fate re-extract: ${done}/${total}`);
+            },
+            onSceneStream: (sceneIdx, acc) => {
+              entry.chunkStreams.set(sceneIdx, acc);
+              this.emitChunkStream(job.id, sceneIdx, acc);
+            },
+            onSceneStart: (sceneIdx) => {
+              entry.inFlightIndices.add(sceneIdx);
+              this.emitInFlight(job.id, [...entry.inFlightIndices]);
+            },
+            onSceneEnd: (sceneIdx) => {
+              entry.inFlightIndices.delete(sceneIdx);
+              this.emitInFlight(job.id, [...entry.inFlightIndices]);
+            },
+            cancelled: () => entry.cancelled,
+          });
+          let ri = 0;
+          for (let i = 0; i < results.length; i++) {
+            if (results[i] !== null) results[i] = reextracted[ri++];
+          }
+          d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
+          this.emitStream(job.id, `[OK] Fate re-extracted`);
+        }
+        if (entry.cancelled) { d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused' } }); return; }
+      } catch (err) {
+        logWarning('Fate re-extract failed (non-fatal)', err, { source: 'analysis', operation: 'fate-reextract' });
       }
-      if (entry.cancelled) { d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused' } }); return; }
-    } catch (err) {
-      logWarning('Finalization failed (non-fatal)', err, { source: 'analysis', operation: 'finalization' });
+
+      try {
+        const completed = results.filter((r): r is AnalysisChunkResult => r !== null);
+        const threads = [...new Set(completed.flatMap(r => (r.threads ?? []).map(t => t.description)))];
+        if (threads.length >= 2) {
+          this.emitStream(job.id, 'Finalizing thread dependencies...');
+          threadDependencies = await analyzeThreading(threads, (_token, acc) => { this.emitStream(job.id, `Finalizing...\n${acc}`); });
+        }
+        if (entry.cancelled) { d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused' } }); return; }
+      } catch (err) {
+        logWarning('Finalization failed (non-fatal)', err, { source: 'analysis', operation: 'finalization' });
+      }
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -487,9 +497,13 @@ class AnalysisRunner {
 
     try {
       const completed = results.filter((r): r is AnalysisChunkResult => r !== null);
-      const narrative = await assembleNarrative(job.title, completed, threadDependencies, (_token, acc) => {
-        this.emitStream(job.id, `Assembling...\n${acc}`);
-      }, (job as any).arcGroups);
+      const narrative = await assembleNarrative(job.title, completed, threadDependencies, {
+        onToken: (_token, acc) => {
+          this.emitStream(job.id, `Assembling...\n${acc}`);
+        },
+        arcGroups: (job as any).arcGroups,
+        extractionMode: job.extractionMode ?? 'full',
+      });
 
       d({ type: 'ADD_NARRATIVE', narrative });
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'completed', narrativeId: narrative.id } });

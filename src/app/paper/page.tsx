@@ -1,6 +1,7 @@
 "use client";
 
 import { ARCHETYPE_COLORS, ArchetypeIcon } from "@/components/ArchetypeIcon";
+import { StarField } from "@/components/effects/StarField";
 import { ThinkingAnimation } from "@/components/generation/ThinkingAnimation";
 import { REASONING_NODE_COLORS } from "@/lib/reasoning-node-colors";
 import type { ReasoningMode } from "@/lib/ai/reasoning-graph/types";
@@ -460,44 +461,56 @@ function ShapeCurve({
 }
 
 // ── Cost calculation reference ────────────────────────────────────────────────
-// 2.5 Flash: $0.30/M input, $2.50/M output+reasoning — structure, planning, analysis
-// 3 Flash:   $0.50/M input, $3.00/M output+reasoning — prose only
+// Recomputed against observed token data (Nov 2025, 16-scene narrative,
+// 45 calls totalling $1.04 → $0.065/scene typical).
+//
+// 2.5 Flash:         $0.30/M input · $2.50/M output+reasoning — structure, planning, analysis, evaluation
+// 3 Flash Preview:   $0.50/M input · $3.00/M output+reasoning — prose only
 //
 // GENERATION (per arc, ~4 scenes, ~4800 words):
-//   generateScenes      1× 2.5F  40K in + 4K out + 2K rsn  = $0.03
-//   generateScenePlan   4× 2.5F  28K in + 0.5K out + 2K rsn = $0.06
-//   generateSceneProse  4× 3F    35K in + 4K out + 2K rsn   = $0.15
-//   refreshDirection    1× 2.5F  32K in + 0.3K out + 2K rsn = $0.02
-//   expandWorld         1× 2.5F  25K in + 0.6K out + 1K rsn = $0.01
-//   phaseCompletionRpt  1× 2.5F  25K in + 0.3K out + 1K rsn = $0.01
-//   generatePhaseDir    1× 2.5F  28K in + 0.5K out + 1K rsn = $0.01
-//                                                    Total  = $0.29/arc
+//   generateScenes              1× 2.5F  ~45K in + 8K out + reasoning  = $0.04
+//   generateReasoningGraph      1× 2.5F  ~38K in + 7K out + reasoning  = $0.03  (CRG — per-arc causal graph, replaces refreshDirection)
+//   generateScenePlan.extract   4× 2.5F  ~5K in + 3.5K out × 4         = $0.05  (Phase 1 of two-phase planning — extracts compulsory propositions from summary)
+//   generateScenePlan           4× 2.5F  ~13K in + 5K out × 4          = $0.08  (Phase 2 — beats glue propositions into narrative flow)
+//   generateSceneProse          4× 3FP   ~12K in + 1.2K out × 4        = $0.04  (~1.2K words/scene; cheaper than originally estimated — minimal reasoning budget)
+//   expandWorld               ~⅓× 2.5F  ~25K in + 5K out               = $0.01  (amortised — runs once per ~3 arcs)
+//   generatePhaseGraph         rare      ~30K in + 5K out + reasoning   = $0.03  (PRG — meta-machinery; on-demand, not per-arc)
+//                                                                Total = $0.24-0.26/arc typical
 //
-// EVALUATION & REVISION (per arc, ~4 scenes, 25% edit rate):
-//   evaluateBranch        1× 2.5F  12K in + 2K out + 2K rsn         = $0.01
-//   editScene            ~1× 2.5F  30K in + 0.5K out + 1K rsn       = $0.01
-//   evaluateProseQuality  1× 2.5F  10K in + 0.5K out + 1K rsn       = $0.01  (edit verdicts + critique)
-//   rewriteSceneProse    ~1× 3F    35K in + 4K out + 2K rsn          = $0.03
-//                                                    Total  ≈ $0.06/arc
+// EVALUATION & REVISION (per arc, ~25% edit rate):
+//   evaluateBranch              1× 2.5F  ~12K in + 2K out              = $0.01
+//   editScene/insertScene/etc  ~1× 2.5F  ~30K in + 0.5K out            = $0.01
+//   evaluatePlanQuality         1× 2.5F  ~15K in + 1K out              = $0.01
+//   evaluateProseQuality        1× 2.5F  ~15K in + 1K out              = $0.01
+//   rewriteSceneProse          ~1× 3FP   ~12K in + 1.5K out            = $0.01
+//                                                                Total ≈ $0.05/arc
 // (rewriteSceneProse in StoryReader is spot-fix only — not in this estimate)
 //
 // ANALYSIS (per corpus, scene-first pipeline, no reasoning):
-//   reverseEngineerScenePlan  N× 2.5F  ~5K in + 1K out × N scenes = ~$0.005/scene
-//   extractSceneStructure    N× 2.5F  ~6K in + 2K out × N scenes = ~$0.008/scene
-//   embeddings (OpenAI)      N× ada   summaries + propositions + prose = ~$0.003/scene
-//   groupScenesIntoArcs      1× 2.5F  2K in + 0.5K out = ~$0.002 (once)
-//   reconcileResults         1× 2.5F  8K in + 2K out = ~$0.008 (once)
-//   analyzeThreading         1× 2.5F  3K in + 0.5K out = ~$0.003 (once)
-//   assembleNarrative        1× 2.5F  35K in + 3K out = ~$0.025 (once)
-//   Per scene: ~$0.016 (plan + structure + embeddings)
-//   77K novel (~64 scenes, e.g. HP):  64×$0.016 + $0.038 = ~$1.06
-//   100K novel (~83 scenes):  83×$0.016 + $0.038 = ~$1.37
-//   500K series (~416 scenes): 416×$0.016 + $0.038 = ~$6.70
+//   extractSceneStructure       N× 2.5F  ~6K in + 2K out × N           = ~$0.008/scene
+//   reverseEngineerScenePlan    N× 2.5F  ~5K in + 1K out × N           = ~$0.005/scene  (when extractPlans=true)
+//   reextractFateWithLifecycle  N× 2.5F  ~4K in + 1K out × N           = ~$0.004/scene  (full mode only — skipped in world-only)
+//   summariseWorldBuildBatch   ⌈N/12⌉× 2.5F  ~2K in + 0.3K out         = ~$0.001/scene  (per-batch LLM intent summary)
+//   embeddings (OpenAI)         N× ada   summaries + propositions + prose = ~$0.003/scene
+//   groupScenesIntoArcs         1× 2.5F  ~2K in + 0.5K out             = ~$0.002 once  (skipped in world-only)
+//   reconcileResults            1× 2.5F  ~8K in + 2K out               = ~$0.008 once
+//   analyzeThreading            1× 2.5F  ~3K in + 0.5K out             = ~$0.003 once  (skipped in world-only)
+//   meta-extraction             1× 2.5F  ~25K in + 3K out              = ~$0.020 once
+//   Per scene: ~$0.021 (structure + plan + reextract + WB summary + embeddings)
+//   Per corpus once: ~$0.033
+//
+//   77K novel (~64 scenes):  64×$0.021 + $0.033 = ~$1.38
+//   100K novel (~83 scenes): 83×$0.021 + $0.033 = ~$1.78
+//   500K series (~416 scenes): 416×$0.021 + $0.033 = ~$8.77
+//
+// World-only mode skips reextractFateWithLifecycle + groupScenesIntoArcs +
+// analyzeThreading: ~$0.013/scene + $0.020 once.
 
 type BreakdownRow = {
   call: string;
   count: string;
-  model: "2.5 Flash" | "3 Flash";
+  /** Mixed = a combo row spanning both models (e.g. plan + prose pass). */
+  model: "2.5 Flash" | "3 Flash" | "mixed";
   note: string;
   cost: string;
 };
@@ -510,6 +523,27 @@ type BreakdownCategory = {
 
 const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
   {
+    label: "Creation",
+    unit: "one-time per narrative  ·  wizard / premise → seed world + intro arc",
+    rows: [
+      {
+        call: "generateNarrative",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "Initial entities, relationships, 8-scene intro arc structures",
+        cost: "$0.05",
+      },
+      {
+        call: "generateScenePlan + extractPropositions + generateSceneProse",
+        count: "×8",
+        model: "mixed",
+        note: "Plan + prose for the intro arc's scenes",
+        cost: "$0.34",
+      },
+    ],
+    subtotal: { calls: "~17 calls", cost: "~$0.40 once" },
+  },
+  {
     label: "Generation",
     unit: "per arc  ·  ~4 scenes  ·  ~4800 words",
     rows: [
@@ -517,53 +551,53 @@ const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
         call: "generateScenes",
         count: "×1",
         model: "2.5 Flash",
-        note: "Scene structures & deltas",
+        note: "Scene structures, deltas, summaries",
+        cost: "$0.04",
+      },
+      {
+        call: "generateReasoningGraph",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "Causal reasoning graph (CRG) — per-arc",
         cost: "$0.03",
+      },
+      {
+        call: "generateScenePlan.extractPropositions",
+        count: "×4",
+        model: "2.5 Flash",
+        note: "Phase 1 — compulsory propositions from summary",
+        cost: "$0.05",
       },
       {
         call: "generateScenePlan",
         count: "×4",
         model: "2.5 Flash",
-        note: "Beat plan per scene (~12 beats)",
-        cost: "$0.06",
+        note: "Phase 2 — beats glue propositions into flow",
+        cost: "$0.08",
       },
       {
         call: "generateSceneProse",
         count: "×4",
         model: "3 Flash",
         note: "~1.2K words of prose per scene",
-        cost: "$0.15",
-      },
-      {
-        call: "refreshDirection",
-        count: "×1",
-        model: "2.5 Flash",
-        note: "Arc direction & constraints",
-        cost: "$0.02",
+        cost: "$0.04",
       },
       {
         call: "expandWorld",
-        count: "×1",
+        count: "×~⅓",
         model: "2.5 Flash",
-        note: "New characters, locations & threads",
+        note: "New characters / locations / threads (amortised)",
         cost: "$0.01",
       },
       {
-        call: "phaseCompletionReport",
-        count: "×1",
+        call: "generatePhaseGraph",
+        count: "occasional",
         model: "2.5 Flash",
-        note: "Phase retrospective",
-        cost: "$0.01",
-      },
-      {
-        call: "generatePhaseDirection",
-        count: "×1",
-        model: "2.5 Flash",
-        note: "Next phase objectives & constraints",
-        cost: "$0.01",
+        note: "Phase reasoning graph (PRG) — meta-machinery, on-demand",
+        cost: "$0.03",
       },
     ],
-    subtotal: { calls: "13 calls", cost: "$0.29" },
+    subtotal: { calls: "~14 calls", cost: "~$0.25" },
   },
   {
     label: "Evaluation & Revision",
@@ -577,10 +611,17 @@ const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
         cost: "$0.01",
       },
       {
-        call: "editScene",
+        call: "editScene / insertScene / mergeScenes",
         count: "×~1",
         model: "2.5 Flash",
-        note: "Scene structure edit (summary + deltas)",
+        note: "Reconstruction edits (summary + deltas)",
+        cost: "$0.01",
+      },
+      {
+        call: "evaluatePlanQuality",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "Plan-level continuity verdicts",
         cost: "$0.01",
       },
       {
@@ -595,28 +636,42 @@ const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
         count: "×~1",
         model: "3 Flash",
         note: "~1K words rewritten (25% rate)",
-        cost: "$0.03",
+        cost: "$0.01",
       },
     ],
-    subtotal: { calls: "~4 calls", cost: "~$0.06" },
+    subtotal: { calls: "~5 calls", cost: "~$0.05" },
   },
   {
     label: "Analysis",
-    unit: "per corpus  ·  scene-first pipeline  ·  ~$0.016/scene",
+    unit: "per corpus  ·  scene-first pipeline  ·  ~$0.021/scene",
     rows: [
-      {
-        call: "reverseEngineerScenePlan",
-        count: "×N",
-        model: "2.5 Flash",
-        note: "Beat plan + propositions per scene",
-        cost: "~$0.005/scene",
-      },
       {
         call: "extractSceneStructure",
         count: "×N",
         model: "2.5 Flash",
-        note: "Entities & deltas from prose + plan",
+        note: "Entities, deltas, summary from prose chunk",
         cost: "~$0.008/scene",
+      },
+      {
+        call: "reverseEngineerScenePlan",
+        count: "×N",
+        model: "2.5 Flash",
+        note: "Beat plan + propositions (when extractPlans=true)",
+        cost: "~$0.005/scene",
+      },
+      {
+        call: "reextractFateWithLifecycle",
+        count: "×N",
+        model: "2.5 Flash",
+        note: "Lifecycle-aware fate re-scoring (skipped in world-only)",
+        cost: "~$0.004/scene",
+      },
+      {
+        call: "summariseWorldBuildBatch",
+        count: "×⌈N/12⌉",
+        model: "2.5 Flash",
+        note: "Per-batch WorldBuild intent summary (parallel pool)",
+        cost: "~$0.001/scene",
       },
       {
         call: "embeddings",
@@ -629,43 +684,80 @@ const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
         call: "groupScenesIntoArcs",
         count: "×1",
         model: "2.5 Flash",
-        note: "Name arcs from scene summaries",
+        note: "Name arcs from scene summaries (skipped in world-only)",
         cost: "~$0.002",
       },
       {
         call: "reconcileResults",
         count: "×1",
         model: "2.5 Flash",
-        note: "Entity deduplication across scenes",
+        note: "Entity deduplication across chunks",
         cost: "~$0.008",
       },
       {
         call: "analyzeThreading",
         count: "×1",
         model: "2.5 Flash",
-        note: "Thread dependency analysis",
+        note: "Thread dependency analysis (skipped in world-only)",
         cost: "~$0.003",
       },
       {
-        call: "assembleNarrative",
+        call: "meta-extraction (assembleNarrative)",
         count: "×1",
         model: "2.5 Flash",
-        note: "Rules, world systems, prose profile",
-        cost: "~$0.025",
+        note: "Image style, prose profile, genre, patterns",
+        cost: "~$0.020",
       },
     ],
-    subtotal: { calls: "3N + 3", cost: "~$1.06 for HP (64 scenes)" },
+    subtotal: { calls: "~5N + 5", cost: "~$1.38 for HP (64 scenes)" },
+  },
+  {
+    label: "Questioning",
+    unit: "on-demand  ·  operator-initiated  ·  not part of generation cost",
+    rows: [
+      {
+        call: "generateMarketBriefing",
+        count: "per request",
+        model: "2.5 Flash",
+        note: "Briefing tab — situation + suggested arc/world directions",
+        cost: "~$0.025",
+      },
+      {
+        call: "executeSurvey",
+        count: "per request",
+        model: "2.5 Flash",
+        note: "1 question × N respondents (parallel) — ~$0.005 per respondent",
+        cost: "~$0.05 (10 respondents)",
+      },
+      {
+        call: "executeInterview",
+        count: "per request",
+        model: "2.5 Flash",
+        note: "1 subject × ~6 AI-generated questions",
+        cost: "~$0.04",
+      },
+      {
+        call: "analyzeSceneGames",
+        count: "per scene",
+        model: "2.5 Flash",
+        note: "Game-theory decomposition of a scene (additive, doesn't mutate deltas)",
+        cost: "~$0.015",
+      },
+    ],
+    subtotal: { calls: "operator-paced", cost: "~$0.02–$0.05 each" },
   },
 ];
 
-function ModelPill({ model }: { model: "2.5 Flash" | "3 Flash" }) {
+function ModelPill({ model }: { model: "2.5 Flash" | "3 Flash" | "mixed" }) {
+  const tone =
+    model === "3 Flash"
+      ? "bg-amber-500/10 text-amber-400/60"
+      : model === "mixed"
+        ? "bg-violet-500/10 text-violet-400/60"
+        : "bg-emerald-500/10 text-emerald-400/60";
   return (
     <span
-      className={`text-[9px] px-1.5 py-0.5 rounded font-mono whitespace-nowrap ${
-        model === "3 Flash"
-          ? "bg-amber-500/10 text-amber-400/60"
-          : "bg-emerald-500/10 text-emerald-400/60"
-      }`}
+      className={`text-[9px] px-1.5 py-0.5 rounded font-mono whitespace-nowrap ${tone}`}
     >
       {model}
     </span>
@@ -677,27 +769,82 @@ function CostEstimates() {
   return (
     <div className="my-5 px-3 sm:px-5 py-4 rounded-lg bg-white/3 border border-white/6">
       <span className="text-[10px] uppercase tracking-wider text-white/20 block mb-3 font-mono">
-        End-to-End Estimates · ~5 scenes/arc · ~1K words/scene
+        End-to-End Estimates · ~4 scenes/arc · ~1.2K words/scene
       </span>
 
-      {/* Generation estimates */}
-      <div className="space-y-2 text-[11px] text-white/45">
-        {[
-          { scale: "Short story (~10K words)", cost: "~$0.66" },
-          { scale: "Novella (~35K words)", cost: "~$2.30" },
-          { scale: "Novel (~85K words)", cost: "~$5.60" },
-          { scale: "Epic (~200K words)", cost: "~$13.20" },
-          { scale: "Serial (~500K words)", cost: "~$33.00" },
-        ].map(({ scale, cost }, i) => (
-          <div
-            key={scale}
-            className={`flex justify-between${i > 0 ? " border-t border-white/5 pt-2" : ""}`}
-          >
-            <span>{scale}</span>
-            <span className="font-mono text-white/60">{cost}</span>
-          </div>
-        ))}
-      </div>
+      {/* End-to-end derived from per-scope costs:
+          Creation (one-time): ~$0.40 wizard bootstrap (~8 scenes / ~2 arcs)
+          Generation per arc:  ~$0.25 (CRG + 4× scene plan/prose pass)
+          Evaluation per arc:  ~$0.05 (eval + ~25% edit/rewrite rate)
+          Per-arc total:       ~$0.30 (~$0.075/scene)
+          Analysis (ingest):   ~$0.021/scene + ~$0.033 once
+
+          "Create from premise" rows = wizard + (arcs - 2 from bootstrap) × $0.30
+          "Analyse + continue" rows  = ingest + 8 continuation arcs × $0.30. */}
+      <table className="w-full text-[11px] table-fixed">
+        <colgroup>
+          <col className="w-[18%]" />
+          <col className="w-[34%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+        </colgroup>
+        <thead>
+          <tr className="text-[9px] uppercase tracking-wider text-white/25 font-mono">
+            <th className="text-left pb-2">Scale</th>
+            <th className="text-left pb-2">Words / scenes / arcs</th>
+            <th className="text-right pb-2">Create</th>
+            <th className="text-right pb-2">Analyse</th>
+            <th className="text-right pb-2">Continue</th>
+            <th className="text-right pb-2">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[
+            { scale: "Short story", words: "~10K", scenes: 10, arcs: 3 },
+            { scale: "Novella", words: "~35K", scenes: 35, arcs: 9 },
+            { scale: "Novel", words: "~85K", scenes: 85, arcs: 21 },
+            { scale: "Epic", words: "~200K", scenes: 200, arcs: 50 },
+            { scale: "Serial", words: "~500K", scenes: 500, arcs: 125 },
+          ].map(({ scale, words, scenes, arcs }, i) => {
+            // Wizard creation (always ~$0.40; ~$0.05 for very short stories where it covers most of the work).
+            const create = 0.40;
+            // Continuation = remaining arcs after the wizard's 2 bootstrap arcs × $0.30/arc.
+            const continueCost = Math.max(0, arcs - 2) * 0.30;
+            const totalCreate = create + continueCost;
+            // Analyse = ingest cost for the same scene count.
+            const analyse = scenes * 0.021 + 0.033;
+            return (
+              <tr key={scale} className={i > 0 ? "border-t border-white/5" : ""}>
+                <td className="py-2 text-white/50">{scale}</td>
+                <td className="py-2 text-white/30 text-[10px]">
+                  {words} · {scenes} sc · {arcs} arc{arcs === 1 ? "" : "s"}
+                </td>
+                <td className="py-2 font-mono text-white/45 text-right">
+                  ${create.toFixed(2)}
+                </td>
+                <td className="py-2 font-mono text-white/45 text-right">
+                  ${analyse.toFixed(2)}
+                </td>
+                <td className="py-2 font-mono text-white/45 text-right">
+                  ${continueCost.toFixed(2)}
+                </td>
+                <td className="py-2 font-mono text-white/70 text-right font-semibold">
+                  ${totalCreate.toFixed(2)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <p className="text-[9px] text-white/25 mt-2">
+        <span className="font-mono text-white/40">Create</span> = wizard one-time bootstrap (~$0.40 for entities + intro arc).{" "}
+        <span className="font-mono text-white/40">Continue</span> = remaining arcs × ~$0.30/arc (CRG + 4 scenes' plan/prose + per-arc eval).{" "}
+        <span className="font-mono text-white/40">Analyse</span> = ingest an existing corpus into NarrativeState (separate flow — pay this OR Create, not both).{" "}
+        <span className="font-mono text-white/40">Total</span> sums Create + Continue for the from-scratch flow.
+      </p>
 
       <p className="text-[10px] text-white/25 mt-3">
         Structure, planning, analysis &amp; prose all run on{" "}
@@ -725,7 +872,7 @@ function CostEstimates() {
             strokeLinejoin="round"
           />
         </svg>
-        <span>Per-arc breakdown</span>
+        <span>Cost breakdown by scope</span>
       </button>
 
       {showBreakdown && (
@@ -1060,13 +1207,16 @@ export default function PaperPage() {
 
   return (
     <div className="min-h-screen bg-bg-base">
-      {/* Aurora background */}
+      {/* Cosmic background — nebulae + star field */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="aurora-container absolute bottom-0 left-0 right-0 h-full">
-          <div className="aurora-curtain aurora-curtain-1" />
-          <div className="aurora-curtain aurora-curtain-2" />
-          <div className="aurora-curtain aurora-curtain-3" />
-          <div className="aurora-glow" />
+        <div className="cosmos-container absolute inset-0 z-0">
+          <div className="nebula nebula-1" />
+          <div className="nebula nebula-2" />
+          <div className="nebula nebula-3" />
+          <div className="cosmos-glow" />
+        </div>
+        <div className="absolute inset-0 z-10">
+          <StarField />
         </div>
       </div>
 

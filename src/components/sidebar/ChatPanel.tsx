@@ -758,13 +758,7 @@ ${ctx}`;
         </button>
 
         {threadPickerOpen && (
-          <div
-            className="absolute top-full left-0 right-0 z-50 rounded-b-xl border-x border-b border-white/10 overflow-hidden"
-            style={{
-              background: "#1a1a1a",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-            }}
-          >
+          <div className="absolute top-full left-0 right-0 z-50 rounded-b-xl glass overflow-hidden">
             <div className="max-h-64 overflow-y-auto py-1">
               {sortedThreads.length === 0 ? (
                 <p className="text-xs text-text-dim px-3 py-3 text-center">
@@ -1066,13 +1060,7 @@ ${ctx}`;
           </p>
 
           {personaPickerOpen && (
-            <div
-              className="absolute bottom-full left-0 mb-1 z-50 rounded-lg border border-white/10 overflow-hidden min-w-60"
-              style={{
-                background: "#1a1a1a",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-              }}
-            >
+            <div className="absolute bottom-full left-0 mb-1 z-50 rounded-lg glass overflow-hidden min-w-60">
               <div className="max-h-80 overflow-y-auto py-1.5">
                 <button
                   onClick={() => {

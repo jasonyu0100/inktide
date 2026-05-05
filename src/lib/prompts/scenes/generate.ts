@@ -5,6 +5,8 @@
  * prompts module stays free of upstream dependencies.
  */
 
+import { phaseGraphPriorityEntry } from "../phase/application";
+
 export const GENERATE_SCENES_SYSTEM =
   'You are a scene generator producing one arc of structurally rich scenes. Honour the brief (reasoning graph / coordination plan / direction), the pacing sequence, and the active threads. Every scene needs a delta-paired summary and rich threadDeltas (with rationale grounded in the scene), worldDeltas (15-25 word present-tense facts across 3+ entities), and ≥1 systemDelta. Match the world\'s naming style for any new entities. Return ONLY valid JSON matching the schema in the user prompt.';
 
@@ -44,9 +46,11 @@ ${inputBlocks}
 
 <integration-hierarchy hint="When inputs conflict, this is the priority order for scene structure.">
   <priority rank="1">BRIEF — the reasoning graph (CRG) / coordination-plan directive / direction. Scenes execute the brief; threads/entities/rules from the brief land here.</priority>
-  <priority rank="2">PACING SEQUENCE — per-scene mode + force band targets; the rhythm budget the structure must hit.</priority>
-  <priority rank="3">PHASE GRAPH (PRG) — ambient working model. Scenes stay coherent with the phase (active patterns surface, current rules bind, accumulated pressures find expression) unless the brief explicitly overrides.</priority>
-  <priority rank="4">NARRATIVE CONTEXT — characters, threads, system knowledge, recent history; the substrate scenes draw from.</priority>
+  <priority rank="2">ARC SETTINGS (when present) — force preference / reasoning mode / network bias the CRG was built under. Scenes inherit the same engine tilt so structure and execution stay aligned. Below the brief itself but above content inputs because settings shape how the brief gets rendered.</priority>
+  <priority rank="3">WORLD-BUILD FOCUS (when present) — recently-introduced characters, locations, and latent threads that this arc must activate. Bring them on-screen, set scenes in their locations, seed their threads. Committed inventory the arc has to spend.</priority>
+  <priority rank="4">PACING SEQUENCE — per-scene mode + force band targets; the rhythm budget the structure must hit.</priority>
+  ${phaseGraphPriorityEntry(5, "scene-structure")}
+  <priority rank="6">NARRATIVE CONTEXT — characters, threads, system knowledge, recent history; the substrate scenes draw from.</priority>
 </integration-hierarchy>
 
 <procedure name="per-scene" hint="The summary is your DELTA BUDGET — richer summary supports richer extraction. Under-tagging is the dominant failure.">
@@ -70,7 +74,7 @@ Return JSON with this exact structure.
       "locationId": "existing location ID",
       "povId": "character ID (must be a participant)${povRestrictedHint}",
       "participantIds": ["existing character IDs"],
-      "summary": "3-6 sentences in prose using NAMES not IDs. Write what HAPPENED / was SAID / visibly CHANGED. Include concrete specifics (objects, dialogue, data). No generic summaries, no sentences that end in private emotions.",
+      "summary": "Prose in NAMES not IDs. Length is ADAPTIVE — 3-6 sentences for routine scenes (physical action, dialogue, single-thread movement), but expand WITHOUT UPPER BOUND for cognition-dense scenes (multi-step planning, scenario modelling, scheme construction, complex world-rule reveals). For dense scenes, name each scenario weighed, each tradeoff accepted, each conclusion reached — NOT 'he considered his options' or 'she planned carefully'. The summary is the prose writer's only brief and the only artifact other scenes can read; under-writing dense cognition is the dominant failure mode. See <summary-requirement> for the full division-of-labour rule.",
       "timeDelta": {"value": 1, "unit": "minute|hour|day|week|month|year"},
       "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
       "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "how they travelled"}},

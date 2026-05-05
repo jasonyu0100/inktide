@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, Character, Location, Thread, ThreadDelta, RelationshipEdge, SystemNode, SystemDelta, SystemNodeType, Artifact, OwnershipDelta, TieDelta, WorldDelta, RelationshipDelta, WorldBuild } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, ThreadDelta, ThreadHorizon, RelationshipEdge, SystemNode, SystemDelta, SystemNodeType, Artifact, OwnershipDelta, TieDelta, WorldDelta, RelationshipDelta, WorldBuild } from '@/types/narrative';
 import { resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS, NARRATOR_AGENT_ID } from '@/types/narrative';
 import { clampEvidence, isThreadAbandoned, isThreadClosed, FORCE_REFERENCE_MEANS, FORCE_BANDS, fmtBand } from '@/lib/narrative-utils';
 import { nextId, nextIds } from '@/lib/narrative-utils';
@@ -16,6 +16,7 @@ import {
   GENERATE_NARRATIVE_SYSTEM,
   DETECT_PATTERNS_SYSTEM,
 } from '@/lib/prompts/world';
+import { buildActivePhaseGraphSection } from './phase-graph';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext } from './context';
@@ -35,6 +36,18 @@ import {
 // World expansion no longer uses a causal reasoning graph — creative
 // planning happens upstream in the directive (hand-written or AI health
 // report). The CRG generation path has been removed.
+
+/**
+ * Coerce a horizon string from the LLM (or undefined) into a valid
+ * `ThreadHorizon`. Defaults to `'medium'` — the right neutral for any
+ * thread the model didn't classify, since Principle 8 (scope-distance
+ * attenuation) treats medium as the unbiased baseline.
+ */
+const VALID_HORIZONS: ReadonlySet<string> = new Set(['short', 'medium', 'long', 'epic']);
+function normaliseHorizon(raw: unknown): ThreadHorizon {
+  if (typeof raw === 'string' && VALID_HORIZONS.has(raw)) return raw as ThreadHorizon;
+  return 'medium';
+}
 
 /**
  * Normalize LLM-emitted entity world into the World graph shape
@@ -94,6 +107,10 @@ export const DEFAULT_EXPANSION_FILTER: ExpansionEntityFilter = {
  * Field names match WorldExpansion so the store can spread directly.
  */
 export type WorldExpansionResponse = {
+  /** 1-2 sentence intent of the expansion — what creative space it opens.
+   *  Used by downstream arc generation as steering context. Empty when the
+   *  LLM omits it; the store reducer falls back to a derived count string. */
+  summary?: string;
   characters: Character[];
   locations: Location[];
   artifacts: Artifact[];
@@ -452,6 +469,7 @@ ${m.recommendation === 'depth' ? EXPANSION_STRATEGY_PROMPTS.depth : m.recommenda
     size,
     strategyBlock,
     entityFilterBlock,
+    phaseGraphSection: buildActivePhaseGraphSection(narrative, "expand"),
     existingCharList,
     existingLocList,
     existingRelList,
@@ -488,6 +506,7 @@ ${m.recommendation === 'depth' ? EXPANSION_STRATEGY_PROMPTS.depth : m.recommenda
       participants: t.participants ?? [],
       description: t.description,
       outcomes,
+      horizon: normaliseHorizon(t.horizon),
       dependents,
       openedAt: '', // Store reducer stamps worldBuildId at apply time
       beliefs: { [NARRATOR_AGENT_ID]: newNarratorBelief(outcomes.length, 2) },
@@ -566,7 +585,10 @@ ${m.recommendation === 'depth' ? EXPANSION_STRATEGY_PROMPTS.depth : m.recommenda
     ...(parsed.relationshipDeltas ?? []),
   ];
 
+  const summary = typeof parsed.summary === 'string' ? parsed.summary.trim() : '';
+
   const result: WorldExpansionResponse = {
+    summary: summary || undefined,
     characters: f.characters ? normalizedCharacters : [],
     locations: f.locations ? normalizedLocations : [],
     artifacts: f.artifacts ? normalizedArtifacts : [],
@@ -669,6 +691,7 @@ export async function generateNarrative(
       ...rest,
       participants: rest.participants ?? anchors ?? [],
       outcomes,
+      horizon: normaliseHorizon(rest.horizon),
       beliefs,
       threadLog: { nodes: {}, edges: [] },
     };
@@ -695,12 +718,19 @@ export async function generateNarrative(
 
   // Create initial WorldBuild with entities and empty systemDeltas
   // This mirrors the analysis pattern: entities are structural (in WorldBuild),
-  // all knowledge (system + world deltas) flows through scenes
+  // all knowledge (system + world deltas) flows through scenes.
+  // Reuse the AI's `worldSummary` as the WB summary — it captures what the
+  // initial world IS, which is exactly what downstream arc generation wants
+  // when it reads <world-build-focus> for steering. Fall back to a derived
+  // count string when the AI omits it.
   const worldBuildId = `WB-${now}-INIT`;
+  const aiWorldSummary = typeof parsed.worldSummary === 'string' ? parsed.worldSummary.trim() : '';
   const initialWorldBuild: WorldBuild = {
     kind: 'world_build',
     id: worldBuildId,
-    summary: `Initial world: ${Object.keys(characters).length} characters, ${Object.keys(locations).length} locations, ${Object.keys(threads).length} threads`,
+    summary:
+      aiWorldSummary ||
+      `Initial world: ${Object.keys(characters).length} characters, ${Object.keys(locations).length} locations, ${Object.keys(threads).length} threads`,
     expansionManifest: {
       newCharacters: Object.values(characters),
       newLocations: Object.values(locations),

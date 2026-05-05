@@ -26,13 +26,16 @@ Text is modelled as a **knowledge graph** that mutates section by section. An LL
 - **ELO rankings** — continuous margin score from stake deltas drives per-player rating updates across all games; trajectories, W/L/D, outcome mix, Nash-rate and behavioural tags (extractor, schemer, dominant, responder, steady, rival:X)
 
 ### Generation
-- **Causal reasoning graphs** — 8–20 typed nodes per arc (fate, reasoning, character, location, artifact, system, pattern, warning, chaos) with typed edges; scenes execute the graph
+- **Phase Reasoning Graph (PRG)** — meta-machinery layer: a working model of the world's economy, conventions, attractors, agents, rules, pressures, and landmarks. Mined from narrative context and inherited by every downstream stage (CRG, scene, plan, prose, world expansion)
+- **Causal reasoning graphs (CRG)** — 8–20 typed nodes per arc (fate, reasoning, character, location, artifact, system, pattern, warning, chaos) with typed edges; scenes execute the graph
 - **Four thinking modes** — abduction (default, backward selective), divergent (forward expansive), deduction (forward narrow), induction (backward generalising)
+- **Arc settings sync** — force preference, reasoning mode, and network bias persist on the CRG snapshot so scene generation inherits the same engine tilt without callers re-threading settings
 - **Markov chain pacing** — transition matrices from analyzed works shape scene-by-scene rhythm
 - **MCTS search** — explores branching narrative paths, each expansion guided by a fresh pacing sequence
 - **Planning with course correction** — direction vectors rewritten after each arc
 - **Iterative revision** — evaluate → verdict (ok/edit/merge/insert/cut) → reconstruct versioned branches
 - **Prose profiles** — beat plans with authorial Markov chains over a 10-function / 8-mechanism taxonomy
+- **Format-aware rendering** — prose, screenplay, meta-overlay, simulation-overlay; each format re-renders the same beat plan with its own accent profile (screenplay externalises interior mechanisms via V.O. / soliloquy / pure performance / visualised aperture)
 - **Pacing presets** — curated sequences that bypass Markov sampling for targeted arcs
 
 ## Quick Reference
@@ -197,6 +200,32 @@ Each arc's generation sees the **previous arc's reasoning graph** fed in via `fi
 - `src/components/generation/ThinkingAnimation.tsx` — D3 visualisation of the four thinking modes (3-phase: collection → objective → building)
 - `src/components/{canvas/ReasoningGraphView,generation/ReasoningGraphModal}.tsx` — arc graph visualisations
 
+## Phase Reasoning Graph (src/lib/ai/phase-graph.ts, src/lib/prompts/phase/)
+
+The PRG is the **meta-machinery layer** — a working model of the world's structural underpinnings (economy, political dynamics, magic system, cultural conventions, institutional agents, foundational landmarks, meta-narrative tropes). Distinct from the per-arc CRG: PRG describes how the world WORKS, CRG describes how this arc REASONS within it. Every downstream stage (CRG, scene, plan, prose, world expansion) inherits the active PRG so generation stays grounded in the working machinery.
+
+### Node types — temporal stance is encoded in the type
+- **pattern** — recurring configuration · CURRENTLY-ACTIVE
+- **convention** — procedural default · CURRENTLY-FOLLOWED
+- **attractor** — future-pointing aim · the world is being PULLED toward this
+- **agent** — institutional / faction / market driver · CURRENTLY-DRIVING
+- **rule** — foundational world-rule · CURRENTLY-BINDING
+- **pressure** — accumulating macro tension · ACCUMULATING-TOWARD-DISCHARGE
+- **landmark** — past event whose machinery still defines the present · PAST-BUT-ANCHORING
+
+### Lifecycle
+PRGs are immutable. The user regenerates a new one (optionally seeded by a prior via `basedOn`) or clears the active. Storage is reference-counted: a PRG stays alive as long as it's the current graph OR an arc still references it via `arc.phaseGraphId`. Arcs preserve the working model they were generated under — orphaned PRGs that are neither current nor arc-referenced get garbage-collected.
+
+### Application across the pipeline
+The same PRG data block + scope-tailored directive ride into every gen prompt that uses it. Scopes: `expand` / `reasoning-arc` / `reasoning-plan` / `scene-structure` / `scene-plan` / `scene-prose`. Each prompt's `<integration-hierarchy>` ranks the PRG via the shared `phaseGraphPriorityEntry(rank, scope)` helper so priority semantics are identical across the pipeline. Rupture discipline is universal: when a higher-priority input demands breaking a phase rule, mark it deliberately (chaos node, supersedes edge, system delta) — silent contradictions read as drift.
+
+### Files
+- `src/lib/ai/phase-graph.ts` — `generatePhaseGraph` (LLM mining) + `buildActivePhaseGraphSection` (resolves and renders the current PRG)
+- `src/lib/prompts/phase/generate.ts` — PRG generation prompt
+- `src/lib/prompts/phase/application.ts` — data block, application directive, scoped priority entry, prior-graph rendering
+- `src/lib/phase-graph.ts` — `getActivePhaseGraph`, `prunePhaseGraphs` (reference-counted GC)
+- `src/components/canvas/PhaseGraphView.tsx`, `src/components/inspector/PhaseNodeDetail.tsx` — UI
+
 ## Semantic Search & Embeddings
 
 Every scene, beat, and proposition is embedded as a **1536-dimensional vector** using OpenAI's `text-embedding-3-small` model. These embeddings capture **meaning, not keywords** — searching for "betrayal" surfaces scenes of broken trust even when that exact word never appears.
@@ -302,6 +331,17 @@ Prose generation is guided by **beat plans** — structured blueprints that deco
 5. Output a `ProseProfile` (voice: register, stance, devices, rules) + `BeatSampler` (markov, mechanismDistribution, beatsPerKWord)
 
 **Presets** are derived from analysed works at runtime. The "self" preset computes a live profile from the current narrative's own scene plans. When `useBeatChain` is enabled, plan generation samples the beat function sequence from the profile's Markov chain rather than choosing freely.
+
+### Format-Aware Rendering (`src/lib/prompts/prose/format-instructions.ts`)
+
+The same beat plan re-renders into different output formats. Each format has its own `systemRole` + `formatRules` block, and the prose stage swaps them in based on `narrative.storySettings.proseFormat`:
+
+- **prose** — default; standard fiction / memoir / essay / reportage register
+- **screenplay** — industry-standard format. Interior mechanisms (`thought` / `narration` / `memory` / `comic`) externalise via one of four conventions chosen per scene: V.O., soliloquy / aside, pure performance + symbolism, or visualised aperture / flashback. Per-mechanism translation table maps each plan mechanism to its screenplay rendering. Sparser propositions per minute, dialogue-heavier, action lines describe what the camera SEES not what a character KNOWS
+- **meta** — fluid prose interleaved with bracketed engine observations (qualitative shifts in InkTide's understanding: thread committed, seed planted, payoff landed, arc pivoted)
+- **simulation** — fluid prose interleaved with in-world system logs (HUD overlay diegetic to the story world: cultivation tier gates, LitRPG stat changes, finding/anomaly logs in research papers)
+
+Plan generation also receives a `<rendering-format>` block (`src/lib/prompts/scenes/plan-format.ts`) so non-prose formats can lean their accent profile correctly during planning, not just during rendering.
 
 ## Planning with Course Correction (src/lib/ai/review.ts)
 

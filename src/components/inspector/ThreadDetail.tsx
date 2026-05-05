@@ -2,7 +2,7 @@
 
 import {
   classifyThreadKind,
-  computeActiveArcs,
+  computeBranchArcCoverage,
   focusScore,
   getMarketBelief,
   getMarketMargin,
@@ -19,7 +19,7 @@ import {
 import { buildThreadTrajectory } from "@/lib/portfolio-analytics";
 import { getThreadLogAtScene } from "@/lib/scene-filter";
 import { MARKET_TAU_CLOSE, MARKET_ABANDON_VOLUME } from "@/lib/constants";
-import type { ThreadLogNodeType } from "@/types/narrative";
+import type { NarrativeState, Thread, ThreadLogNodeType } from "@/types/narrative";
 import { useStore } from "@/lib/store";
 import { useMemo, useState } from "react";
 import { CollapsibleSection, Paginator, paginateRecent } from "./CollapsibleSection";
@@ -111,6 +111,45 @@ const STAT_GLOSS = {
   gap:
     "GAP — scenes since the market last received evidence.\n\n∞ if never touched. Large gap + low volume → heading for abandonment. Large gap + high volume → dormant but potent; often a setup for a callback.",
 };
+
+// ── Horizon visibility ────────────────────────────────────────────────────
+//
+// Horizon is a STATED INTENT — the LLM (or operator) classifies a thread at
+// open time as short / medium / long / epic. The thread can still outlive
+// its horizon; we don't enforce, we surface. The badge shows the declared
+// horizon; an adjacent "outlier" pill appears when the thread has lived
+// longer than the typical span for its horizon.
+
+const HORIZON_TYPICAL_MAX_SCENES: Record<NonNullable<Thread['horizon']>, number> = {
+  short: 3,
+  medium: 8,
+  long: 24,
+  epic: 96,
+};
+
+function ThreadHorizonBadge({ thread, narrative }: { thread: Thread; narrative: NarrativeState }) {
+  const horizon = thread.horizon ?? 'medium';
+  const sceneCount = computeThreadSceneCount(thread, narrative.scenes);
+  const expectedMax = HORIZON_TYPICAL_MAX_SCENES[horizon];
+  return (
+    <span
+      className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-300 cursor-help font-mono"
+      title={`horizon: ${horizon} — structural distance from any scene to this thread's resolution.\n\nshort  ~ 2-3 scenes (immediate trust, fight outcome)\nmedium ~ within an arc, 4-8 scenes (sect rivalry)\nlong   ~ multi-arc, segment-spanning (faction war)\nepic   ~ series-spanning / open-ended (eternal life)\n\nDrives evidence-magnitude attenuation. Long/epic threads only fire small directional pulses on routine wins; reserve full magnitude for structural pivots that re-shape the resolution path.\n\nThis thread has lived ${sceneCount} scene${sceneCount === 1 ? '' : 's'} (typical max for ${horizon}: ~${expectedMax}). Threads can outlive their horizon — the field is descriptive, not enforced.`}
+    >
+      {horizon}
+    </span>
+  );
+}
+
+function computeThreadSceneCount(thread: Thread, scenes: NarrativeState['scenes']): number {
+  let count = 0;
+  for (const sceneId of Object.keys(scenes)) {
+    const scene = scenes[sceneId];
+    if (!scene) continue;
+    if ((scene.threadDeltas ?? []).some((td) => td.threadId === thread.id)) count++;
+  }
+  return count;
+}
 
 // ── Stat tile — a labeled value with a rich hover definition ───────────────
 
@@ -338,7 +377,7 @@ export default function ThreadDetail({ threadId }: Props) {
         <p className="text-sm text-text-primary">{thread.description}</p>
       </div>
 
-      {/* Category + kind + bandwidth */}
+      {/* Category + kind + horizon + bandwidth */}
       <div className="flex items-center gap-2">
         <span
           className={`text-[10px] uppercase tracking-widest cursor-help ${THREAD_CATEGORY_TEXT[currentCategory]}`}
@@ -360,13 +399,22 @@ export default function ThreadDetail({ threadId }: Props) {
         >
           {classifyThreadKind(thread, narrative.scenes)}
         </span>
-        <span
-          className="text-[9px] text-text-dim font-mono ml-auto cursor-help"
-          title="ACTIVE ARCS — how many arcs have touched this thread.\n\nA thread that only appears in 1 arc is localized; one appearing in many arcs is load-bearing for the story's structure."
-        >
-          {computeActiveArcs(threadId, narrative.scenes)}/
-          {Object.keys(narrative.arcs).length || 1} arcs
-        </span>
+        <ThreadHorizonBadge thread={thread} narrative={narrative} />
+        {(() => {
+          const { touched, total } = computeBranchArcCoverage(
+            threadId,
+            narrative.scenes,
+            state.resolvedEntryKeys,
+          );
+          return (
+            <span
+              className="text-[9px] text-text-dim font-mono ml-auto cursor-help"
+              title="ACTIVE ARCS — how many arcs on this branch have touched this thread.\n\nA thread that only appears in 1 arc is localized; one appearing in many arcs is load-bearing for the story's structure."
+            >
+              {touched}/{total} arcs
+            </span>
+          );
+        })()}
       </div>
 
       {/* Market — up-to-scene probability distribution + trajectory */}

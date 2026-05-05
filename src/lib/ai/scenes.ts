@@ -12,6 +12,8 @@ import { narrativeContext, sceneContext, buildProseProfile } from './context';
 import { PROMPT_STRUCTURAL_RULES, PROMPT_DELTAS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_WORLD, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, PROMPT_FORCE_STANDARDS, PROMPT_ARC_STATE_GUIDANCE, buildScenePlanSystemPrompt, buildBeatAnalystSystemPrompt, buildScenePlanEditSystemPrompt, buildSceneProseSystemPrompt } from './prompts';
 import { EXTRACT_PROPOSITIONS_SYSTEM, buildExtractPropositionsUserPrompt } from '@/lib/prompts/scenes/extract-propositions';
 import { buildGenerateScenesPrompt } from '@/lib/prompts/scenes/generate';
+import { buildArcSettingsBlock } from '@/lib/prompts/scenes/arc-settings';
+import { buildPlanFormatBlock } from '@/lib/prompts/scenes/plan-format';
 import {
   buildScenePlanUserPrompt,
   buildScenePlanEditUserPrompt,
@@ -27,7 +29,7 @@ import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PR
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from '@/lib/prompts';
 import { logWarning, logError, logInfo } from '@/lib/system-logger';
-import type { ReasoningGraph } from './reasoning-graph';
+import type { ReasoningGraph, ArcSettings } from './reasoning-graph';
 import { buildSequentialPath, extractPatternWarningDirectives } from './reasoning-graph';
 import { buildActivePhaseGraphSection } from './phase-graph';
 import { retryWithValidation, validateBeatPlan, validateBeatProseMap } from './validation';
@@ -192,6 +194,10 @@ export type GenerateScenesOptions = {
   reasoningGraph?: ReasoningGraph;
   /** Coordination plan context. When provided, injects plan guidance into generation. */
   coordinationPlanContext?: CoordinationPlanContext;
+  /** Engine settings the arc was reasoned under. When omitted, inherited
+   *  from `reasoningGraph.arcSettings` so CRG → scene execution stays
+   *  synced. Explicit values override the inherited ones. */
+  arcSettings?: ArcSettings;
   onToken?: (token: string) => void;
   /** Callback for streaming reasoning/thinking tokens */
   onReasoning?: (token: string) => void;
@@ -210,6 +216,12 @@ export async function generateScenes(
   const { existingArc, pacingSequence, worldBuildFocus, reasoningGraph, coordinationPlanContext, onToken, onReasoning } = options;
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
   const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
+
+  // CRG → scene sync: inherit arc settings from the reasoning graph the
+  // CRG was built under, override with anything the caller explicitly passed.
+  // Keeps force preference / reasoning mode / network bias aligned across
+  // CRG and scene execution without callers needing to re-thread every value.
+  const resolvedArcSettings: ArcSettings | undefined = options.arcSettings ?? reasoningGraph?.arcSettings;
 
   logInfo('Starting scene generation', {
     source: 'manual-generation',
@@ -253,11 +265,25 @@ export async function generateScenes(
   const briefBlock = (() => {
     if (reasoningGraph) {
       const directives = extractPatternWarningDirectives(reasoningGraph);
+      // Carry forward the prose seeds the CRG was generated from — the graph
+      // compiles direction + coord-plan directive into a causal spine, but
+      // tonal / scope / register intent in the original phrasing isn't fully
+      // recoverable from nodes and edges. Layer them under the graph so the
+      // graph still drives structure while the source phrasing fills gaps.
+      const sourceDirection = direction.trim();
+      const planDirective = coordinationPlanContext?.directive?.trim();
+      const layered: string[] = [];
+      if (planDirective) {
+        layered.push(`<plan-directive hint="The coordination-plan directive that seeded this CRG. The graph encodes it structurally; this preserves the original phrasing for nuance the nodes don't carry.">${planDirective}</plan-directive>`);
+      }
+      if (sourceDirection) {
+        layered.push(`<source-direction hint="The prose direction that seeded this CRG (and any user constraints in story-settings still apply). Honour it alongside the graph — the graph dictates structure, the direction shapes what the structure leaves open.">${sourceDirection}</source-direction>`);
+      }
       return `<brief type="reasoning-graph" hint="PRIMARY BRIEF — execute this path exactly; don't skip nodes or invent reasoning not shown. REASONING nodes are core logic; CHARACTER/LOCATION/ARTIFACT/SYSTEM nodes provide grounding; OUTCOME nodes are thread effects to deliver. Edge labels carry meaning (enables, requires, causes, etc.).">
   <arc-summary>${reasoningGraph.summary}</arc-summary>
   <reasoning-path>
 ${buildSequentialPath(reasoningGraph)}
-  </reasoning-path>${directives ? `\n  <course-correction-directives>\n${directives}\n  </course-correction-directives>` : ''}
+  </reasoning-path>${directives ? `\n  <course-correction-directives>\n${directives}\n  </course-correction-directives>` : ''}${layered.length > 0 ? '\n  ' + layered.join('\n  ') : ''}
 </brief>`;
     }
     if (coordinationPlanContext) {
@@ -298,10 +324,12 @@ ${threads ? `  <threads-to-activate>\n${threads}\n  </threads-to-activate>` : ''
   inputBlocks.push(`  <narrative-seed>${seed}</narrative-seed>`);
   if (arcInstruction) inputBlocks.push(`  <arc-instruction>${arcInstruction}</arc-instruction>`);
   inputBlocks.push(`  ${briefBlock.replace(/\n/g, '\n  ')}`);
+  const arcSettingsBlock = buildArcSettingsBlock(resolvedArcSettings);
+  if (arcSettingsBlock) inputBlocks.push(`  ${arcSettingsBlock.replace(/\n/g, '\n  ')}`);
   if (worldBuildFocusBlock) inputBlocks.push(`  ${worldBuildFocusBlock.replace(/\n/g, '\n  ')}`);
   inputBlocks.push(`  <continuation-point hint="Scenes continue from this point in the story.">after scene index ${currentIndex + 1}</continuation-point>`);
   if (sequencePrompt) inputBlocks.push(`  <pacing-sequence>\n${sequencePrompt}\n  </pacing-sequence>`);
-  const phaseGraphSection = buildActivePhaseGraphSection(narrative);
+  const phaseGraphSection = buildActivePhaseGraphSection(narrative, 'scene-structure');
   if (phaseGraphSection) inputBlocks.push(`  ${phaseGraphSection.replace(/\n/g, '\n  ')}`);
 
   const povRestrictedHint = storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0
@@ -883,8 +911,11 @@ ${slotXml}
   inputBlocks.push(`  <prose-profile hint="The story's authorial voice — mechanism mix, register, devices. Beats inherit voice from this profile, not from prompt instructions.">
 ${proseProfileBlock}
   </prose-profile>`);
+  const planFormat = narrative.storySettings?.proseFormat ?? 'prose';
+  const planFormatBlock = buildPlanFormatBlock(planFormat);
+  if (planFormatBlock) inputBlocks.push(`  ${planFormatBlock.replace(/\n/g, '\n  ')}`);
   if (beatSlotsBlock) inputBlocks.push(`  ${beatSlotsBlock.replace(/\n/g, '\n  ')}`);
-  const planPhaseGraphSection = buildActivePhaseGraphSection(narrative);
+  const planPhaseGraphSection = buildActivePhaseGraphSection(narrative, 'scene-plan');
   if (planPhaseGraphSection) inputBlocks.push(`  ${planPhaseGraphSection.replace(/\n/g, '\n  ')}`);
   if (completedBeatsBlock) inputBlocks.push(`  <completed-beats>\n${completedBeatsBlock}\n  </completed-beats>`);
   if (adjacentBlock) inputBlocks.push(`  <previous-scene-tail>${adjacentBlock}</previous-scene-tail>`);
@@ -1604,7 +1635,7 @@ ${b.propositions.map(p => `      <proposition>${p.content}</proposition>`).join(
 
   const inputBlocks: string[] = [];
   if (profileSection.trim()) inputBlocks.push(`  <prose-profile hint="The story's authorial voice. Always law — rules in <instructions> apply only when this is silent on a given dimension.">${profileSection}\n  </prose-profile>`);
-  const proseProsePhaseGraphSection = buildActivePhaseGraphSection(narrative);
+  const proseProsePhaseGraphSection = buildActivePhaseGraphSection(narrative, 'scene-prose');
   if (proseProsePhaseGraphSection) inputBlocks.push(`  ${proseProsePhaseGraphSection.replace(/\n/g, '\n  ')}`);
   if (adjacentProseBlock) inputBlocks.push(`  ${adjacentProseBlock.replace(/\n/g, '\n  ')}`);
   if (planBlock) inputBlocks.push(`  ${planBlock.replace(/\n/g, '\n  ')}`);

@@ -304,7 +304,9 @@ describe('AnalysisRunner — Phase 3: Arcs', () => {
     await analysisRunner.start(job, () => {});
     // Assembly still runs — arcGroups passed to assembleNarrative
     expect(assembleNarrative).toHaveBeenCalledTimes(1);
-    const arcGroups = vi.mocked(assembleNarrative).mock.calls[0][4];
+    // Runner now uses the options-object overload — arcGroups lives there.
+    const opts = vi.mocked(assembleNarrative).mock.calls[0][3] as { arcGroups?: { name: string; sceneIndices: number[] }[] } | undefined;
+    const arcGroups = opts?.arcGroups;
     // Fallback creates "Arc 1", "Arc 2", etc.
     expect(arcGroups).toBeDefined();
     expect(arcGroups![0].name).toMatch(/^Arc \d+$/);
@@ -312,7 +314,9 @@ describe('AnalysisRunner — Phase 3: Arcs', () => {
   it('stores arc groups on job for assembly', async () => {
     const job = createMockJob();
     await analysisRunner.start(job, () => {});
-    const arcGroups = vi.mocked(assembleNarrative).mock.calls[0][4];
+    // Runner now uses the options-object overload — arcGroups lives there.
+    const opts = vi.mocked(assembleNarrative).mock.calls[0][3] as { arcGroups?: { name: string; sceneIndices: number[] }[] } | undefined;
+    const arcGroups = opts?.arcGroups;
     expect(arcGroups).toBeDefined();
     expect(arcGroups![0].name).toBe('The Beginning');
     expect(arcGroups![0].sceneIndices).toEqual([0, 1]);

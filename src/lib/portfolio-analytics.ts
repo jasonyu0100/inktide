@@ -12,7 +12,7 @@
  * Pure derivation — no IO, no rendering.
  */
 
-import type { NarrativeState, Thread, Scene } from '@/types/narrative';
+import type { Belief, NarrativeState, Thread, Scene, WorldBuild } from '@/types/narrative';
 import { NARRATOR_AGENT_ID } from '@/types/narrative';
 import { MARKET_OPENING_VOLUME } from '@/lib/constants';
 import { MARKET_FOCUS_K } from '@/lib/constants';
@@ -31,7 +31,65 @@ import {
   classifyThreadCategory,
   type ThreadCategory,
 } from '@/lib/thread-category';
-import { applyThreadDelta, decayUntouchedBeliefsForScene } from '@/lib/thread-log';
+import { applyThreadDelta, decayUntouchedBeliefsForScene, newNarratorBelief } from '@/lib/thread-log';
+
+// ── Replay seed ────────────────────────────────────────────────────────────
+
+/** Copy a thread into the "just introduced, no evidence applied" state used as
+ *  the replay seed. Preserves the LLM's prior beliefs (logits + initialVolume
+ *  carried on the thread at introduction time) so the market's opening price
+ *  is the in-world base rate, not uniform. Mirrors the seeding rules in
+ *  computeDerivedEntities (store.tsx) so replays line up with the canonical
+ *  state. */
+function seedThreadCopy(t: Thread): Thread {
+  const existing = t.beliefs?.[NARRATOR_AGENT_ID];
+  let belief: Belief;
+  if (existing) {
+    belief = {
+      logits: existing.logits.slice(),
+      volume: existing.volume,
+      volatility: existing.volatility,
+    };
+  } else {
+    const rawPriorProbs = Array.isArray((t as { priorProbs?: unknown }).priorProbs)
+      ? ((t as { priorProbs?: unknown }).priorProbs as unknown[]).map((v) =>
+          typeof v === 'number' ? v : NaN,
+        )
+      : undefined;
+    belief = newNarratorBelief(t.outcomes.length, MARKET_OPENING_VOLUME, rawPriorProbs);
+  }
+  return {
+    ...t,
+    beliefs: { [NARRATOR_AGENT_ID]: belief },
+    threadLog: { nodes: {}, edges: [] },
+    closedAt: undefined,
+    closeOutcome: undefined,
+    resolutionQuality: undefined,
+  };
+}
+
+/** Pull the unmutated introduction-time copy of a thread from its source event
+ *  (world commit's expansionManifest.newThreads or a scene's newThreads). The
+ *  live narrative.threads[id] is post-replay and would carry already-applied
+ *  deltas; the source event preserves the prior. Falls back to narrative.threads
+ *  for malformed data with no clear introduction. */
+function findOriginalThread(
+  narrative: NarrativeState,
+  threadId: string,
+): Thread | undefined {
+  for (const wb of Object.values(narrative.worldBuilds ?? {})) {
+    for (const t of wb.expansionManifest.newThreads ?? []) {
+      if (t.id === threadId) return t;
+    }
+  }
+  for (const scene of Object.values(narrative.scenes ?? {})) {
+    if ((scene as Scene).kind !== 'scene') continue;
+    for (const t of (scene as Scene).newThreads ?? []) {
+      if (t.id === threadId) return t;
+    }
+  }
+  return narrative.threads[threadId];
+}
 
 // ── Snapshot-level aggregates ──────────────────────────────────────────────
 
@@ -186,38 +244,42 @@ export function replayThreadsAtIndex(
   resolvedKeys: string[],
   targetIndex: number,
 ): Record<string, Thread> {
-  // Only threads introduced by targetIndex belong in the replay — a market
-  // that hasn't opened in the story shouldn't render anywhere in the UI
-  // (portfolio, dashboard, graphs, snapshot export). Threads with no
-  // openedAt (or whose openedAt predates resolvedKeys) count as always-open
-  // for backward-compat with malformed data.
-  const visibleKeys = new Set(
-    resolvedKeys.slice(0, Math.min(targetIndex, resolvedKeys.length - 1) + 1),
-  );
   const threads: Record<string, Thread> = {};
+  const limit = Math.min(targetIndex, resolvedKeys.length - 1);
+
+  // Threads with no openedAt (or whose openedAt predates the resolved timeline)
+  // are treated as always-open for backward-compat with malformed data; seed
+  // them upfront from their stored prior. Mirrors computeDerivedEntities.
+  const resolvedKeySet = new Set(resolvedKeys);
   for (const [id, t] of Object.entries(narrative.threads)) {
-    if (t.openedAt && !visibleKeys.has(t.openedAt)) continue;
-    threads[id] = {
-      ...t,
-      beliefs: {
-        [NARRATOR_AGENT_ID]: {
-          logits: new Array(t.outcomes.length).fill(0),
-          volume: MARKET_OPENING_VOLUME,
-          volatility: 0,
-        },
-      },
-      threadLog: { nodes: {}, edges: [] },
-      closedAt: undefined,
-      closeOutcome: undefined,
-      resolutionQuality: undefined,
-    };
+    if (!t.openedAt || !resolvedKeySet.has(t.openedAt)) {
+      threads[id] = seedThreadCopy(t);
+    }
   }
 
-  const limit = Math.min(targetIndex, resolvedKeys.length - 1);
   for (let i = 0; i <= limit; i++) {
     const key = resolvedKeys[i];
+    const wb = narrative.worldBuilds?.[key] as WorldBuild | undefined;
+    if (wb) {
+      // Seed threads introduced by this world commit from their unmutated
+      // prior — the LLM's in-world base rate, not uniform.
+      for (const t of wb.expansionManifest.newThreads ?? []) {
+        if (!threads[t.id]) threads[t.id] = seedThreadCopy(t);
+      }
+      // Apply the commit's market evidence the same way computeDerivedEntities
+      // does, so a world-only narrative doesn't show its threads as untouched.
+      for (const tm of wb.expansionManifest.threadDeltas ?? []) {
+        const thread = threads[tm.threadId];
+        if (!thread) continue;
+        threads[tm.threadId] = applyThreadDelta(thread, tm, wb.id);
+      }
+      continue;
+    }
     const scene = narrative.scenes[key] as Scene | undefined;
     if (!scene || scene.kind !== 'scene') continue;
+    for (const t of scene.newThreads ?? []) {
+      if (!threads[t.id]) threads[t.id] = seedThreadCopy(t);
+    }
     const touched = new Set<string>();
     for (const tm of scene.threadDeltas ?? []) {
       if (!threads[tm.threadId]) continue;
@@ -348,17 +410,12 @@ export function buildThreadTrajectory(
   threadId: string,
   resolvedEntryKeys: string[],
 ): ThreadTrajectoryPoint[] {
-  const thread0 = narrative.threads[threadId];
+  const thread0 = findOriginalThread(narrative, threadId);
   if (!thread0) return [];
-  // Seed from the thread's declared initial outcomes; narrator belief at uniform.
-  let cursor: Thread = {
-    ...thread0,
-    beliefs: { [NARRATOR_AGENT_ID]: { logits: new Array(thread0.outcomes.length).fill(0), volume: 2, volatility: 0 } },
-    threadLog: { nodes: {}, edges: [] },
-    closedAt: undefined,
-    closeOutcome: undefined,
-    resolutionQuality: undefined,
-  };
+  // Seed from the thread's introduction-time prior — preserves the LLM's
+  // in-world base rate (e.g. 39/30/30 for a contested 3-outcome market)
+  // instead of forcing uniform.
+  let cursor: Thread = seedThreadCopy(thread0);
   // A thread that opens mid-story has no market state to plot before openedAt.
   // Plotting a flat line from scene 0 to the opening scene misrepresents the
   // market as priced-before-it-existed. Skip iterations before openedAt when
@@ -377,8 +434,20 @@ export function buildThreadTrajectory(
   }
   const points: ThreadTrajectoryPoint[] = [];
   for (let i = startIdx; i < resolvedEntryKeys.length; i++) {
-    const sceneId = resolvedEntryKeys[i];
-    const scene = narrative.scenes[sceneId] as Scene | undefined;
+    const key = resolvedEntryKeys[i];
+    const wb = narrative.worldBuilds?.[key] as WorldBuild | undefined;
+    if (wb) {
+      // World commits can carry threadDeltas — apply them silently (no
+      // trajectory point emitted, since the x-axis is scene-only) so the
+      // running cursor matches the canonical state.
+      for (const tm of wb.expansionManifest.threadDeltas ?? []) {
+        if (tm.threadId !== threadId) continue;
+        cursor = applyThreadDelta(cursor, tm, wb.id);
+      }
+      if (cursor.closedAt) break;
+      continue;
+    }
+    const scene = narrative.scenes[key] as Scene | undefined;
     if (!scene || scene.kind !== 'scene') continue;
     sceneOrdinal++;
     const touched = new Set<string>();
@@ -386,7 +455,7 @@ export function buildThreadTrajectory(
     for (const tm of scene.threadDeltas ?? []) {
       if (tm.threadId === threadId) {
         touched.add(threadId);
-        threadsMap[threadId] = applyThreadDelta(threadsMap[threadId], tm, sceneId);
+        threadsMap[threadId] = applyThreadDelta(threadsMap[threadId], tm, key);
       }
     }
     if (!touched.has(threadId)) {
@@ -402,7 +471,7 @@ export function buildThreadTrajectory(
     points.push({
       sceneIndex: i,
       sceneOrdinal,
-      sceneId,
+      sceneId: key,
       probs,
       entropy: normalizedEntropy(probs),
       volume: belief?.volume ?? 0,
@@ -450,26 +519,14 @@ export function buildPortfolioTrajectory(
   const limit = Math.min(currentSceneIndex, resolvedEntryKeys.length - 1);
   if (limit < 0) return [];
 
-  const seedThread = (t: Thread): Thread => ({
-    ...t,
-    beliefs: {
-      [NARRATOR_AGENT_ID]: {
-        logits: new Array(t.outcomes.length).fill(0),
-        volume: MARKET_OPENING_VOLUME,
-        volatility: 0,
-      },
-    },
-    threadLog: { nodes: {}, edges: [] },
-    closedAt: undefined,
-    closeOutcome: undefined,
-    resolutionQuality: undefined,
-  });
-
   const threads: Record<string, Thread> = {};
   // Threads with no openedAt (or unresolvable openedAt) are treated as
   // always-open, matching replayThreadsAtIndex.
+  const resolvedKeySet = new Set(resolvedEntryKeys);
   for (const [id, t] of Object.entries(narrative.threads)) {
-    if (!t.openedAt) threads[id] = seedThread(t);
+    if (!t.openedAt || !resolvedKeySet.has(t.openedAt)) {
+      threads[id] = seedThreadCopy(t);
+    }
   }
 
   const points: PortfolioTrajectoryPoint[] = [];
@@ -479,14 +536,27 @@ export function buildPortfolioTrajectory(
   for (let i = 0; i <= limit; i++) {
     const key = resolvedEntryKeys[i];
 
-    // Introduce threads that open at this key, before applying deltas — same
-    // ordering as replayThreadsAtIndex.
-    for (const [id, t] of Object.entries(narrative.threads)) {
-      if (t.openedAt === key && !threads[id]) threads[id] = seedThread(t);
+    const wb = narrative.worldBuilds?.[key] as WorldBuild | undefined;
+    if (wb) {
+      // Seed and apply commit-level evidence — no point emitted, axis is
+      // scene-only. Cursor still moves so the next scene point reflects any
+      // world-commit attention spend.
+      for (const t of wb.expansionManifest.newThreads ?? []) {
+        if (!threads[t.id]) threads[t.id] = seedThreadCopy(t);
+      }
+      for (const tm of wb.expansionManifest.threadDeltas ?? []) {
+        const thread = threads[tm.threadId];
+        if (!thread) continue;
+        threads[tm.threadId] = applyThreadDelta(thread, tm, wb.id);
+      }
+      continue;
     }
 
     const scene = narrative.scenes[key] as Scene | undefined;
     if (!scene || scene.kind !== 'scene') continue;
+    for (const t of scene.newThreads ?? []) {
+      if (!threads[t.id]) threads[t.id] = seedThreadCopy(t);
+    }
     sceneOrdinal++;
 
     const touched = new Set<string>();

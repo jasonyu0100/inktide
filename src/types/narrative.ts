@@ -1,3 +1,5 @@
+import type { StoredBriefing } from './briefing';
+
 // ── Thread (Prediction-Market Model) ────────────────────────────────────────
 //
 // Threads are prediction markets over named outcomes. Each scene emits
@@ -124,6 +126,24 @@ export type ThreadLog = {
 /** Storyline: long-running thread spanning multiple arcs. Incident: short-lived, resolves within 1-2 arcs. */
 export type ThreadKind = "storyline" | "incident";
 
+/**
+ * How far the thread's resolution sits from any given step.
+ *
+ *   - short  ~ 2-3 scenes (immediate trust, fight outcome, single reveal)
+ *   - medium ~ within one arc, 4-8 scenes (sect rivalry, stolen artifact)
+ *   - long   ~ multi-arc, segment-spanning (faction war, succession)
+ *   - epic   ~ series-spanning or open-ended (eternal life, dynastic
+ *              succession, ascending the cultivation ladder). May never
+ *              close cleanly; carries fractional evidence even at the
+ *              upper end of the magnitude scale.
+ *
+ * Used by the market-calibration prompts (Principle 8: scope-distance
+ * attenuation) to scale evidence magnitude. A local win that resolves a
+ * `short` thread at +3 contributes only +0.2..+0.5 to a coupled `epic`
+ * thread on the same scene.
+ */
+export type ThreadHorizon = 'short' | 'medium' | 'long' | 'epic';
+
 export type Thread = {
   id: string;
   participants: ThreadParticipant[];
@@ -133,6 +153,11 @@ export type Thread = {
    *  Multi-outcome enumerates possibilities. The softmax over per-outcome
    *  logits gives the probability distribution. */
   outcomes: string[];
+  /** Structural distance from any given scene to the thread's resolution.
+   *  Set when the thread opens; static for the thread's lifetime. Drives
+   *  evidence-magnitude attenuation via Principle 8 in the calibration
+   *  prompts. Undefined treated as 'medium' for backwards compatibility. */
+  horizon?: ThreadHorizon;
   /** Per-agent beliefs over the outcomes. Phase 1: beliefs[NARRATOR_AGENT_ID]
    *  is the only entry and serves as the "market price." Phase 5 adds
    *  per-character beliefs; market price becomes an aggregate. */
@@ -978,6 +1003,15 @@ export type ReasoningGraphSnapshot = {
   arcName: string;
   sceneCount: number;
   summary: string;
+  /** Engine settings under which the CRG was built — force preference,
+   *  reasoning mode, network bias. Persisted so scene generation (and
+   *  later stages) can inherit the same tilt the CRG was reasoned under,
+   *  keeping CRG → scene execution synchronised. */
+  arcSettings?: {
+    forcePreference?: "fate" | "world" | "system" | "chaos" | "freeform";
+    reasoningMode?: "divergent" | "deduction" | "abduction" | "induction";
+    networkBias?: "inside" | "outside" | "neutral";
+  };
 };
 
 export type ReasoningNodeSnapshot = {
@@ -1343,6 +1377,11 @@ export type NarrativeState = {
    * field is the only mutation users perform on phase-graph state.
    */
   currentPhaseGraphId?: string;
+  /** Last market briefing the operator generated for this narrative — held
+   *  so the Brief tab can hydrate without re-calling the LLM, and so a
+   *  stale briefing flags itself when the head moves on or the active
+   *  branch changes. */
+  lastBriefing?: StoredBriefing;
   createdAt: number;
   updatedAt: number;
 };
@@ -1735,8 +1774,10 @@ export type StorySettings = {
   povMode: POVMode;
   /** Character IDs designated as POV characters (empty = use all anchors) */
   povCharacterIds: string[];
-  /** High-level story direction / north star prompt */
+  /** High-level story direction / north star prompt for scene generation */
   storyDirection: string;
+  /** High-level world direction / north star prompt for world expansion */
+  worldDirection: string;
   /** Negative prompt — things the AI should avoid */
   storyConstraints: string;
   /** Target arc length in scenes */
@@ -1819,20 +1860,13 @@ export type StorySettings = {
    * persistent north-star.
    */
   autoClearDirection: boolean;
-  /**
-   * Cached AI-generated health report (markdown brief). Populated when
-   * HealthReportModal streams a report; re-opening the modal shows the
-   * cached version without re-calling the LLM. Cleared when a health
-   * expansion commits (the report has been acted on). Empty = no cached
-   * report, modal auto-generates on open.
-   */
-  lastHealthReport: string;
 };
 
 export const DEFAULT_STORY_SETTINGS: StorySettings = {
   povMode: "free",
   povCharacterIds: [],
   storyDirection: "",
+  worldDirection: "",
   storyConstraints: "",
   targetArcLength: 4,
   rhythmPreset: "",
@@ -1856,7 +1890,6 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   defaultReasoningSize: "medium",
   defaultNetworkBias: "neutral",
   autoClearDirection: true,
-  lastHealthReport: "",
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────
@@ -2041,6 +2074,9 @@ export type AnalysisChunkResult = {
     participantNames: string[];
     /** Named outcomes the market prices. ≥2 entries. Default ["yes","no"]. */
     outcomes: string[];
+    /** Structural distance from any scene to resolution. Drives evidence
+     *  attenuation downstream. Undefined treated as 'medium'. */
+    horizon?: ThreadHorizon;
     development: string;
     relatedThreadDescriptions?: string[];
   }[];
@@ -2132,8 +2168,16 @@ export type AnalysisJob = {
   narrativeId?: string;
   /** Embedding progress tracking */
   embeddingProgress?: { completed: number; total: number };
-  /** Skip the beat plan extraction phase (Phase 2) — structure-only analysis */
+  /** Skip the beat plan extraction phase (Phase 2) — structure-only analysis.
+   *  Forced true when extractionMode === 'world' (no scenes → no plans). */
   skipPlanExtraction?: boolean;
+  /** What the assembled NarrativeState should contain.
+   *  - 'full' (default): scenes + arcs + per-batch world commits — ready to read.
+   *  - 'world': one consolidated world commit only — a seed the operator
+   *    builds their own continuity on top of. The scene-by-scene LLM
+   *    extraction still runs (we need it to discover entities); only the
+   *    assembled output differs. */
+  extractionMode?: 'world' | 'full';
   createdAt: number;
   updatedAt: number;
 };
@@ -2216,6 +2260,7 @@ export type GraphViewMode =
   | "reasoning"
   | "network"
   | "market"
+  | "brief"
   | "phase";
 
 // ── Chat Threads ──────────────────────────────────────────────────────────────

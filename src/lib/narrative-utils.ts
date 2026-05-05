@@ -589,7 +589,11 @@ export function selectFocusWindow(
   return scored.slice(0, k).map((x) => x.t);
 }
 
-/** Count distinct arcs where a thread received bandwidth (derived from scenes). */
+/** Count distinct arcs where a thread received bandwidth (derived from scenes).
+ *  Walks every scene in the narrative regardless of branch — use
+ *  `computeBranchArcCoverage` when you need branch-scoped numbers (the
+ *  inspector's "N/M arcs" pill, for instance, must match the canvas's
+ *  ARC counter which is always branch-scoped). */
 export function computeActiveArcs(threadId: string, scenes: Record<string, Scene>): number {
   const arcIds = new Set<string>();
   for (const scene of Object.values(scenes)) {
@@ -598,6 +602,33 @@ export function computeActiveArcs(threadId: string, scenes: Record<string, Scene
     }
   }
   return arcIds.size;
+}
+
+/** Branch-scoped version of `computeActiveArcs`.
+ *
+ *  Returns `{ touched, total }` for the resolved branch:
+ *    - `touched` = arcs on this branch that the thread actually fired in
+ *    - `total`   = arcs on this branch (zero coerced to 1 for safe display)
+ *
+ *  Both numbers stay aligned with the canvas's ARC N/M counter, so a thread
+ *  that read "6/6 arcs" against the unscoped narrative will read "4/4 arcs"
+ *  here when the active branch only owns 4 arcs. */
+export function computeBranchArcCoverage(
+  threadId: string,
+  scenes: Record<string, Scene>,
+  resolvedKeys: string[],
+): { touched: number; total: number } {
+  const branchArcIds = new Set<string>();
+  const touchedArcIds = new Set<string>();
+  for (const key of resolvedKeys) {
+    const scene = scenes[key];
+    if (!scene) continue;
+    if (scene.arcId) branchArcIds.add(scene.arcId);
+    if (scene.threadDeltas.some((tm) => tm.threadId === threadId)) {
+      if (scene.arcId) touchedArcIds.add(scene.arcId);
+    }
+  }
+  return { touched: touchedArcIds.size, total: branchArcIds.size || 1 };
 }
 
 // ── Abandonment detection ──────────────────────────────────────────────────

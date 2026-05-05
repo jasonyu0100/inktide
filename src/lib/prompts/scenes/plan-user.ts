@@ -13,6 +13,7 @@
 import { BEAT_FN_LIST, BEAT_MECHANISM_LIST } from "@/types/narrative";
 import { PROMPT_BEAT_TAXONOMY } from "../core/beat-taxonomy";
 import { PROMPT_PROPOSITIONS } from "../core/propositions";
+import { phaseGraphPriorityEntry } from "../phase/application";
 import { WORDS_PER_BEAT, BEATS_PER_SCENE, WORDS_PER_SCENE } from "@/lib/constants";
 
 export function buildScenePlanUserPrompt(args: {
@@ -28,7 +29,7 @@ ${args.inputBlocks}
   <priority rank="2">BEAT SLOTS — sampler-determined fn/mechanism; the story's voice. Copy verbatim, don't override.</priority>
   <priority rank="3">PROSE PROFILE — voice rules; beats inherit voice from the profile, not from prompt instructions.</priority>
   <priority rank="4">SCENE GROUNDING — visual + continuity per participant; bridge propositions glue to these where the moment naturally calls them up.</priority>
-  <priority rank="5">PHASE GRAPH (PRG) — ambient working model. When the scene has slack (multiple compulsory orderings serve, mechanisms admit choice), let the phase shape what the beats foreground (active patterns surface as bridge props, current rules constrain visibly, accumulated pressures find subtext).</priority>
+  ${phaseGraphPriorityEntry(5, "scene-plan")}
 </integration-hierarchy>
 
 <beat-sizing hint="Each beat is a ~${WORDS_PER_BEAT}-word chunk. Consistent rhythm: no bloated paragraphs, no thin lines.">

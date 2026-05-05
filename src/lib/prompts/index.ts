@@ -166,12 +166,6 @@ export {
   buildSearchSynthesisPrompt,
 } from './search';
 
-// ── Health Report Prompts ───────────────────────────────────────────────────
-export {
-  HEALTH_REPORT_SYSTEM,
-  buildHealthReportPrompt,
-} from './health';
-
 // ── Image Prompt Builder ────────────────────────────────────────────────────
 export {
   COMPOSITION_BY_KIND,

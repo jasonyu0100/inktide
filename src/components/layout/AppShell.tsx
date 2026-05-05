@@ -2,7 +2,7 @@
 
 import { type ReactNode, useState, useCallback, useRef } from 'react';
 import TopBar from '@/components/topbar/TopBar';
-import { StarField, ZodiacWheel } from '@/components/effects/StarField';
+import { StarField } from '@/components/effects/StarField';
 import { IconChevronLeft, IconChevronRight } from '@/components/icons';
 
 type AppShellProps = {
@@ -70,7 +70,6 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
       {/* Ambient cosmic background — dim nebulae + star field behind workspace */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="cosmos-container cosmos-workspace absolute inset-0 z-0">
-          <ZodiacWheel />
           <div className="nebula nebula-1" />
           <div className="nebula nebula-2" />
           <div className="nebula nebula-3" />

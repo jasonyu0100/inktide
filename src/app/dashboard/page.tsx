@@ -39,7 +39,7 @@ export default function DashboardPage() {
   return (
     <>
       <div className="min-h-screen bg-bg-base flex flex-col">
-        {/* Cosmic background — nebulae + zodiac wheel + star field */}
+        {/* Cosmic background — nebulae + star field */}
         <div className="pointer-events-none fixed inset-0 overflow-hidden">
           <div className="cosmos-container absolute inset-0 z-0">
             <div className="nebula nebula-1" />

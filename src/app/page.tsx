@@ -1,7 +1,7 @@
 "use client";
 
 import { StoryCard } from "@/components/cards/StoryCard";
-import { StarField, ZodiacWheel } from "@/components/effects/StarField";
+import { StarField } from "@/components/effects/StarField";
 import ApiKeyModal from "@/components/topbar/ApiKeyModal";
 import { CreationWizard } from "@/components/wizard/CreationWizard";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
@@ -298,10 +298,9 @@ export default function HomePage() {
   return (
     <>
       <div className="min-h-screen bg-bg-base flex flex-col">
-        {/* Cosmic background — nebulae + zodiac wheel + star field */}
+        {/* Cosmic background — nebulae + star field */}
         <div className="pointer-events-none fixed inset-0 overflow-hidden">
           <div className="cosmos-container absolute inset-0 z-0">
-            <ZodiacWheel />
             <div className="nebula nebula-1" />
             <div className="nebula nebula-2" />
             <div className="nebula nebula-3" />
@@ -333,7 +332,7 @@ export default function HomePage() {
           </p>
 
           <h1 className="animate-fade-up-delay-1 text-5xl sm:text-7xl font-bold tracking-[-0.03em] text-center leading-[1.05] max-w-160 sm:whitespace-nowrap">
-            <span className="text-white">Text that </span>
+            <span className="text-white">Worlds that </span>
             <span
               className="glitch-wrapper text-white italic"
               data-text="breathe..."

@@ -4,6 +4,7 @@ import type { NarrativeState, Character, Location, Thread } from '@/types/narrat
 vi.mock('@/lib/ai/api', () => ({
   callGenerate: vi.fn(),
   callGenerateStream: vi.fn(),
+  resolveReasoningBudget: vi.fn(() => 0),
   SYSTEM_PROMPT: 'Test system prompt',
 }));
 // Mock narrative context (not relevant to the paths under test)

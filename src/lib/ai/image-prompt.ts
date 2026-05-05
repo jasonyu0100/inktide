@@ -5,7 +5,7 @@
  */
 
 import type { NarrativeState } from '@/types/narrative';
-import { callGenerate } from './api';
+import { callGenerate, resolveReasoningBudget } from './api';
 import { parseJson } from './json';
 import { MAX_TOKENS_SMALL } from '@/lib/constants';
 import { logError, logInfo } from '@/lib/system-logger';
@@ -69,7 +69,7 @@ export async function suggestImagePrompt(
 
   let raw: string;
   try {
-    raw = await callGenerate(prompt, IMAGE_PROMPT_SYSTEM, MAX_TOKENS_SMALL, 'suggestImagePrompt');
+    raw = await callGenerate(prompt, IMAGE_PROMPT_SYSTEM, MAX_TOKENS_SMALL, 'suggestImagePrompt', undefined, resolveReasoningBudget(narrative));
   } catch (err) {
     logError('suggestImagePrompt call failed', err, {
       source: 'other',

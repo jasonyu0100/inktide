@@ -6,7 +6,7 @@
  * threadLogs, or payoffMatrices — writes only to scene.gameAnalysis.
  */
 
-import { callGenerateStream } from "./api";
+import { callGenerateStream, resolveReasoningBudget } from "./api";
 import { parseJson } from "./json";
 import { buildGameTheorySystemPrompt, buildGameTheoryUserPrompt } from "@/lib/prompts/scenes/game-theory";
 import { ANALYSIS_MODEL } from "@/lib/constants";
@@ -15,7 +15,6 @@ import { resolvePlanForBranch, resolveProseForBranch } from "@/lib/narrative-uti
 import {
   ACTION_AXIS_LABELS,
   GAME_TYPE_LABELS,
-  REASONING_BUDGETS,
 } from "@/types/narrative";
 import type {
   ActionAxis,
@@ -406,9 +405,7 @@ export async function generateSceneGameAnalysis(
   const systemPrompt = buildGameTheorySystemPrompt();
   const userPrompt = buildGameTheoryUserPrompt(buildSceneContext(narrative, scene, branchId));
 
-  const reasoningBudget =
-    REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? "low"] ||
-    undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
 
   let fullText = "";
   let fullReasoning = "";

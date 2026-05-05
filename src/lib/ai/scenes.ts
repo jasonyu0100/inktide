@@ -1,10 +1,10 @@
 import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatPlan, BeatProse, BeatProseMap, Proposition, ThreadLogNodeType, SystemNode, Thread, Artifact, Character, Location as LocationEntity, LocationProminence } from '@/types/narrative';
-import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATOR_AGENT_ID } from '@/types/narrative';
+import { DEFAULT_STORY_SETTINGS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATOR_AGENT_ID } from '@/types/narrative';
 import { isThreadAbandoned, isThreadClosed, clampEvidence, FORCE_BANDS, fmtBand } from '@/lib/narrative-utils';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { newNarratorBelief } from '@/lib/thread-log';
 import { normalizeTimeDelta } from '@/lib/time-deltas';
-import { callGenerate, callGenerateStream } from './api';
+import { callGenerate, callGenerateStream, resolveReasoningBudget } from './api';
 import { GENERATE_SCENES_SYSTEM } from '@/lib/prompts/scenes/generate';
 import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
@@ -372,7 +372,7 @@ ${threads ? `  <threads-to-activate>\n${threads}\n  </threads-to-activate>` : ''
   let lastErr: unknown;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const reasoningBudget = REASONING_BUDGETS[storySettings.reasoningLevel] || undefined;
+      const reasoningBudget = resolveReasoningBudget(narrative);
       const useStream = !!(onToken || onReasoning);
       const raw = useStream
         ? await callGenerateStream(prompt, GENERATE_SCENES_SYSTEM, onToken ?? (() => {}), MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL, reasoningBudget, onReasoning)
@@ -992,7 +992,7 @@ export async function generateScenePlan(
     },
   });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
 
   // ── Phase 1 — extract compulsory propositions from scene structure ──
   const compulsoryPropositions = await extractCompulsoryPropositions(narrative, scene, onReasoning, reasoningBudget);
@@ -1104,7 +1104,7 @@ export async function editScenePlan(
     beatMechanismList: BEAT_MECHANISM_LIST.join('|'),
   });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
   const raw = await callGenerate(prompt, buildScenePlanEditSystemPrompt(narrative.title), MAX_TOKENS_SMALL, 'editScenePlan', GENERATE_MODEL, reasoningBudget);
 
   const parsed = parseJson(raw, 'editScenePlan') as { beats?: unknown[]; propositions?: unknown[] };
@@ -1183,6 +1183,7 @@ export function splitIntoWordChunks(prose: string, targetWords: number = WORDS_P
 }
 
 export async function reverseEngineerScenePlan(
+  narrative: NarrativeState | null,
   prose: string,
   summary: string,
   onToken?: (token: string, accumulated: string) => void,
@@ -1190,7 +1191,7 @@ export async function reverseEngineerScenePlan(
   // Wrap with retry logic and validation
   return retryWithValidation(
     async () => {
-      const result = await reverseEngineerScenePlanOnce(prose, summary, onToken);
+      const result = await reverseEngineerScenePlanOnce(narrative, prose, summary, onToken);
 
       // Validate beat plan structure
       const planValidation = validateBeatPlan({ beats: result.plan.beats });
@@ -1221,6 +1222,7 @@ export async function reverseEngineerScenePlan(
  * Single attempt at extracting a beat plan from prose (internal, for retry logic)
  */
 async function reverseEngineerScenePlanOnce(
+  narrative: NarrativeState | null,
   prose: string,
   summary: string,
   onToken?: (token: string, accumulated: string) => void,
@@ -1244,9 +1246,10 @@ async function reverseEngineerScenePlanOnce(
   });
 
   let accumulated = '';
+  const reasoningBudget = resolveReasoningBudget(narrative);
   const raw = onToken
-    ? await callGenerateStream(prompt, systemPrompt, (token) => { accumulated += token; onToken(token, accumulated); }, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL, undefined, undefined, ANALYSIS_TEMPERATURE)
-    : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL, undefined, true, ANALYSIS_TEMPERATURE);
+    ? await callGenerateStream(prompt, systemPrompt, (token) => { accumulated += token; onToken(token, accumulated); }, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL, reasoningBudget, undefined, ANALYSIS_TEMPERATURE)
+    : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL, reasoningBudget, true, ANALYSIS_TEMPERATURE);
 
   type BeatData = { fn: string; mechanism: string; what: string; propositions: unknown[] };
   const parsed = parseJson(raw, 'reverseEngineerScenePlan') as { beats?: unknown[] };
@@ -1408,7 +1411,7 @@ WHEN MODIFYING A BEAT:
 
 Scene-level "propositions" should capture the overall takeaways from the scene.`;
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
   const raw = onReasoning
     ? await callGenerateStream(prompt, systemPrompt, () => {}, MAX_TOKENS_SMALL, 'rewriteScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
     : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'rewriteScenePlan', GENERATE_MODEL, reasoningBudget);
@@ -1615,7 +1618,7 @@ ${b.propositions.map(p => `      <proposition>${p.content}</proposition>`).join(
     <method type="through-action">Houses materialized from whiteness as he walked.</method>
     <method type="environmental">The mountain disappeared into grey nothing above the rooftops.</method>
   </example>
-  <example proposition="Fang Yuan views other people as tools">
+  <example proposition="Snape views other people as tools">
     <method type="thought">His gaze swept over the crowd. Resources. Obstacles. Nothing between.</method>
     <method type="action">He stepped around the old woman without breaking stride.</method>
     <method type="dialogue">"They'll serve. Or they won't." He didn't look back.</method>
@@ -1650,7 +1653,7 @@ ${b.propositions.map(p => `      <proposition>${p.content}</proposition>`).join(
     direction: guidance,
   });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
 
   // Helper: Generate raw prose from LLM
   const generateRaw = async (): Promise<string> => {

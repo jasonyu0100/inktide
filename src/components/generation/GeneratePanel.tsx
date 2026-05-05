@@ -1039,19 +1039,19 @@ export function GeneratePanel({
                 {/* Action buttons */}
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleGenerateReasoningGraph()}
+                    onClick={handleGenerateArc}
                     disabled={loading || generatingGraph || (!newArc && !currentArc)}
                     className="flex-1 py-2.5 rounded-lg bg-white/10 hover:bg-white/16 text-text-primary font-semibold transition disabled:opacity-30"
                   >
-                    {generatingGraph ? "Planning..." : "Plan Arc"}
+                    Generate Arc
                   </button>
                   <button
-                    onClick={handleGenerateArc}
+                    onClick={() => handleGenerateReasoningGraph()}
                     disabled={loading || generatingGraph || (!newArc && !currentArc)}
                     className="py-2.5 px-4 rounded-lg border border-white/8 hover:bg-white/6 text-text-dim hover:text-text-primary transition disabled:opacity-30 text-[12px]"
-                    title="Skip planning and generate directly"
+                    title="Build a reasoning graph before generating scenes"
                   >
-                    Quick
+                    {generatingGraph ? "Planning..." : "Extended"}
                   </button>
                   {narrative.storySettings?.usePacingChain && (
                     <button

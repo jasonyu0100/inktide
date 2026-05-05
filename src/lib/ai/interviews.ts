@@ -9,7 +9,7 @@
  * batch of questions tailored to one subject's recorded continuity.
  */
 
-import { callGenerate } from "@/lib/ai/api";
+import { callGenerate, resolveReasoningBudget } from "@/lib/ai/api";
 import { narrativeContext } from "@/lib/ai/context";
 import { FatalApiError } from "@/lib/ai/errors";
 import { parseJson } from "@/lib/ai/json";
@@ -99,7 +99,7 @@ export async function runInterview(
           undefined,
           `interview:${q.questionType}`,
           ANALYSIS_MODEL,
-          undefined,
+          resolveReasoningBudget(narrative),
           true,
           ANALYSIS_TEMPERATURE,
         );
@@ -189,7 +189,7 @@ export async function generateInterviewBatch(
     undefined,
     `generateInterviewBatch${category ? `:${category}` : ""}`,
     ANALYSIS_MODEL,
-    undefined,
+    resolveReasoningBudget(narrative),
     true,
     ANALYSIS_TEMPERATURE,
   );

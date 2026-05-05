@@ -673,6 +673,8 @@ const initialState: AppState = {
     narrativeConstraints: "",
     characterRotationEnabled: true,
     minScenesBetweenCharacterFocus: 3,
+    mode: "extended",
+    operations: ["reasoning-graph", "scenes"],
   },
   viewState: defaultViewState,
   resolvedEntryKeys: [],

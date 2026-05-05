@@ -534,7 +534,7 @@ const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
         cost: "$0.05",
       },
       {
-        call: "generateScenePlan + extractPropositions + generateSceneProse",
+        call: "generateScenePlan + generateSceneProse",
         count: "×8",
         model: "mixed",
         note: "Plan + prose for the intro arc's scenes",
@@ -562,18 +562,11 @@ const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
         cost: "$0.03",
       },
       {
-        call: "generateScenePlan.extractPropositions",
-        count: "×4",
-        model: "2.5 Flash",
-        note: "Phase 1 — compulsory propositions from summary",
-        cost: "$0.05",
-      },
-      {
         call: "generateScenePlan",
         count: "×4",
         model: "2.5 Flash",
-        note: "Phase 2 — beats glue propositions into flow",
-        cost: "$0.08",
+        note: "Single call — extracts compulsory propositions and glues them into the beat plan in one pass",
+        cost: "$0.13",
       },
       {
         call: "generateSceneProse",

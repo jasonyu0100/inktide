@@ -218,6 +218,7 @@ export function SceneProseView({
         if (planSource === 'prose') {
           try {
             const { plan, beatProseMap } = await reverseEngineerScenePlan(
+              narrative,
               result.prose,
               scene.summary ?? '',
             );

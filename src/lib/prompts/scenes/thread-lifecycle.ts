@@ -48,15 +48,6 @@ import {
  */
 export function promptThreadLifecycle(): string {
   return `
-<threads-as-prediction-markets>
-  <model>Each thread is a question + 2+ outcomes; the market prices a distribution.</model>
-  <shape default="binary">["yes", "no"]</shape>
-  <shape>Multi-outcome enumerates possibilities.</shape>
-  <example category="weak">"Will [Name] go to the store?" — picaresque/satirical forms excepted.</example>
-  <example category="strong" register="narrative">Can Ayesha clear her grandfather's name before the tribunal ends? — binary.</example>
-  <example category="strong" register="multi">Who claims the throne? — Stark / Lannister / Targaryen / nobody.</example>
-</threads-as-prediction-markets>
-
 <thread-lifecycle>${THREAD_LIFECYCLE_DOC}</thread-lifecycle>
 
 ${PROMPT_MARKET_PRINCIPLES}
@@ -68,54 +59,30 @@ ${PROMPT_MARKET_EVIDENCE_SCALE}
 ${PROMPT_MARKET_LOGTYPE_TABLE}
 
 <evidence-vs-volume>
-  <invariant>Evidence ≠ volume. Evidence changes WHAT we believe; volumeDelta changes ATTENTION.</invariant>
-  <rule>Mentioned-but-stable → evidence=0, volumeDelta=+1.</rule>
-  <rule>One event can move multiple threads; each rationale cites its driving sentence.</rule>
+  Evidence changes WHAT we believe; volumeDelta changes ATTENTION. Mentioned-but-stable → evidence=0, volumeDelta=+1. One event can move multiple threads; each rationale cites its driving sentence.
 </evidence-vs-volume>
 
 <attrition>
-  <rule>Volume decays geometrically (α=0.9) on untouched scenes; 5+ scenes of silence drops a thread below the abandonment floor.</rule>
-  <rule>Pulse the spine threads to keep them breathing; let trivial threads decay.</rule>
+  Volume decays geometrically (α=0.9) on untouched scenes; 5+ scenes of silence drops a thread below the abandonment floor. Pulse spine threads to keep them breathing; let trivial threads decay.
 </attrition>
 
 <opening-priors scope="new threads only">
-  <shape>priorProbs: number[] aligned with outcomes[], summing to ~1, reasoned in-world NOT from genre expectations.</shape>
-  <example question="Will this 15-year-old succeed at a lifetime of cultivation?" world="most fail">[0.10, 0.30, 0.40, 0.20] (success, partial, death, misuse) — NOT uniform, NOT POV-inflated.</example>
-  <rule>Binary defaults [0.5, 0.5] only when genuinely symmetric.</rule>
-  <fallback>Omit when indistinguishable; the system clamps to the opening guardrail.</fallback>
+  priorProbs: number[] aligned with outcomes[], summing to ~1, reasoned from the world's established base rates NOT from genre or rhetorical expectation. The prior reflects what a clear-eyed observer inside this world would price the outcomes at given everything established so far. Binary defaults [0.5, 0.5] only when genuinely symmetric. Omit when indistinguishable; the system clamps to the opening guardrail.
 </opening-priors>
 
-<outcome-expansion frequency="rare">
-  <intent>addOutcomes when a scene genuinely opens a new possibility (new contender, structural reveal).</intent>
-  <rule>Joins at logit=0; same-scene evidence can shift it.</rule>
-  <rule>Closed threads reject expansion.</rule>
-</outcome-expansion>
+<closure-and-abandonment>
+  Auto-close: margin(top − second) ≥ τ_effective AND logType ∈ {payoff, twist} AND |e| ≥ 3. τ_effective = ${MARKET_TAU_CLOSE} × (1 + ln(volume/opening)/3) — high-volume threads need proportionally more decisive finishes. Abandon: volume below floor → out of market. Reopen via volumeDelta ≥ 2.
+</closure-and-abandonment>
 
-<closure>
-  <criterion>margin(top − second) ≥ τ_effective AND logType ∈ {payoff, twist} AND |e| ≥ 3.</criterion>
-  <formula name="tau-effective">τ_effective = ${MARKET_TAU_CLOSE} × (1 + ln(volume/opening)/3)</formula>
-  <rationale>High-volume threads need proportionally more decisive finishes.</rationale>
-  <rule>Saturation alone doesn't close.</rule>
-  <rule>A delta that expands outcomes cannot also close.</rule>
-</closure>
-
-<abandonment>
-  <criterion>Volume below floor → out of market (not closed).</criterion>
-  <reopening>Requires volumeDelta ≥ 2 (resurrection).</reopening>
-</abandonment>
-
-<market-as-narrative-prior hint="How current prices shape the next scene.">
-  <state condition="high-p" threshold="p ≳ 0.75">Lean into the leader unless logType is twist.</state>
-  <state condition="contested" threshold="entropy ≳ 0.9">Crossroads — either side fair game.</state>
-  <state condition="high-volatility" threshold="≳ 0.5">Twists are earned, readers expect them.</state>
+<market-state-actions hint="How current prices shape the next scene.">
+  <state condition="high-p (p ≳ 0.75)">Lean into the leader unless logType is twist.</state>
+  <state condition="contested (entropy ≳ 0.9)">Crossroads — either side fair game.</state>
+  <state condition="high-volatility (≳ 0.5)">Twists are earned; readers expect them.</state>
   <state condition="low-volatility-high-p">Saturating; next committal logType closes.</state>
   <state condition="low-volume-long-silence">Decaying; don't force evidence unless resurrecting.</state>
-</market-as-narrative-prior>
+</market-state-actions>
 
-<emission-budget>
-  <rule>Touch 2–6 threads per scene; focus-window threads first.</rule>
-  <rule>Emit evidence ONLY where the scene actually moves or maintains attention.</rule>
-</emission-budget>
+<emission-budget>Touch 2–6 threads per scene; focus-window threads first. Emit evidence ONLY where the scene actually moves or maintains attention.</emission-budget>
 `;
 }
 

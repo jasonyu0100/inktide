@@ -32,17 +32,12 @@ export { buildBeatAnalystSystemPrompt } from './scenes/analyze';
 export { buildScenePlanEditSystemPrompt } from './scenes/edit';
 export { buildSceneProseSystemPrompt } from './scenes/prose';
 export type { SceneProseSystemPromptArgs } from './scenes/prose';
-export {
-  EXTRACT_PROPOSITIONS_SYSTEM,
-  buildExtractPropositionsUserPrompt,
-} from './scenes/extract-propositions';
 export { buildGenerateScenesPrompt } from './scenes/generate';
 export type { GenerateScenesPromptArgs } from './scenes/generate';
 export {
   buildScenePlanUserPrompt,
   buildScenePlanEditUserPrompt,
   buildBeatAnalystUserPrompt,
-  buildCompulsoryPropositionsBlock,
 } from './scenes/plan-user';
 export {
   buildProseInstructionsWithPlan,

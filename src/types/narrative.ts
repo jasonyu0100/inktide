@@ -41,7 +41,7 @@ export type ThreadParticipant = {
  *
  *  Examples:
  *  - "Harry caused the glass of the boa enclosure to vanish at the zoo." (payoff)
- *  - "Fang Yuan observed that Bai Ning Bing's right arm gu worm is disrupted." (setup)
+ *  - "Harry observed that Draco's wand was misfiring during the duel." (setup)
  *  - "Uncle Vernon confiscated Harry's Hogwarts letter before Harry could read it." (resistance)
  *  - "Dumbledore arrived at the Ministry with evidence of Voldemort's return." (transition)
  *  - "The prophecy was mentioned again in Snape's memory." (callback)
@@ -130,12 +130,12 @@ export type ThreadKind = "storyline" | "incident";
  * How far the thread's resolution sits from any given step.
  *
  *   - short  ~ 2-3 scenes (immediate trust, fight outcome, single reveal)
- *   - medium ~ within one arc, 4-8 scenes (sect rivalry, stolen artifact)
+ *   - medium ~ within one arc, 4-8 scenes (house rivalry, stolen artifact)
  *   - long   ~ multi-arc, segment-spanning (faction war, succession)
- *   - epic   ~ series-spanning or open-ended (eternal life, dynastic
- *              succession, ascending the cultivation ladder). May never
- *              close cleanly; carries fractional evidence even at the
- *              upper end of the magnitude scale.
+ *   - epic   ~ series-spanning or open-ended (defeating the Dark Lord,
+ *              dynastic succession, the chosen-one's coming-of-age).
+ *              May never close cleanly; carries fractional evidence even
+ *              at the upper end of the magnitude scale.
  *
  * Used by the market-calibration prompts (Principle 8: scope-distance
  * attenuation) to scale evidence magnitude. A local win that resolves a
@@ -186,7 +186,7 @@ export type CharacterRole = "anchor" | "recurring" | "transient";
  *
  *  Examples:
  *  - "Harry Potter has a lightning-bolt scar on his forehead." (trait)
- *  - "Fang Yuan is a reincarnated demon who conceals his true cultivation rank." (secret)
+ *  - "Snape is secretly working as a double agent for the Order." (secret)
  *  - "The Dursley household is hostile to anything associated with magic." (trait)
  *  - "Gandalf carries the elven ring Narya, the Ring of Fire." (relation)
  *  - "The Iron Throne is forged from a thousand surrendered swords." (history)
@@ -506,7 +506,7 @@ export type ProseProfile = {
   tense?: string;
   /** Structural cadence of prose */
   sentenceRhythm?: string;
-  /** How deep the narrator goes into character interiority */
+  /** How deep the narrator goes into the POV's interior — character thought in fiction; reasoning and evidentiary framing in non-fiction; agent's modelled state under the rule set in simulation. */
   interiority?: string;
   /** Proportion of prose given to dialogue */
   dialogueWeight?: string;
@@ -1910,6 +1910,34 @@ export type AutoAction =
   | "climax"
   | "resolution";
 
+/**
+ * Per-cycle operations the auto-engine can run, in pipeline order. The
+ * operator's active set is `AutoConfig.operations`; the order in this
+ * declaration is the canonical execution order (operations later in the
+ * list depend on earlier ones), so the engine sorts by this enum order
+ * regardless of how the operator listed them.
+ *
+ *   - reasoning-graph: build a per-arc CRG before structures (extended only)
+ *   - scenes: emit scene structures, deltas, and summaries (always required)
+ *
+ * Future operations may include 'plans', 'prose', and 'expand-world'; the
+ * shape is forward-compatible.
+ */
+export const AUTO_OPERATIONS = ['reasoning-graph', 'scenes'] as const;
+export type AutoOperation = (typeof AUTO_OPERATIONS)[number];
+
+/** High-level mode presets that pick an `operations` list. `quick` skips
+ *  the CRG for fast structural iteration; `extended` runs the CRG first
+ *  so scenes are grounded in a planned causal graph. */
+export type AutoMode = 'quick' | 'extended';
+
+/** Operations enabled by each preset. The operator can override the
+ *  active list per-narrative via `AutoConfig.operations`. */
+export const AUTO_MODE_PRESETS: Record<AutoMode, AutoOperation[]> = {
+  quick: ['scenes'],
+  extended: ['reasoning-graph', 'scenes'],
+};
+
 export type AutoConfig = {
   endConditions: AutoEndCondition[];
   minArcLength: number;
@@ -1923,6 +1951,13 @@ export type AutoConfig = {
   narrativeConstraints: string;
   characterRotationEnabled: boolean;
   minScenesBetweenCharacterFocus: number;
+  /** Mode preset — picks the default operations list when `operations` is
+   *  unset. Defaults to 'extended' (current behaviour: CRG → scenes). */
+  mode: AutoMode;
+  /** Active per-cycle operations. Source of truth — `mode` only picks a
+   *  preset for it. Operator overrides land here directly. The engine
+   *  sorts by AUTO_OPERATIONS canonical order before running. */
+  operations: AutoOperation[];
 };
 
 export type AutoRunLog = {

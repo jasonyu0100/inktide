@@ -16,7 +16,7 @@ export function buildSearchSynthesisPrompt(args: {
 }): string {
   const { context, query, propositionCount, aggregateSceneCount, directSceneCount } = args;
   return `<inputs>
-  <retrieval-context hint="Proposition-primary architecture: top propositions are the primary evidence; aggregate scene membership locates them in narrative context; direct scene summaries are supplementary thematic context.">
+  <retrieval-context hint="Proposition-primary architecture: top propositions are the primary evidence; aggregate scene membership locates them in narrative context; direct scene summaries are supplementary thematic context. Propositions span all three registers — in simulation register they may be rule statements, scenario inputs, parameter values, agent decisions, or rule-driven outcomes, all searchable like any other claim.">
 ${context}
   </retrieval-context>
   <query>${query}</query>

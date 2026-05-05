@@ -25,23 +25,22 @@ ${body}
 
 const FORMAT_BODIES: Partial<Record<ProseFormat, string>> = {
   screenplay: `  <accent>
-    <rule>Sparser propositions per beat than prose — each minute of stage time covers fewer claims than a paragraph. If a beat in 'what' lists 5+ propositions, the screen rendering will compress or drop them. Distribute load across more beats rather than packing.</rule>
-    <rule>Dialogue-heavier overall. Whenever 2+ participants share a substantive beat, prefer dialogue mechanism over thought / narration / action — stage lives in audible exchange.</rule>
-    <rule>Externalisable mechanisms (dialogue / action / environment / document) are the screenplay's native register. The plan's mix should lean toward these where the story earns it.</rule>
+    <rule>Sparser propositions per beat than prose — each minute of stage time covers fewer claims than a paragraph. Distribute load across more beats; don't pack 5+ propositions into one. Lean dialogue-heavy: when 2+ participants share a substantive beat, prefer dialogue over thought/narration/action — stage lives in audible exchange.</rule>
+    <rule>Externalisable mechanisms (dialogue, action, environment, document) are the screenplay's native register. The plan's mix should lean toward these where the narrative earns it.</rule>
   </accent>
-  <interior-mechanisms hint="Beats with mechanism = thought / narration / memory / comic must externalise downstream. Leave the externalisation door open in 'what'.">
-    <rule name="thought">'what' must scaffold the EXTERNALISATION ROUTE — what V.O. line carries the calculation, OR what visible micro-expression / blocking carries it without words, OR what visualised aperture / INSERT shot stages the interior. Don't write 'X recognises Y as Z' — write 'X registers Y; V.O. names it as Z' or 'X's hand stills; the basin's hum drops'. The prose stage must know HOW to externalise this beat without inventing.</rule>
-    <rule name="narration">'what' must scaffold a TIME-COMPRESSION DEVICE — series of shots, montage, V.O. bridge, or a moments-later cut. 'Three weeks of routines compressed' is fine; 'time passes' isn't.</rule>
-    <rule name="memory">'what' must name both the TRIGGER (what the present-day character sees / hears) and the FLASHBACK CONTENT (what the cut shows). The trigger lives in the present-day action; the cut delivers the recall.</rule>
-    <rule name="comic">'what' must name the VISIBLE COMIC DEVICE — the reaction shot, the visual undercut, the off-beat punchline cue. Comic register on stage is bodily, not authorial.</rule>
+  <interior-mechanisms hint="Beats with mechanism = thought / narration / memory / comic must externalise downstream. Leave the externalisation route in 'what'.">
+    <rule name="thought">Scaffold the EXTERNALISATION ROUTE — V.O. line carrying the calculation, OR visible micro-expression / blocking carrying it without words, OR visualised aperture / INSERT shot staging the interior. "X registers Y; V.O. names it as Z" or "X's hand stills; the basin's hum drops" — not "X recognises Y as Z".</rule>
+    <rule name="narration">Scaffold a TIME-COMPRESSION DEVICE — series of shots, montage, V.O. bridge, moments-later cut. "Three weeks of routines compressed" is fine; "time passes" isn't.</rule>
+    <rule name="memory">Name both the TRIGGER (what the present-day character sees/hears) and the FLASHBACK CONTENT (what the cut shows).</rule>
+    <rule name="comic">Name the VISIBLE COMIC DEVICE — reaction shot, visual undercut, off-beat punchline cue. Comic register on stage is bodily, not authorial.</rule>
   </interior-mechanisms>
-  <blank-stage-test hint="Apply during planning, not just rendering.">For any beat with two or more participants holding still in a room, name what the camera will see and hear: a candle burning down, a guard's footfall in the corridor, sweat at a temple, an INSERT cut into a body or a memory. Stillness needs texture or staging; if 'what' offers neither, the rendering will fail.</blank-stage-test>`,
+  <blank-stage-test>For any beat with two or more participants holding still in a room, name what the camera will see and hear: a candle burning down, a guard's footfall, sweat at a temple, an INSERT cut. Stillness needs texture or staging; if 'what' offers neither, the rendering will fail.</blank-stage-test>`,
   meta: `  <accent>
     <rule>Beats render as fluid prose interleaved with bracketed engine observations. Plan the prose for natural beats — the overlay rides on top, it doesn't replace propositions.</rule>
     <rule>Inflection-point beats (thread commitments, payoffs, reveals, arc pivots) carry observation density; quiet beats run prose-only. Plan with that rhythm in mind — don't pack every beat with shift-worthy material.</rule>
   </accent>`,
   simulation: `  <accent>
     <rule>Beats render as fluid prose interleaved with bracketed in-world system logs. Plan the prose for natural beats — the HUD overlay rides on top.</rule>
-    <rule>The world's diegetic rules / systems / state transitions surface as logs at the moments they fire in-fiction. Plan beats so those moments land cleanly — a [System Rule Triggered] should follow a beat that DEPICTS the trigger, not narrates around it.</rule>
+    <rule>The work's diegetic rules / systems / state transitions surface as logs at the moments they fire in the source — examples span the simulation range: a treaty clause holding under pressure (counterfactual), a tariff threshold crossing and the modelled trade-flow response (policy model), a containment trigger firing as R0 drifts past 1 (pandemic scenario), an agent-based cascade tipping (social-dynamics), a finding or anomaly log (research paper), a cultivation tier gate or LitRPG stat change (rule-systematised fiction). Defer to the narrative's own declared scenario; do NOT default to LitRPG. Plan beats so the trigger moment lands cleanly — a [System Rule Triggered] should follow a beat that DEPICTS the trigger, not narrates around it.</rule>
   </accent>`,
 };

@@ -5,7 +5,7 @@
  */
 
 export const EXPANSION_SUGGEST_SYSTEM =
-  'You are a world-building advisor. Read the current world structure and propose a tight rationale for the next expansion — what new entities (characters, locations, threads, system rules) the world needs and HOW they connect to existing ones. Use entity NAMES, never raw IDs. Return ONLY valid JSON matching the schema in the user prompt.';
+  'You are a world-building advisor. Read the current world structure and propose a tight rationale for the next expansion — what new entities (characters, locations, threads, system rules) the narrative needs and HOW they connect to existing ones. Use entity NAMES, never raw IDs. Return ONLY valid JSON matching the schema in the user prompt.';
 
 export type WorldExpansionSize = 'small' | 'medium' | 'large' | 'exact';
 
@@ -61,20 +61,20 @@ ${narrativeContext}
 </inputs>
 
 <instructions>
-  <step name="suggest">Based on the full narrative context and structural analysis, suggest what NEW elements the world needs to become richer, more interconnected, and more alive.</step>
-  <step name="size-tuning">${size === 'small' ? 'Focus on the single highest-impact addition that fills the biggest gap.' : size === 'medium' ? 'Suggest a balanced mix that deepens existing structures and introduces new dynamics.' : 'Think broadly about new factions, regions, and power structures that transform the world.'}</step>
+  <step name="suggest">Based on the full narrative context and structural analysis, suggest what NEW elements the narrative needs to become richer, more interconnected, and more load-bearing.</step>
+  <step name="size-tuning">${size === 'small' ? 'Focus on the single highest-impact addition that fills the biggest gap.' : size === 'medium' ? 'Suggest a balanced mix that deepens existing structures and introduces new dynamics.' : 'Think broadly about new factions, regions, and power or organising structures that transform the narrative world.'}</step>
   <principle name="extend-not-replace">World expansion EXTENDS the existing world — new entities must be deeply woven into the existing fabric through relationships, location hierarchies, and shared threads. Every new element should make the existing world burn brighter.</principle>
   <consider>
-    <factor>Which existing characters lack connections? Who needs rivals, allies, mentors, or kin?</factor>
-    <factor>Where is the location hierarchy too flat? Which locations need sub-locations (districts, rooms, landmarks)?</factor>
-    <factor>Are there implied characters, factions, or organizations referenced in scenes but never created?</factor>
-    <factor>What contrasting environments would create richer scene variety (urban vs wild, sacred vs profane)?</factor>
-    <factor>Which threads need new participants to develop? What new open questions would deepen the story?</factor>
-    <factor>Are there power structures, social hierarchies, or institutional relationships missing?</factor>
-    <factor>Could adding characters from different social strata or factions create productive tension?</factor>
+    <factor>Which existing characters lack connections? Who needs counterparts whose relation type fits the narrative's register and naturally drives tension?</factor>
+    <factor>Where is the location hierarchy too flat? Which locations need finer-grained sub-locations or rule-relevant venues (markets, borderlands, test sites, research floors) that fit the narrative's spatial or institutional structure?</factor>
+    <factor>Are there implied characters, factions, organisations, institutions, schools-of-thought, or institutional agents referenced but never created?</factor>
+    <factor>What contrasting environments would create richer variety across scenes — pick the contrast that fits the narrative's register?</factor>
+    <factor>Which threads need new participants to develop? What new open questions would deepen the narrative — including rule-driven questions about whether the modelled system reaches further states under different conditions?</factor>
+    <factor>Are there power structures, social hierarchies, institutional relationships, methodological lineages, or rule subsystems (gates, propagation laws, causal couplings) missing?</factor>
+    <factor>Could adding entities from different strata, factions, schools-of-thought, or rule-jurisdictions create productive tension?</factor>
   </consider>
-  <rule name="emphasize-connection">Suggestion must emphasize HOW new elements connect to existing ones — not just what to add, but who they relate to and where they fit in the hierarchy.</rule>
-  <rule name="naming">Use character NAMES and location NAMES — never raw IDs.</rule>
+  <rule name="emphasize-connection">Suggestion must emphasize HOW new elements connect to existing ones — not just what to add, but what they relate to and where they fit in the hierarchy.</rule>
+  <rule name="naming">Use entity NAMES (characters, locations, artifacts) — never raw IDs.</rule>
 </instructions>
 
 <output-format>

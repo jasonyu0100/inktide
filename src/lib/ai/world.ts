@@ -1,5 +1,6 @@
 import type { NarrativeState, Scene, Character, Location, Thread, ThreadDelta, ThreadHorizon, RelationshipEdge, SystemNode, SystemDelta, SystemNodeType, Artifact, OwnershipDelta, TieDelta, WorldDelta, RelationshipDelta, WorldBuild } from '@/types/narrative';
 import { resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS, NARRATOR_AGENT_ID } from '@/types/narrative';
+import { resolveReasoningBudget } from './api';
 import { clampEvidence, isThreadAbandoned, isThreadClosed, FORCE_REFERENCE_MEANS, FORCE_BANDS, fmtBand } from '@/lib/narrative-utils';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { normalizeTimeDelta } from '@/lib/time-deltas';
@@ -10,7 +11,7 @@ import { sanitizeSystemDelta, systemEdgeKey, makeSystemIdAllocator, resolveSyste
 import { callGenerate, callGenerateStream } from './api';
 import {
   ARC_DIRECTION_SYSTEM,
-  STORY_DIRECTION_SYSTEM,
+  NARRATIVE_DIRECTION_SYSTEM,
   EXPANSION_SUGGEST_SYSTEM,
   EXPAND_WORLD_SYSTEM,
   GENERATE_NARRATIVE_SYSTEM,
@@ -138,7 +139,7 @@ export async function suggestArcDirection(
 
   const prompt = buildSuggestArcDirectionPrompt({ narrativeContext: ctx });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
   const raw = await callGenerate(prompt, ARC_DIRECTION_SYSTEM, undefined, 'suggestDirection', undefined, reasoningBudget);
   const parsed = parseJson(raw, 'suggestDirection') as {
     arcName?: string; direction?: string; sceneSuggestion?: string; suggestedSceneCount?: number;
@@ -161,8 +162,8 @@ export async function suggestAutoDirection(
 
   const prompt = buildSuggestAutoDirectionPrompt({ narrativeContext: ctx });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, STORY_DIRECTION_SYSTEM, undefined, 'suggestStoryDirection', undefined, reasoningBudget);
+  const reasoningBudget = resolveReasoningBudget(narrative);
+  const raw = await callGenerate(prompt, NARRATIVE_DIRECTION_SYSTEM, undefined, 'suggestStoryDirection', undefined, reasoningBudget);
   const parsed = parseJson(raw, 'suggestStoryDirection') as { direction?: string };
   return parsed.direction ?? '';
 }
@@ -362,7 +363,7 @@ export async function suggestWorldExpansion(
     sizeConfig: EXPANSION_SIZE_CONFIG[size],
   });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
   const raw = await callGenerate(prompt, EXPANSION_SUGGEST_SYSTEM, undefined, 'suggestWorldExpansion', undefined, reasoningBudget);
   const parsed = parseJson(raw, 'suggestWorldExpansion') as { suggestion: string };
   return parsed.suggestion;
@@ -480,7 +481,7 @@ ${m.recommendation === 'depth' ? EXPANSION_STRATEGY_PROMPTS.depth : m.recommenda
     nextKId,
   });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
   const raw = onReasoning
     ? await callGenerateStream(prompt, EXPAND_WORLD_SYSTEM, () => {}, undefined, 'expandWorld', undefined, reasoningBudget, onReasoning)
     : await callGenerate(prompt, EXPAND_WORLD_SYSTEM, undefined, 'expandWorld', undefined, reasoningBudget);
@@ -647,7 +648,7 @@ export async function generateNarrative(
     systemClimaxBand: fmtBand(FORCE_BANDS.system.climax),
   });
 
-  const reasoningBudget = REASONING_BUDGETS['medium'] || undefined;
+  const reasoningBudget = REASONING_BUDGETS['medium'];
   const raw = onReasoning
     ? await callGenerateStream(prompt, GENERATE_NARRATIVE_SYSTEM, () => {}, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL, reasoningBudget, onReasoning)
     : await callGenerate(prompt, GENERATE_NARRATIVE_SYSTEM, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL, reasoningBudget);
@@ -1024,7 +1025,7 @@ export async function detectPatterns(
     existingAntiPatterns,
   });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
 
   const raw = onToken
     ? await callGenerateStream(

@@ -219,7 +219,7 @@ function analyzeBalance(
   if (avg.fate === max) {
     return {
       dominant: "fate",
-      recommendation: "Thread progression is leading. Balance by deepening entity inner worlds (character interiority in narrative; institutional, source, or authorial depth in non-fiction) and grounding the work in world detail.",
+      recommendation: "Thread progression is leading. Balance by deepening entity inner worlds (character interiority in fiction; institutional, source, or authorial depth in non-fiction; modelled state of agents under the rule set in simulation) and grounding the work in world detail.",
     };
   }
   if (avg.world === max) {
@@ -246,15 +246,16 @@ const PHASE_RANGES: Record<StoryPhase, [number, number]> = {
 };
 
 // Phase guidance is register-aware. The phase structure is preserved, but the
-// guidance language covers fiction, memoir, essay, and research registers so the
-// engine doesn't hard-code Western dramatic assumptions.
+// guidance language covers fiction, non-fiction (memoir, essay, reportage,
+// research), and simulation (works modelling real-life events from a stated
+// rule set) so the engine doesn't hard-code Western dramatic assumptions.
 const PHASE_GUIDANCE: Record<StoryPhase, string> = {
-  setup: "Establish entities, world, and initial threads. Plant seeds — do not harvest them. Focus on world-building and entity introduction. In argument/inquiry work: introduce the terrain, stakes, and opening questions; defer the thesis.",
-  rising: "Complications emerge. Threads should advance from seeded to active. Alternate tension with quieter entity-focused beats. In argument/inquiry: evidence accumulates, counterpositions surface, the question sharpens.",
-  midpoint: "A significant shift — revelation, reversal, or escalation. At least one thread should reach escalating or critical status. In argument/inquiry: the decisive pivot — a finding that reorients the frame, or a counterargument that cannot be dismissed.",
-  escalation: "Building toward convergence. Multiple threads should be escalating. Increase pressure but maintain breathing room. In argument/inquiry: claims consolidate, evidence concentrates, alternative explanations get eliminated.",
-  climax: "Peak convergence. Resolve critical threads. Entity inner worlds should pay off. In argument/inquiry: the thesis is fully articulated and evidenced; the strongest counterposition is answered; findings lock in.",
-  resolution: "Wind down. Resolve remaining threads. Focus on aftermath and entity growth. In argument/inquiry: implications, limits, and open questions — what this changes, what it doesn't, what comes next.",
+  setup: "Establish entities, world, and initial threads. Plant seeds — do not harvest them. Focus on world-building and entity introduction. In argument/inquiry work: introduce the terrain, stakes, and opening questions; defer the thesis. In simulation work: state the rule set, initial conditions, and the open question about which modelled state the world will reach.",
+  rising: "Complications emerge. Threads should advance from seeded to active. Alternate tension with quieter entity-focused beats. In argument/inquiry: evidence accumulates, counterpositions surface, the question sharpens. In simulation: the rules begin firing — gates approach, thresholds are tested, agents act, early cascades surface and constrain the path.",
+  midpoint: "A significant shift — revelation, reversal, or escalation. At least one thread should reach escalating or critical status. In argument/inquiry: the decisive pivot — a finding that reorients the frame, or a counterargument that cannot be dismissed. In simulation: a rule-driven discontinuity — a threshold crossed, a regime change, a cascade that forecloses prior trajectories.",
+  escalation: "Building toward convergence. Multiple threads should be escalating. Increase pressure but maintain breathing room. In argument/inquiry: claims consolidate, evidence concentrates, alternative explanations get eliminated. In simulation: the rule set forces the issue — coupled systems tighten, contingent paths collapse, the modelled outcome narrows.",
+  climax: "Peak convergence. Resolve critical threads. Entity inner worlds should pay off. In argument/inquiry: the thesis is fully articulated and evidenced; the strongest counterposition is answered; findings lock in. In simulation: the rules deliver the verdict — the modelled system reaches its terminal state, the gate opens or stays shut, the cascade resolves.",
+  resolution: "Wind down. Resolve remaining threads. Focus on aftermath and entity growth. In argument/inquiry: implications, limits, and open questions — what this changes, what it doesn't, what comes next. In simulation: the post-state — what the rule set produced, which conditions were sensitive, which counterfactuals remain open.",
 };
 
 export function getStoryPhase(progress: number): StoryPhase {
@@ -462,7 +463,7 @@ function buildDirective(
     sections.push(`TOO FEW ACTIVE THREADS (${pressure.threads.activeCount}) — seed or activate new threads.`);
   }
 
-  // 3. Entity development (characters in fiction; authors/sources/institutions in non-fiction)
+  // 3. Entity development (characters in fiction; authors/sources/institutions in non-fiction; agents/actors/modelled-systems in simulation)
   sections.push("\n## Entity Inner Worlds");
   if (pressure.entities.shallow.length > 0) {
     const shallowList = pressure.entities.shallow
@@ -485,7 +486,7 @@ function buildDirective(
   // 4. System knowledge
   sections.push("\n## System Knowledge Pressure");
   if (pressure.knowledge.isStagnant) {
-    sections.push("WORLD-BUILDING STAGNANT — introduce new rules, systems, or concepts. Expand what we know about how this world works (in non-fiction: deepen the explanatory framework or introduce new evidence).");
+    sections.push("WORLD-BUILDING STAGNANT — introduce new rules, systems, or concepts. Expand what we know about how this world works (in non-fiction: deepen the explanatory framework or introduce new evidence; in simulation: surface a new rule, gate, threshold, or coupling in the modelled rule set).");
   }
 
   // 5. Balance recommendation

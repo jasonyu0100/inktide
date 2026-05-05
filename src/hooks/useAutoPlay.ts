@@ -104,34 +104,45 @@ export function useAutoPlay() {
           directive,
         };
 
-        logInfo(`Arc ${executingArc}/${plan.arcCount}: building reasoning graph (${sceneCount} scenes)`, {
-          source: 'auto-play',
-          operation: 'reasoning-graph',
-          details: { arcIndex: executingArc, sceneCount, arcLabel },
-        });
+        const useCrg = autoConfig.operations.includes('reasoning-graph');
+        let reasoningGraph: Awaited<ReturnType<typeof generateReasoningGraph>> | undefined;
 
-        const reasoningGraph = await generateReasoningGraph(
-          activeNarrative,
-          resolvedEntryKeys,
-          headIndex,
-          sceneCount,
-          directive,
-          arcLabel,
-          undefined,
-          coordinationPlanContext,
-        );
+        if (useCrg) {
+          logInfo(`Arc ${executingArc}/${plan.arcCount}: building reasoning graph (${sceneCount} scenes)`, {
+            source: 'auto-play',
+            operation: 'reasoning-graph',
+            details: { arcIndex: executingArc, sceneCount, arcLabel },
+          });
 
-        if (cancelledRef.current) return;
+          reasoningGraph = await generateReasoningGraph(
+            activeNarrative,
+            resolvedEntryKeys,
+            headIndex,
+            sceneCount,
+            directive,
+            arcLabel,
+            undefined,
+            coordinationPlanContext,
+          );
 
-        logInfo(`Arc ${executingArc}/${plan.arcCount}: reasoning graph ready (${reasoningGraph.nodes.length} nodes, ${reasoningGraph.edges.length} edges) — generating scenes`, {
-          source: 'auto-play',
-          operation: 'reasoning-graph',
-          details: {
-            arcIndex: executingArc,
-            nodeCount: reasoningGraph.nodes.length,
-            edgeCount: reasoningGraph.edges.length,
-          },
-        });
+          if (cancelledRef.current) return;
+
+          logInfo(`Arc ${executingArc}/${plan.arcCount}: reasoning graph ready (${reasoningGraph.nodes.length} nodes, ${reasoningGraph.edges.length} edges) — generating scenes`, {
+            source: 'auto-play',
+            operation: 'reasoning-graph',
+            details: {
+              arcIndex: executingArc,
+              nodeCount: reasoningGraph.nodes.length,
+              edgeCount: reasoningGraph.edges.length,
+            },
+          });
+        } else {
+          logInfo(`Arc ${executingArc}/${plan.arcCount}: skipping reasoning graph (quick mode) — generating scenes`, {
+            source: 'auto-play',
+            operation: 'reasoning-graph',
+            details: { arcIndex: executingArc, sceneCount, arcLabel, mode: 'quick' },
+          });
+        }
 
         dispatch({ type: 'SET_AUTO_STATUS', message: `Arc ${executingArc}/${plan.arcCount}: writing ${sceneCount} scenes…` });
 
@@ -142,17 +153,19 @@ export function useAutoPlay() {
 
         if (cancelledRef.current) return;
 
-        const arc = {
-          ...baseArc,
-          reasoningGraph: {
-            nodes: reasoningGraph.nodes,
-            edges: reasoningGraph.edges,
-            arcName: reasoningGraph.arcName,
-            sceneCount: reasoningGraph.sceneCount,
-            summary: reasoningGraph.summary,
-            arcSettings: reasoningGraph.arcSettings,
-          },
-        };
+        const arc = reasoningGraph
+          ? {
+              ...baseArc,
+              reasoningGraph: {
+                nodes: reasoningGraph.nodes,
+                edges: reasoningGraph.edges,
+                arcName: reasoningGraph.arcName,
+                sceneCount: reasoningGraph.sceneCount,
+                summary: reasoningGraph.summary,
+                arcSettings: reasoningGraph.arcSettings,
+              },
+            }
+          : baseArc;
 
         dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: activeBranchId });
 
@@ -262,33 +275,43 @@ export function useAutoPlay() {
       }
 
       const sceneCount = pickArcLength(autoConfig, pressure);
+      const useCrg = autoConfig.operations.includes('reasoning-graph');
+      let reasoningGraph: Awaited<ReturnType<typeof generateReasoningGraph>> | undefined;
 
-      dispatch({ type: 'SET_AUTO_STATUS', message: `Reasoning ${sceneCount}-scene arc…` });
-      logInfo(`Building reasoning graph (${sceneCount} scenes, ${phase} phase)`, {
-        source: 'auto-play',
-        operation: 'reasoning-graph',
-        details: { sceneCount, storyPhase: phase },
-      });
+      if (useCrg) {
+        dispatch({ type: 'SET_AUTO_STATUS', message: `Reasoning ${sceneCount}-scene arc…` });
+        logInfo(`Building reasoning graph (${sceneCount} scenes, ${phase} phase)`, {
+          source: 'auto-play',
+          operation: 'reasoning-graph',
+          details: { sceneCount, storyPhase: phase },
+        });
 
-      const reasoningGraph = await generateReasoningGraph(
-        activeNarrative,
-        resolvedEntryKeys,
-        headIndex,
-        sceneCount,
-        directive,
-        'Continuation',
-      );
+        reasoningGraph = await generateReasoningGraph(
+          activeNarrative,
+          resolvedEntryKeys,
+          headIndex,
+          sceneCount,
+          directive,
+          'Continuation',
+        );
 
-      if (cancelledRef.current) return;
+        if (cancelledRef.current) return;
 
-      logInfo(`Reasoning graph ready (${reasoningGraph.nodes.length} nodes, ${reasoningGraph.edges.length} edges) — generating scenes`, {
-        source: 'auto-play',
-        operation: 'reasoning-graph',
-        details: {
-          nodeCount: reasoningGraph.nodes.length,
-          edgeCount: reasoningGraph.edges.length,
-        },
-      });
+        logInfo(`Reasoning graph ready (${reasoningGraph.nodes.length} nodes, ${reasoningGraph.edges.length} edges) — generating scenes`, {
+          source: 'auto-play',
+          operation: 'reasoning-graph',
+          details: {
+            nodeCount: reasoningGraph.nodes.length,
+            edgeCount: reasoningGraph.edges.length,
+          },
+        });
+      } else {
+        logInfo(`Skipping reasoning graph (quick mode, ${sceneCount} scenes, ${phase} phase) — generating scenes`, {
+          source: 'auto-play',
+          operation: 'reasoning-graph',
+          details: { sceneCount, storyPhase: phase, mode: 'quick' },
+        });
+      }
 
       dispatch({ type: 'SET_AUTO_STATUS', message: `Writing ${sceneCount} scenes…` });
       const { scenes, arc: baseArc } = await generateScenes(
@@ -297,17 +320,19 @@ export function useAutoPlay() {
 
       if (cancelledRef.current) return;
 
-      const arc = {
-        ...baseArc,
-        reasoningGraph: {
-          nodes: reasoningGraph.nodes,
-          edges: reasoningGraph.edges,
-          arcName: reasoningGraph.arcName,
-          sceneCount: reasoningGraph.sceneCount,
-          summary: reasoningGraph.summary,
-          arcSettings: reasoningGraph.arcSettings,
-        },
-      };
+      const arc = reasoningGraph
+        ? {
+            ...baseArc,
+            reasoningGraph: {
+              nodes: reasoningGraph.nodes,
+              edges: reasoningGraph.edges,
+              arcName: reasoningGraph.arcName,
+              sceneCount: reasoningGraph.sceneCount,
+              summary: reasoningGraph.summary,
+              arcSettings: reasoningGraph.arcSettings,
+            },
+          }
+        : baseArc;
 
       dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: activeBranchId });
 

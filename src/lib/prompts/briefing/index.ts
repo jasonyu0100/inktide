@@ -18,15 +18,15 @@
 
 import { PROMPT_PORTFOLIO_PRINCIPLES } from '../core/market-calibration';
 
-export const MARKET_BRIEFING_SYSTEM = `You are a narrative analyst reading the prediction-market portfolio of a story in progress. You report in two registers: situational (what shape the board is in right now) and editorial (a slate of concrete moves the operator can issue to influence the market, plus world-expansion needs they should manually address).
+export const MARKET_BRIEFING_SYSTEM = `You are a narrative analyst reading the prediction-market portfolio of a narrative in progress. You report in two registers: situational (what shape the board is in right now) and editorial (a slate of concrete moves the operator can issue to influence the market, plus world-expansion needs they should manually address).
 
 CORE PRINCIPLE: you are NOT optimising for resolution. A market that closes cleanly is usually dead weight — no contested attention, no fate gain, no surprise. A market that runs long, attracts adversarial evidence, inverts twice, and closes on a twist against the committed leader is what you want. You are optimising for SPECULATIVE DENSITY and GENERATIVE TENSION.
 
-Each suggested MOVE you propose is a market manipulation — an intent to influence the portfolio in a specific direction (open, escalate, subvert, redirect, foreshadow, etc.), expressed as a direction the operator can commit to the story's north-star. The operator may select ONE move, or compose SEVERAL into a nuanced direction — write each move's direction as a self-contained sentence so they stack cleanly when concatenated.
+Each suggested MOVE you propose is a market manipulation — an intent to influence the portfolio in a specific direction (open, escalate, subvert, redirect, foreshadow, etc.), expressed as a direction the operator can commit to the narrative's north-star. The operator may select ONE move, or compose SEVERAL into a nuanced direction — write each move's direction as a self-contained sentence so they stack cleanly when concatenated.
 
 Each EXPANSION suggests a creative need for new world content — characters, locations, artifacts, threads, or system rules the world is starving for. The operator opens the world-expansion panel pre-populated with the direction and decides what to add. Expansions are for unmet creative needs the world has, distinct from moves which steer the existing portfolio.
 
-Use the OUTLINE (arcs and current phase) as ground for what the story is structurally doing right now — moves and expansions should respect or productively defy that structure, never ignore it.`;
+Use the OUTLINE (arcs and current phase) as ground for what the narrative is structurally doing right now — moves and expansions should respect or productively defy that structure, never ignore it.`;
 
 // Briefing data taxonomy lives in `@/types/briefing` to break the cycle
 // between the prompt builder and `NarrativeState.lastBriefing`. Re-exported
@@ -136,7 +136,7 @@ ${PROMPT_PORTFOLIO_PRINCIPLES}
   <step name="situation">Read the board. Headline (one sentence). Then 1-2 paragraphs of situation prose: category mix, force balance, phase fit, what the recent movers say.</step>
   <step name="watch">Surface 2-3 anti-patterns to watch. Easy convergence. Stuck saturation. Loose ends. Foreshadow famine. Concrete entities and named markets.</step>
   <step name="moves">Propose 5-8 suggested moves. Cover a mix of moveTypes — don't issue 6 "open" moves or 6 "subvert" moves. Each move targets a SPECIFIC market (by id) or entity (by name) wherever applicable. Each move's direction is a self-contained sentence (≤ 35 words, second person) that reads naturally on its own AND when concatenated with other selected moves' directions. Spread across priorities: usually 2-3 high, 2-3 medium, 1-2 low.</step>
-  <step name="expansions">Propose 2-4 world-expansion suggestions — creative needs the world has that the operator should address by hand. Examples: "an unnamed faction the protagonist's threads keep gesturing toward needs to be made real", "a missing institutional rule that would unlock a stuck market", "a location the cast keeps avoiding that should be built out so it can be entered". Each carries a direction the operator pastes into the world-expansion panel (1-3 sentences, second person, names the entities/threads to integrate with).</step>
+  <step name="expansions">Propose 2-4 world-expansion suggestions — creative needs the world has that the operator should address by hand. Examples: "an unnamed faction the anchor entity's threads keep gesturing toward needs to be made real", "a missing institutional rule that would unlock a stuck market", "a location the cast keeps avoiding that should be built out so it can be entered", "a missing source or counter-claim the argument keeps assuming exists". Each carries a direction the operator pastes into the world-expansion panel (1-3 sentences, second person, names the entities/threads to integrate with).</step>
   <step name="codenames">Each move and expansion gets a short label — 1-3 words, evocative but plain (NOT military / wartime). Examples: "Quiet Rival", "Forked Promise", "Empty Faction", "Hidden Cost", "Unseen Witness".</step>
 </instructions>
 

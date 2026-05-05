@@ -3,20 +3,29 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { GuidanceFields } from '@/components/generation/GuidanceFields';
-import type { AutoConfig, AutoEndCondition } from '@/types/narrative';
+import type { AutoConfig, AutoEndCondition, AutoMode } from '@/types/narrative';
+import { AUTO_MODE_PRESETS } from '@/types/narrative';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 
-type Tab = 'end' | 'direction';
+type Tab = 'end' | 'direction' | 'pipeline';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'End', value: 'end' },
+  { label: 'Pipeline', value: 'pipeline' },
   { label: 'Direction', value: 'direction' },
 ];
+
+const MODE_DESC: Record<AutoMode, string> = {
+  quick:
+    'Skip the reasoning graph. Each cycle goes straight to scene generation — fastest path, useful when iterating on structure or when the CRG is producing diminishing returns.',
+  extended:
+    'Build a reasoning graph before each arc, then write scenes against it. Slower per cycle but produces structurally tighter arcs (current default).',
+};
 
 
 export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; onStart: () => void }) {
   const { state, dispatch } = useStore();
-  const [tab, setTab] = useState<Tab>('direction');
+  const [tab, setTab] = useState<Tab>('end');
   const hasCoordinationPlan = !!(state.activeNarrative?.branches && state.viewState.activeBranchId && state.activeNarrative.branches[state.viewState.activeBranchId]?.coordinationPlan);
 
   const [config, setConfig] = useState<AutoConfig>(() => {
@@ -42,6 +51,10 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
   // End condition helpers
   const hasEndCondition = (type: string) => config.endConditions.some((c) => c.type === type);
   const getEndCondition = (type: string) => config.endConditions.find((c) => c.type === type);
+
+  // Pipeline mode → operations list (presets only; per-op toggles aren't exposed).
+  const setMode = (mode: AutoMode) =>
+    update({ mode, operations: AUTO_MODE_PRESETS[mode] });
 
   function toggleEndCondition(type: string, defaultCond: AutoEndCondition) {
     if (hasEndCondition(type)) {
@@ -204,6 +217,34 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                 onDirectionChange={(v) => update({ direction: v })}
                 onConstraintsChange={(v) => update({ narrativeConstraints: v })}
               />
+            </>
+          )}
+
+          {tab === 'pipeline' && (
+            <>
+              <p className="text-[10px] text-text-dim leading-relaxed">
+                Pick how each auto-mode cycle generates an arc.
+              </p>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                {(['quick', 'extended'] as AutoMode[]).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMode(m)}
+                    className={`text-left rounded-lg border px-3 py-2.5 transition ${
+                      config.mode === m
+                        ? 'border-emerald-500/40 bg-emerald-500/8'
+                        : 'border-white/8 bg-white/2 hover:border-white/16 hover:bg-white/5'
+                    }`}
+                  >
+                    <div className={`text-[11px] font-medium capitalize ${config.mode === m ? 'text-emerald-200' : 'text-text-secondary'}`}>
+                      {m}
+                    </div>
+                    <div className="text-[10px] text-text-dim leading-snug mt-0.5">{MODE_DESC[m]}</div>
+                  </button>
+                ))}
+              </div>
             </>
           )}
         </div>

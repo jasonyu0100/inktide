@@ -1,11 +1,11 @@
 /**
- * World expansion prompt — adds characters, locations, threads, artifacts,
- * and system rules to an existing narrative. Heavily templated with size,
- * strategy, source-text, entity-filter, and computed metrics.
+ * World expansion prompt — adds entities (characters, locations, artifacts),
+ * threads, and system rules to an existing narrative. Heavily templated with
+ * size, strategy, source-text, entity-filter, and computed metrics.
  */
 
 export const EXPAND_WORLD_SYSTEM =
-  'You are a world-builder extending an established narrative. Honour the directive, the strategy, and the size budget; weave new entities into the existing fabric through relationships, location hierarchies, and shared threads. Match the world\'s cultural palette and naming conventions. Initialize every new character/location/artifact with at least one world node, and every new thread with a setup threadDelta. Return ONLY valid JSON matching the schema in the user prompt.';
+  'You are extending an established narrative. Honour the directive, the strategy, and the size budget; weave new entities into the existing fabric through relationships, location hierarchies, and shared threads. Match the narrative\'s cultural palette and naming conventions. Initialize every new entity (character, location, artifact) with at least one world node, and every new thread with a setup threadDelta. Return ONLY valid JSON matching the schema in the user prompt.';
 
 import { PROMPT_ENTITY_INTEGRATION } from '../entities/integration';
 import { phaseGraphPriorityEntry } from '../phase/application';
@@ -21,15 +21,15 @@ export const EXPANSION_SIZE_CONFIG: Record<WorldExpansionSize, ExpansionSizeConf
 };
 
 export const EXPANSION_STRATEGY_PROMPTS: Record<WorldExpansionStrategy, string> = {
-  breadth: `STRATEGY: BREADTH — widen the world. Introduce new regions, factions, and characters that open up unexplored areas of the map. Focus on geographic and social variety. New locations should be INDEPENDENT zones (new settlements, distant regions, rival territories) rather than sub-locations of existing places. New characters should come from different backgrounds than existing ones. New threads should introduce entirely new conflicts, not deepen existing ones.`,
+  breadth: `STRATEGY: BREADTH — widen the world. Introduce new entities, threads, and system rules that open up unexplored regions of the narrative's reach — new settings, factions, sources, schools of thought, lines of inquiry, or rule subsystems that fit the narrative's register. Focus on variety. New locations should be INDEPENDENT zones (distant regions, rival territories, separate institutions, archives, field sites, or rule-relevant venues such as markets, borderlands, or test sites) rather than sub-locations of existing places. New entities should come from different backgrounds, traditions, or domains than existing ones. New threads should introduce entirely new tensions or open questions — including new rule-driven questions about whether the modelled system reaches further states under different conditions — not deepen existing ones.`,
 
   depth: `STRATEGY: DEPTH — deepen the existing world. Do NOT add new top-level regions or distant factions. Instead:
-- Add sub-locations WITHIN existing locations (rooms inside buildings, districts inside cities, hidden areas within known places)
-- Add characters who are ALREADY embedded in existing social structures (subordinates, rivals, mentors, family members of existing characters)
+- Add sub-locations WITHIN existing locations (rooms inside buildings, districts inside cities, sub-archives inside an institution, hidden areas within known places)
+- Add entities who are ALREADY embedded in existing structures (subordinates, rivals, mentors, kin, collaborators, additional sources or witnesses tied to current ones)
 - Add threads that complicate EXISTING tensions rather than introducing new ones
-- Add rich knowledge per entity (3-4 per character, 2-3 per location) — secrets, hidden agendas, structural weaknesses, unexploited resources
-- Add artifacts that are locally relevant — tools, keys, resources that matter in the current sandbox
-- Focus system knowledge on the mechanics, economics, and power dynamics of the CURRENT setting
+- Add rich knowledge per entity (3-4 per character, 2-3 per location) — secrets, hidden agendas, structural weaknesses, unexploited resources, deeper provenance
+- Add artifacts that are locally relevant — tools, keys, resources, documents, instruments, or rule-bearing components that matter in the current sandbox
+- Focus system knowledge on the mechanics, economics, conventions, power dynamics, gate conditions, and propagation laws of the CURRENT setting
 The goal is to make the existing world feel richer, not bigger. One constrained sandbox with more detail beats a sprawling map.`,
 
   dynamic: `STRATEGY: DYNAMIC — analyse the current world state and choose the right balance. If the world is broad but shallow (many locations, few details), go deep. If the world is deep but narrow (rich detail in one area, nothing beyond), go broad. If balanced, lean toward deepening the active area where scenes are happening while seeding one or two distant elements for future arcs. State your reasoning in a brief comment before generating.`,
@@ -94,10 +94,10 @@ ${strategyBlock}
 ${entityFilterBlock ? `  <entity-filter>\n${entityFilterBlock}\n  </entity-filter>` : ''}
 
   <size-mode kind="${size}" label="${sizeConfig.label}" total="${sizeConfig.total}">
-${size === 'exact' ? `    <rule>EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra characters, locations, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive says "add a blacksmith named Torin", create exactly that character and nothing else. Every entity in your response must trace directly to something stated in the directive.</rule>` : `    <target characters="${sizeConfig.characters}" locations="${sizeConfig.locations}" threads="${sizeConfig.threads}" />`}
+${size === 'exact' ? `    <rule>EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra entities, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive names a single entity, create exactly that entity and nothing else. Every entity in your response must trace directly to something stated in the directive.</rule>` : `    <target characters="${sizeConfig.characters}" locations="${sizeConfig.locations}" threads="${sizeConfig.threads}" />`}
     <always-include>
       <rule>relationshipDeltas connecting new characters to EXISTING characters (use valenceDelta as initial valence for new pairs).</rule>
-      <rule>Artifacts when the directive or narrative calls for them — objects that grant capabilities and drive acquisition, conflict, or discovery. Not every expansion needs artifacts.</rule>
+      <rule>Artifacts when the directive or narrative calls for them — objects, documents, instruments, or sources that grant capabilities and drive acquisition, conflict, or discovery. Not every expansion needs artifacts.</rule>
     </always-include>
   </size-mode>
 
@@ -152,8 +152,8 @@ Return JSON with this exact structure:
       "id": "${nextThreadId}",
       "participants": [{"id": "character or location ID", "type": "character|location|artifact"}],
       "description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific conflict",
-      "outcomes": ["Named possibilities the market prices. Binary default: ['yes','no']. Multi-outcome when the resolution is N-way, e.g. 'Who claims the artifact?' → ['hero','villain','destroyed','lost']. Must be distinct and mutually exclusive; 2–6 entries."],
-      "horizon": "short | medium | long | epic — structural distance from any scene to this thread's resolution. short = 2-3 scenes (immediate trust, fight outcome). medium = within an arc, 4-8 scenes (sect rivalry, stolen artifact). long = multi-arc, segment-spanning (faction war, succession). epic = series-spanning or open-ended (eternal life, dynastic ambition). Drives evidence-magnitude attenuation downstream — pick honestly, since over-marking a goal as short inflates every evidence emission against it.",
+      "outcomes": ["Named possibilities the market prices. Binary default: ['yes','no']. Multi-outcome when the resolution is N-way, e.g. 'Which claim survives the tribunal?' → outcomes naming each contender plus 'none'. Must be distinct and mutually exclusive; 2–6 entries."],
+      "horizon": "short | medium | long | epic — structural distance from any scene to this thread's resolution. short = 2-3 scenes (immediate trust, single confrontation, single piece of evidence). medium = within an arc, 4-8 scenes (institutional rivalry, contested artifact, mid-length inquiry). long = multi-arc, segment-spanning (sustained conflict, succession, extended investigation). epic = work-spanning or open-ended (foundational question the whole narrative is built around). Drives evidence-magnitude attenuation downstream — pick honestly, since over-marking a goal as short inflates every evidence emission against it.",
       "dependents": ["T-XX (existing thread IDs this thread connects to, accelerates, or converges with — see THREAD CONVERGENCE below)"]
     }
   ],
@@ -193,8 +193,8 @@ ${PROMPT_ENTITY_INTEGRATION}
 </entity-integration>
 
 <expansion-specific-rules>
-  <rule>Generate at MINIMUM ${sizeConfig.characters === '1-2' ? '2' : sizeConfig.characters === '3-5' ? '5' : '12'} relationshipDeltas total. Most should connect new→existing characters. Use valenceDelta as initial valence for new pairs. Include varied valences (allies, rivals, mentors, kin). At least one with tension.</rule>
-  <rule>Key artifacts should have 3-4 world nodes (what it does, its origin, its limitation). Only create artifacts when they meaningfully alter what characters can do.</rule>
+  <rule>Generate at MINIMUM ${sizeConfig.characters === '1-2' ? '2' : sizeConfig.characters === '3-5' ? '5' : '12'} relationshipDeltas total. Most should connect new→existing characters. Use valenceDelta as initial valence for new pairs. Include varied valences (allies, rivals, mentors, kin, collaborators, antagonists). At least one with tension.</rule>
+  <rule>Key artifacts should have 3-4 world nodes (what it is, its origin, its limitation). Only create artifacts when they meaningfully alter what entities can do.</rule>
 </expansion-specific-rules>
 
 <naming-rules>
@@ -205,30 +205,30 @@ ${PROMPT_ENTITY_INTEGRATION}
 
 <content-rules>
   <rule>Characters should have meaningful knowledge (3-5 nodes). Give each character SECRETS or unique knowledge that only they possess — knowledge asymmetries drive narrative tension. Include at least one hidden or dangerous piece of knowledge per character.</rule>
-  <rule>Knowledge node types should be SPECIFIC and CONTEXTUAL — not generic labels. Examples: "cultivation_technique", "blood_pact", "hidden_treasury", "ancient_prophecy", "political_alliance", "forbidden_memory", "territorial_claim", "ancestral_grudge". Pick types that fit the narrative world.</rule>
-  <rule>New locations should CONTRAST with existing ones — if the story has been set in cities, add wilderness; if in palaces, add slums or ruins. Environmental variety drives scene variety.</rule>
+  <rule>Knowledge node types should be SPECIFIC and CONTEXTUAL — not generic labels. Pick types that fit the narrative's register and world (e.g. "blood_pact", "ancestral_grudge", "unpublished_finding", "off-record_source", "contested_attribution", "institutional_obligation"). Avoid generic labels like "trait" or "fact".</rule>
+  <rule>New locations should CONTRAST with existing ones — if the narrative has been set in dense urban cores, add open or remote settings; if in centres of power, add the periphery; if in archives, add the field site; if in seminar rooms, add the laboratory floor or the street. Environmental variety drives scene variety.</rule>
   <rule>Location knowledge should establish what makes each place narratively distinct (2-3 nodes per location — its defining atmosphere, a constraint or danger, and a resource or opportunity it offers).</rule>
-  <rule>Threads should introduce DIFFERENT types of open questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, or forbidden knowledge.</rule>
+  <rule>Threads should introduce DIFFERENT types of open questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, hidden information, contested interpretation, or whether the modelled rule set drives the world to a further state under altered conditions.</rule>
   <rule>Every new thread declares its OUTCOMES up front — 2+ named, mutually-exclusive possibilities. Binary is default (["yes","no"]); multi-outcome when the resolution is genuinely N-way. Markets open at uniform priors (no outcome is pre-weighted).</rule>
   <rule>New threads start with NO evidence — they're fresh markets. Initial scenes that seed them will emit setup/escalation evidence on the chosen outcome.</rule>
   <rule>Generate the exact counts specified above (${sizeConfig.characters} characters, ${sizeConfig.locations} locations, ${sizeConfig.threads} threads).</rule>
 </content-rules>
 
 <thread-convergence hint="Critical for long-form narrative.">
-  <rule>The "dependents" field lists EXISTING thread IDs that this new thread connects to, accelerates, or converges with. This is how storylines collide.</rule>
+  <rule>The "dependents" field lists EXISTING thread IDs that this new thread connects to, accelerates, or converges with. This is how threads collide.</rule>
   <rule>A convergent thread is one whose activation or resolution forces multiple existing threads into new trajectories. Example: a resource thread (T-new) that depends on [T-03, T-07] means when this resource thread activates, it creates pressure on both T-03 and T-07 simultaneously.</rule>
-  <rule>At least ONE new thread should have 2+ dependents — this is a convergent bridge thread that forces collision between existing storylines.</rule>
-  <rule>Dependents should reference threads that are currently in different storylines or involve different characters — the whole point is to CREATE connections between threads that were previously parallel.</rule>
-  <rule>Think: shared resources both factions need, events that affect multiple storylines, secrets that connect separated characters, external forces that compress multiple conflicts.</rule>
+  <rule>At least ONE new thread should have 2+ dependents — this is a convergent bridge thread that forces collision between existing threads.</rule>
+  <rule>Dependents should reference threads that are currently in different parts of the narrative or involve different entities — the whole point is to CREATE connections between threads that were previously parallel.</rule>
+  <rule>Think: shared resources multiple factions need, events that affect multiple threads, secrets that connect separated entities, external forces that compress multiple conflicts.</rule>
   <rule>Empty dependents [] is acceptable for truly independent new threads, but at least one thread per expansion MUST bridge existing threads.</rule>
 </thread-convergence>
 
-<system-knowledge-deltas hint="systemDeltas define the FOUNDATIONAL abstractions this expansion establishes — the rules, systems, concepts, and tensions that the new entities operate within. Intentional world-building, not incidental discovery.">
-  <rule>Use "principle" for fundamental truths, "system" for mechanisms/institutions, "concept" for abstract ideas, "tension" for contradictions, "event" for world-level occurrences, "structure" for organizations/factions, "environment" for geography/climate, "convention" for customs/norms, "constraint" for scarcities/limitations.</rule>
+<system-knowledge-deltas hint="systemDeltas define the FOUNDATIONAL abstractions this expansion establishes — the rules, mechanisms, gates, propagation laws, causal couplings, concepts, and tensions that the new entities operate within. Intentional world-building, not incidental discovery. In rule-driven works the system layer is load-bearing — it IS the substrate driving consequence — so the expansion must extend that substrate, not decorate it.">
+  <rule>Use "principle" for fundamental truths, "system" for mechanisms/institutions/gate conditions/propagation laws, "concept" for abstract ideas, "tension" for contradictions, "event" for world-level occurrences, "structure" for organizations/factions, "environment" for geography/climate, "convention" for customs/norms/procedural defaults, "constraint" for scarcities/limitations/causal couplings.</rule>
   <rule>Node IDs should be SYS-GEN-001, SYS-GEN-002, etc. (they will be re-mapped to real IDs).</rule>
   <rule>Edges can reference both new SYS-GEN-* IDs and existing system knowledge IDs already in the narrative.</rule>
-  <rule>Generate ${size === 'small' ? '4-6' : size === 'medium' ? '8-12' : size === 'exact' ? 'as many as the directive calls for' : '15-25'} system knowledge nodes with a comparable number of edges. Each must be a genuine structural rule or system that the new entities operate within. EDGES ARE CRITICAL — an isolated node contributes 1 to system, but an edge connecting it to an existing SYS node adds √1 more AND wires the expansion into the existing graph.</rule>
+  <rule>Generate ${size === 'small' ? '4-6' : size === 'medium' ? '8-12' : size === 'exact' ? 'as many as the directive calls for' : '15-25'} system knowledge nodes with a comparable number of edges. Each must be a genuine structural rule, mechanism, or gate that the new entities operate within. EDGES ARE CRITICAL — an isolated node contributes 1 to system, but an edge connecting it to an existing SYS node adds √1 more AND wires the expansion into the existing graph.</rule>
   <rule>At least HALF of your edges should cross the new/existing boundary — use existing SYS IDs from the narrative context, not just SYS-GEN-* → SYS-GEN-*. This is how expansions deepen the foundation instead of floating free.</rule>
-  <rule>Focus on the structural WHY behind the expansion — what abstract rules, power structures, or tensions make these new entities meaningful?</rule>
+  <rule>Focus on the structural WHY behind the expansion — what abstract rules, mechanisms, gate conditions, propagation laws, power structures, or tensions make these new entities meaningful?</rule>
 </system-knowledge-deltas>`;
 }

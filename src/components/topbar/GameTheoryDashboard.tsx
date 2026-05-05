@@ -203,7 +203,7 @@ function topEntry<K>(m: Map<K, number>): { key: K; count: number } | null {
 }
 
 // Pattern-match the signal bundle into ONE evocative narrative role. These
-// are deliberately cross-genre: Harry Potter, Hermione, Fang Yuan, Varys,
+// are deliberately cross-genre: Harry Potter, Hermione, Tyrion, Varys,
 // Frodo and Gatsby should all find themselves in one of these buckets. Each
 // role is a *pattern* over the mechanical signals, not a redescription of
 // them. Emitted as the first tag so it leads the reader's reading.
@@ -386,8 +386,8 @@ function classifyPlayer(p: PlayerProfile): PlayerArchetype[] {
   // Group 1 — RELATIONAL OUTCOME SHAPE. Mutually exclusive. Priority is
   // deliberately skewed toward character-revealing signals: we prefer to say
   // "lopsided" over "teammate" when a player's cooperation is really an
-  // asymmetric extraction. The old classifier made Fang Yuan look like a
-  // teammate; this one will correctly flag the uneven slice.
+  // asymmetric extraction. The old classifier made an extractor like Snape
+  // look like a teammate; this one will correctly flag the uneven slice.
   if (extractRate >= 0.3) {
     tags.push({
       id: "extractor",
@@ -466,8 +466,8 @@ function classifyPlayer(p: PlayerProfile): PlayerArchetype[] {
   // Group 3 — STRATEGIC STYLE. Up to one of strategist / off-script /
   // arc-breaker. Arc-breaker is the 'main-character' signal: the player
   // keeps landing on off-Nash cells AND keeps winning from them — the
-  // author overrides strategic stability to grant them stake. Fang Yuan
-  // should fire this tag strongly.
+  // author overrides strategic stability to grant them stake. Harry
+  // Potter should fire this tag strongly.
   if (nashRate <= 0.35 && eloDelta >= 50 && p.avgStakeDelta >= 1) {
     tags.push({
       id: "arc-breaker",
@@ -495,7 +495,7 @@ function classifyPlayer(p: PlayerProfile): PlayerArchetype[] {
   // independently of outcome shape because they reveal HOW a player plays
   // rather than how they end up. Generalisable across genres: Dumbledore
   // fires schemer + power-broker; Hermione fires coordinator; Voldemort
-  // fires power-broker + oppositional; Fang Yuan fires schemer.
+  // fires power-broker + oppositional; Snape fires schemer.
   if (infoShare >= 0.35 && p.avgStakeDelta > 0.3) {
     tags.push({
       id: "schemer",

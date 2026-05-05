@@ -8,7 +8,7 @@ export {
   buildSuggestArcDirectionPrompt,
   buildSuggestAutoDirectionPrompt,
   ARC_DIRECTION_SYSTEM,
-  STORY_DIRECTION_SYSTEM,
+  NARRATIVE_DIRECTION_SYSTEM,
 } from './direction';
 
 export {

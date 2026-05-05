@@ -639,7 +639,7 @@ const SCALES = [
     key: "epic",
     range: "120–300",
     desc: "Extended narrative with sprawling cast and world scope",
-    examples: "Reverend Insanity Vol 1 (133)",
+    examples: "Lord of the Rings (~150)",
     color: "#22D3EE",
   },
   {

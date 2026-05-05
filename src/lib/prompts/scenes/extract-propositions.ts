@@ -20,26 +20,28 @@ ${args.sceneXml}
 
 <phrasing-discipline critical="true" hint="Each proposition is consumed downstream by the prose writer. If it reads like a database row, the prose layer has to translate it before use, which both costs work and risks the metadata leaking into the page.">
   <rule name="natural-language">Write as prose-ready statements about WHAT IS TRUE in the world. Past or present tense in the world's voice — not the engine's metadata.</rule>
-  <rule name="no-identifier-echo">Never echo internal identifiers, snake_case event names, or system-node ids. Translate "gu_malfunction" / "adaptive_countermeasure" / "SYS-07" into the actual phenomenon ("the Heaven's Loom Gu fractures into static" / "Heaven's Will adapts to Fang Yuan's method" / "the rule of clan succession").</rule>
+  <rule name="no-identifier-echo">Never echo internal identifiers, snake_case event names, or system-node ids. Translate "instrument_malfunction" / "adaptive_countermeasure" / "SYS-07" into the actual phenomenon (the specific in-world event the label points at, named in concrete language the reader can absorb).</rule>
   <rule name="no-template-scaffolding">Do NOT write "An X event occurred" or "The thread 'Y' has shifted to 'Z', indicating W." Drop the framing entirely and state the in-world fact directly.</rule>
   <rule name="thread-shifts-as-events">For threadDeltas: do NOT quote the thread's question text or name its lifecycle status. Describe what actually happens in the scene that moves that thread (the discovery, the choice, the consequence). The thread's description is your anchor for what's at stake; the proposition states the in-world event.</rule>
   <rule name="events-as-prose">For events: the event string is a label, not the proposition. Render the underlying happening as a concrete prose statement.</rule>
-  <rule name="no-system-jargon">Avoid framework terms ("state-change", "system-reveal", "thread-shift", "adaptive countermeasure", "karmic debt") unless the world itself uses them as in-character vocabulary.</rule>
+  <rule name="no-system-jargon">Avoid framework terms ("state-change", "system-reveal", "thread-shift", "adaptive countermeasure") unless the world itself uses them as in-world vocabulary.</rule>
   <rule name="single-claim">One proposition = one atomic fact. Don't bundle multiple claims behind "and" or commas-as-ands.</rule>
   <rule name="no-cognition-collapse" critical="true" hint="The dominant failure mode for cognition-dense scenes. Prose can only render named content; if propositions name only the gesture, prose only has the gesture to dramatise.">
-    Cognitive content in the summary — named scenarios, weighed tradeoffs, derived conclusions, planned contingencies, modelled agent reactions — MUST decompose into one proposition per named element. Never collapse "considered scenarios A, B, and C with their tradeoffs" into a single proposition like "Fang Yuan modelled potential paths." That collapse erases everything the prose writer needs and leaves them with stand-in verbs ("simulated", "calculated risks", "considered options") instead of the actual computation. One scenario = one proposition. One tradeoff = one proposition. One conclusion = one proposition. One planned contingency = one proposition.
+    Cognitive content in the summary — named scenarios, weighed tradeoffs, derived conclusions, planned contingencies, modelled agent reactions — MUST decompose into one proposition per named element. Never collapse "considered scenarios A, B, and C with their tradeoffs" into a single proposition like "she weighed her options." That collapse erases everything the prose writer needs and leaves them with stand-in verbs ("simulated", "calculated risks", "considered options") instead of the actual computation. One scenario = one proposition. One tradeoff = one proposition. One conclusion = one proposition. One planned contingency = one proposition.
   </rule>
 </phrasing-discipline>
 
 <examples>
-  <bad reason="identifier echo, template scaffolding">"A gu_malfunction occurred."</bad>
-  <good>"The Heaven's Loom Gu's threads fracture into erratic static."</good>
-  <bad reason="quoting thread question + lifecycle status">"The thread 'Will Fang Yuan succeed without detection?' has shifted to 'resistance', indicating he succeeds with minor cost."</bad>
-  <good>"Fang Yuan's method succeeds, but at the price of a corrupted minor Gu."</good>
-  <bad reason="system jargon, abstract">"Heaven's Loom Gu's core functionality is now directly targeted by Heaven's Will's adaptive countermeasures."</bad>
-  <good>"Heaven's Will is now actively interfering with the Heaven's Loom Gu, distorting its readings."</good>
-  <bad reason="bundled claims">"Heaven's Loom Gu was used by Fang Yuan for calibrated fate analysis, but experienced targeted interference and distortion."</bad>
-  <good>["Fang Yuan calibrates the Heaven's Loom Gu to read fate strands.", "The Heaven's Loom Gu suffers targeted interference mid-reading."]</good>
+  <bad reason="identifier echo, template scaffolding">"An instrument_malfunction occurred."</bad>
+  <good>"Adaeze's transmitter stutters once, then falls silent in her hand."</good>
+  <bad reason="quoting thread question + lifecycle status">"The thread 'Will Yusra recover the ledger without detection?' has shifted to 'resistance', indicating she succeeds with minor cost."</bad>
+  <good>"Yusra retrieves the ledger, but the customs office's seal-readers leave a faint signature on her credentials."</good>
+  <bad reason="system jargon, abstract">"The relay network's core functionality is now directly targeted by the regulator's adaptive countermeasures."</bad>
+  <good>"The regulator is actively jamming the relay network, scrambling its routing tables."</good>
+  <bad reason="bundled claims">"The relay network was used by Lin for night-time reconnaissance, but experienced targeted interference and distortion."</bad>
+  <good>["Lin queries the relay network to track the night patrol's rounds.", "The relay network suffers targeted interference mid-query."]</good>
+  <bad reason="simulation register — engine bookkeeping rather than in-world rule-driven event">"The system_rule for containment was triggered by SYS-04."</bad>
+  <good reason="simulation register — the rule-driven outcome stated as in-world fact">["The reproduction number crosses 1.4 at week six of the modelled outbreak.", "Lagos prefecture activates its tier-two containment order in response."]</good>
   <bad reason="cognition-collapse — one gesture proposition for an entire chain of reasoning">["Mara refined her approach to the upcoming arbitration, weighing options and assessing risks."]</bad>
   <good reason="each named scenario, tradeoff, and conclusion gets its own proposition">[
     "Mara considers opening the arbitration with her strongest precedent and forcing the panel to address it directly — fast resolution, but burns her secondary arguments if the panel rejects it.",
@@ -55,10 +57,10 @@ ${args.sceneXml}
   <coverage>
     <source name="summary" critical="true">PRIMARY SOURCE — extract exhaustively. The summary may be brief (3-6 sentences) for routine scenes or expand to many paragraphs for cognition-dense scenes. In either case, every discrete claim, named scenario, weighed tradeoff, derived conclusion, planned contingency, modelled agent reaction, articulated rule, and stated commitment becomes its own proposition. For dense summaries, expect to emit MANY propositions from the summary alone — that is the design. The deltas below capture the summary's structural footprint (which threads moved, which entities changed); the summary itself carries the semantic content the prose writer must dramatise. If the summary names three scenarios, you emit three scenario-propositions plus whatever weighing and conclusion propositions the summary makes — never collapse them into "considered options." Completeness here is the load-bearing rule; the prose layer cannot recover what extraction discards.</source>
     <source name="threadDelta">The in-world event that moves this thread. Use the thread's description as the anchor for what's at stake; describe the moment that shifts it.</source>
-    <source name="worldDelta">One proposition per addedNode, framed as a present-tense fact about the entity ("Fang Yuan now distrusts the Heavenly Court").</source>
+    <source name="worldDelta">One proposition per addedNode, framed as a present-tense fact about the entity ("Yusra now distrusts the customs authority").</source>
     <source name="systemDelta.addedNodes">The world rule itself, stated as the world states it (not "rule X is added").</source>
-    <source name="relationshipDeltas">The concrete shift ("Pan Chong now resents Fang Yuan").</source>
-    <source name="ownershipDeltas">The transfer ("the heirloom passes to Fang Yuan").</source>
+    <source name="relationshipDeltas">The concrete shift ("Lin now resents the chair").</source>
+    <source name="ownershipDeltas">The transfer ("the heirloom passes to the daughter").</source>
     <source name="tieDeltas">The tie established or severed, in plain language.</source>
     <source name="artifactUsages">What the artifact does in the scene, concretely.</source>
     <source name="characterMovements">The arrival/departure as in-world action.</source>

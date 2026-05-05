@@ -4,7 +4,7 @@
  */
 
 import type { NarrativeState } from "@/types/narrative";
-import { REASONING_BUDGETS } from "@/types/narrative";
+import { resolveReasoningBudget } from "@/lib/ai/api";
 
 /** Which force dominates a reasoning graph / coordination plan. */
 export type ForcePreference =
@@ -15,11 +15,8 @@ export type ForcePreference =
   | "chaos";
 
 /** Default reasoning-token budget tied to narrative settings. */
-export function defaultReasoningBudget(narrative: NarrativeState): number | undefined {
-  return (
-    REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? "low"] ||
-    undefined
-  );
+export function defaultReasoningBudget(narrative: NarrativeState): number {
+  return resolveReasoningBudget(narrative);
 }
 
 /**

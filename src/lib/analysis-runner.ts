@@ -267,6 +267,7 @@ class AnalysisRunner {
         try {
           const sceneSummary = results[idx]?.scenes?.[0]?.summary ?? `Scene ${idx + 1}`;
           const { plan, beatProseMap } = await reverseEngineerScenePlan(
+            null,
             chunk.text,
             sceneSummary,
             (_token, acc) => { entry.planStreams.set(planKey, acc); this.emitPlanStream(job.id, planKey, acc); },

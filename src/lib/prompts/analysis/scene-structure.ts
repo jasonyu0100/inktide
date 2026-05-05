@@ -31,23 +31,23 @@ ${prose}
 
   <three-planes hint="Extract each independently.">
 
-- WORLD (MATERIAL plane): tangible, embodied. People, places, objects — characters, locations, artifacts; in non-fiction: institutions, datasets, figures, charts, embedded documents. Every new stable fact about an entity. This is a DENSITY lever — reach for the detail the prose genuinely earns.
+- WORLD (MATERIAL plane): tangible, embodied entities — characters, locations, artifacts. Includes people, places, objects, institutions, datasets, figures, charts, embedded documents — anything with its own continuity. Every new stable fact about an entity. This is a DENSITY lever — reach for the detail the source genuinely earns.
   W = ΔN_c + √ΔE_c. Ref: ~${FORCE_REFERENCE_MEANS.world}/scene.
-- SYSTEM (ABSTRACT plane): rules, mechanisms, principles — how the world works, not the things themselves. Magic systems, physics, social order; or theorems, methods, constraints. Rule and knowledge density — NOT incidental setting. Also a DENSITY lever — under-extraction is the dominant failure.
+- SYSTEM (ABSTRACT plane): rules, mechanisms, principles — how the world works, not the things themselves. Physical laws, social order, theorems, methods, constraints, modelled rule sets, gates, propagation laws, causal couplings. Rule and knowledge density — NOT incidental setting. Also a DENSITY lever — under-extraction is the dominant failure. In a simulation source — work that models real-life events from a stated rule set — the rule mechanics LIVE here: extract every gate, threshold, constraint, propagation law, and causal coupling the source declares. System carries the engine of consequence.
   S = ΔN + √ΔE. Ref: ~${FORCE_REFERENCE_MEANS.system}/scene.
-- FATE (METAPHYSICAL plane): the higher-order pull that governs what material and abstract can't account for alone. Threads are PREDICTION MARKETS over named outcomes; a scene contributes fate by genuinely moving what a neutral observer would believe, weighted by the attention the scene paid to the thread. This is NOT a density lever — it is GENUINE CAREFUL MEASUREMENT. Price each thread's evidence by the concrete events in the scene; do NOT tune magnitudes to reach a target number. Fate is OUTPUT, not INPUT. There is no per-scene fate count to aim for — a quiet scene honestly emits pulses (|e|=0) and small evidence; a pivotal scene honestly emits committal evidence. Under-pricing a real payoff or over-pricing a routine scene both corrupt the trajectory.
+- FATE (METAPHYSICAL plane): the higher-order pull that governs what material and abstract can't account for alone. Threads are PREDICTION MARKETS over named outcomes; a scene contributes fate by genuinely moving what a neutral observer would believe, weighted by the attention the scene paid to the thread. This is NOT a density lever — it is GENUINE CAREFUL MEASUREMENT. Price each thread's evidence by the concrete events in the scene; do NOT tune magnitudes to reach a target number. Fate is OUTPUT, not INPUT. There is no per-scene fate count to aim for — a quiet scene honestly emits pulses (|e|=0) and small evidence; a pivotal scene honestly emits committal evidence. Under-pricing a real payoff or over-pricing a routine scene both corrupt the trajectory. Reads naturally as a dramatic question, a claim in contention, an open inquiry, or a rule-driven question ("does the modelled system reach state X under conditions Y?") depending on the source's register; in simulation, payoffs are rule-forced state arrivals — the rules forcing closure under the given conditions, not authorial choice.
 
 Return JSON:
 {
-  "povName": "POV character name",
+  "povName": "POV — the viewpoint entity (a character in fiction; the authorial voice for essay / research / reportage; the observer or modelled agent whose vantage tracks events under the rule set in simulation works)",
   "locationName": "Where this scene takes place",
   "participantNames": ["All characters present"],
   "events": ["short_event_tags"],
-  "summary": "Narrative summary using character and location NAMES. Length is ADAPTIVE — 3-6 sentences for routine scenes; expand WITHOUT UPPER BOUND for cognition-dense scenes (multi-step planning, scheme construction, scenario modelling, complex world-rule reveals). For dense scenes, capture the ACTUAL computation — name each scenario weighed, each tradeoff accepted, each conclusion reached. Stand-in cognitive verbs ('considered the situation', 'planned carefully', 'refined his strategy') are failures: extract what the source text actually shows the character thinking. The summary is the only artifact downstream prose / plan / fate-reextract / search can read; if the cognition isn't here, it's lost.",
+  "summary": "Narrative summary using entity and location NAMES. Length is ADAPTIVE — 3-6 sentences for routine scenes; expand WITHOUT UPPER BOUND for cognition-dense scenes (multi-step planning, scheme construction, scenario modelling, complex world-rule reveals, sustained argument construction). For dense scenes, capture the ACTUAL computation — name each scenario weighed, each tradeoff accepted, each conclusion reached. Stand-in cognitive verbs ('considered the situation', 'planned carefully', 'refined the strategy') are failures: extract what the source text actually shows the reasoning entity working through. The summary is the only artifact downstream prose / plan / fate-reextract / search can read; if the cognition isn't here, it's lost.",
   "characters": [{"name": "Full Name", "role": "anchor|recurring|transient", "firstAppearance": false, "imagePrompt": "1-2 sentence LITERAL physical description: concrete traits like hair colour, build, clothing style. No metaphors or figurative language."}],
   "locations": [{"name": "Location Name", "prominence": "domain|place|margin", "parentName": "Parent or null", "description": "Brief description", "imagePrompt": "1-2 sentence LITERAL visual description: architecture, landscape, lighting, weather. Concrete physical details only, no metaphors.", "tiedCharacterNames": ["characters tied here"]}],
   "artifacts": [{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language", "ownerName": "owner or null"}],
-  "threads": [{"description": "A COMPELLING QUESTION with stakes, uncertainty, investment — 15-30 words. BAD: 'Will X succeed?' GOOD: 'Can Marcus protect his daughter from the cult that killed his wife?'", "participantNames": ["names"], "outcomes": ["named outcome 1", "named outcome 2", "..."], "horizon": "short | medium | long | epic — structural distance from any scene to this thread's resolution. short = 2-3 scenes (immediate trust, fight outcome). medium = within an arc, 4-8 scenes. long = multi-arc, segment-spanning. epic = series-spanning or open-ended (eternal life, dynastic ambition). Drives evidence-magnitude attenuation in the fate-reextract pass.", "development": "15-25 words: how this question was advanced or answered in this scene"}],
+  "threads": [{"description": "A COMPELLING QUESTION with stakes, uncertainty, investment — 15-30 words. BAD: 'Will X succeed?' GOOD: 'Can Marcus protect his daughter from the cult that killed his wife?' / 'Does the proposed mechanism explain anomalies the prior model cannot?' / 'Does the modelled grid reach cascading failure under the declared load schedule?'", "participantNames": ["names"], "outcomes": ["named outcome 1", "named outcome 2", "..."], "horizon": "short | medium | long | epic — structural distance from any scene to this thread's resolution. short = 2-3 scenes (immediate question, local outcome). medium = within an arc, 4-8 scenes. long = multi-arc, segment-spanning. epic = work-spanning or open-ended (eternal life, dynastic ambition, civilisational trajectory, long-horizon equilibria). Drives evidence-magnitude attenuation in the fate-reextract pass.", "development": "15-25 words: how this question was advanced or answered in this scene"}],
   "relationships": [{"from": "Name", "to": "Name", "type": "description", "valence": 0.0}],
   "threadDeltas": [{"threadDescription": "exact thread description", "logType": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "updates": [{"outcome": "outcome name from thread.outcomes", "evidence": -4..+4 (decimals allowed, e.g. +1.5)}], "volumeDelta": 0..3, "addOutcomes": ["optional — new outcome names if the scene opens possibilities not previously in the market"], "rationale": "15-25 words — the specific summary sentence that moved the market this scene"}],
   "worldDeltas": [{"entityName": "Name", "addedNodes": [{"content": "15-25 words, PRESENT tense: a stable fact about the entity — their unique perspective on reality, identity, or condition. Emit as many 15-25-word nodes per entity as the scene genuinely reveals — no count cap.", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
@@ -62,48 +62,34 @@ Return JSON:
 
   const fieldGuide = `
 <extraction-standards>
-  <intent>Analysis filters an unlimited source. This is NOT generation.</intent>
-  <contrast subject="generation">Works from a limited source (direction + context) and needs guidelines — density floors, count targets, "2-4 nodes per entity" — to produce ENOUGH quality.</contrast>
-  <contrast subject="analysis">Works from an already-enriched source (the prose in front of you). There is no quality floor to enforce; there's only a signal to extract. Every claim the prose earns should land in the graph. If the text is sparse, extract little; if dense, extract a lot. Node count has NO cap (neither min nor max) — count follows the information the text actually carries. Standards still hold on format (15-25 words per node, present tense, distinct claims, one claim per node), but on COUNT the prompt trusts you to match the density of the source.</contrast>
-  <invariant name="entities-as-sponges">Rich prose produces many 15-25-word nodes; sparse prose produces few. Do NOT under-extract to hit a role/significance/prominence "target"; do NOT over-extract to pad a count. Match the source.</invariant>
-  <invariant name="every-delta-earns-its-place">Low-value deltas still flatten the graph. The test is "is this a genuinely new claim the prose earned?" not "have I hit a count?".</invariant>
-  <invariant name="omit-empty-entries" critical="true">If you have nothing to add for a delta type, OMIT THE ENTRY entirely — do not emit a placeholder object with empty / missing fields. Specifically: every "systemDeltas.addedNodes" entry MUST have a non-empty "concept" string. Every "worldDeltas" entry MUST have a non-empty "entityName" string and every node within MUST have a non-empty "content" string. Every "threads" entry MUST have a non-empty "description" string. An object missing any of these fields is invalid and will be dropped — emit zero entries instead of one malformed one.</invariant>
+  <intent>Analysis filters an unlimited source — the prose in front of you. No quality floor, no count cap; count follows the information the text actually carries.</intent>
+  <invariant name="match-the-source">Sparse prose → few nodes; dense prose → many. Applies entity-by-entity: rich entity reveals → many nodes; thin reveals → few. Don't under-extract to hit a target; don't pad to fill a slot.</invariant>
+  <invariant name="format">15-25 words per node, present tense, distinct claims, one claim per node.</invariant>
+  <invariant name="omit-empty-entries" critical="true">If nothing to add for a delta type, OMIT the entry — never emit a placeholder with missing fields. Every \`systemDeltas.addedNodes\` entry MUST have non-empty \`concept\`; every \`worldDeltas\` entry MUST have non-empty \`entityName\` and node \`content\`; every \`threads\` entry MUST have non-empty \`description\`. Malformed entries are dropped.</invariant>
 </extraction-standards>
 
 <detecting-fate>
-  <definition>Fate is a HIGHER-ORDER force that compels the world and system to bend toward narrative meaning. It is NOT the ordinary running of threads; it is what pulls arcs toward resolution against or beyond the local logic of rules and character traits.</definition>
-  <criterion name="compelling-question">A compelling question has STAKES (what's at risk), UNCERTAINTY (outcome not obvious), INVESTMENT (we care).</criterion>
-  <example category="weak">Will [Name] succeed? — too plain to carry an arc on its own, unless the form is picaresque or satirical.</example>
-  <example category="strong" register="narrative">Can Ayesha clear her grandfather's name before the tribunal ends?</example>
-  <example category="strong" register="argument">Does the proposed mechanism explain anomalies the prior model cannot?</example>
-  <example category="strong" register="inquiry">What role did diaspora networks play in the movement before digital coordination?</example>
-  <key-test>If a character's action in this scene can be fully explained by their traits, their constraints, and the system's rules — that is ordinary world/system activity, NOT fate. Fate earns its weight when actions OUTRUN those explanations: a vow kept at cost the trait-profile would not predict, a coincidence that ratifies itself into pattern, a thread resolving because the story required it rather than because causation forced it.</key-test>
-  <rule>Read prose for MOMENTS THAT MATTER — where does the arc advance against the local pull?</rule>
-  <rule name="be-selective">Routine lifecycle movement of minor threads (meetings arranged, letters delivered, small-stakes plans proceeding) does NOT earn fate weight. Reserve transitions and payoffs for arc-central threads where the story's larger pull is visibly acting.</rule>
-  <rule>A thread delta records your detection: "this moment moves the story closer to answering an arc-level question."</rule>
-  <rule>Thread logs track incremental ANSWERS to these questions over time.</rule>
-  <invariant>Fate is what pulls world and system toward meaning. Without it, nothing resolves — but not every beat has it, and forcing it where it isn't present inflates the signal and dilutes the archetype read downstream.</invariant>
+  <definition>Fate is the HIGHER-ORDER force that compels world and system to bend toward narrative meaning — what pulls arcs toward resolution against or beyond the local logic of rules and character traits.</definition>
+  <criterion>A compelling question has STAKES (what's at risk), UNCERTAINTY (outcome not obvious), INVESTMENT (we care).</criterion>
+  <example category="weak">"Will [Name] succeed?" — too plain unless the form is picaresque/satirical.</example>
+  <example category="strong">"Can Ayesha clear her grandfather's name before the tribunal ends?" / "Does the proposed mechanism explain anomalies the prior model cannot?" / "What role did diaspora networks play in the movement before digital coordination?" / "Does the modelled coalition fragment before the budget cycle closes under the declared payoff structure?"</example>
+  <key-test>If a development is fully explained by traits, constraints, and rules — that's ordinary world/system activity, NOT fate. Fate earns weight when developments OUTRUN those explanations: a commitment kept at cost the prior profile wouldn't predict, a coincidence ratifying itself into pattern, a claim landing because the work's overall trajectory required it rather than because local causation forced it.</key-test>
+  <selectivity>Routine lifecycle movement of minor threads (meetings arranged, letters delivered, small-stakes plans proceeding) does NOT earn fate weight. Reserve transitions and payoffs for arc-central threads. Forcing fate where it isn't present inflates the signal and dilutes the archetype read downstream.</selectivity>
 </detecting-fate>
 
 <thread-creation>
-  <intent>Threads are EXPENSIVE — arc-spanning tensions the story promises to resolve. Creating too many flattens the signal. Err toward FEWER, BIGGER threads.</intent>
-  <budget>A full work typically has 5-15; a TV season 3-8. Extracting 10+ per scene means you're coding scene tensions as threads — collapse them into worldDeltas instead.</budget>
-  <gate>A candidate becomes a thread only if ALL three pass.</gate>
+  <intent>Threads are EXPENSIVE — arc-spanning tensions the work promises to resolve. Err FEWER, BIGGER. A full-length work typically has 5-15; a shorter work or single segment 3-8. Extracting 10+ per scene means you're coding scene tensions as threads — collapse into worldDeltas instead.</intent>
+  <gate>Candidate becomes a thread only if ALL three pass.</gate>
   <criterion id="multi-scene-span">Takes many scenes (ideally arcs) to answer; anything that resolves within a scene is scene-level tension, not a thread.</criterion>
-  <criterion id="arc-central">Resolving it moves the story's larger trajectory, not just describes a character's day-to-day.</criterion>
-  <criterion id="irreversible">Answering it commits the narrative to a new state; recurring dynamics that reset every scene are character texture, not threads.</criterion>
-  <fallback>When a candidate fails — capture it as a worldDelta on the relevant entity, not as a thread.</fallback>
-  <example category="bad" reason="recurring-dynamic">"Will Jim keep pranking Dwight?" → worldDelta on Jim: "uses pranks on Dwight as a daily coping mechanism"</example>
-  <example category="bad" reason="trait-verification">"Can Michael maintain his self-image as a beloved boss?" → worldDelta on Michael: "frames himself as a beloved, effective boss to reconcile his insecurities"</example>
-  <example category="bad" reason="episode-micro-plot">"Will the forklift applicant get the job?" → scene events, not a thread</example>
-  <example category="bad" reason="no-specific-consequence">"Will Michael's drinking hurt his work?" → worldDelta on Michael</example>
-  <example category="bad" reason="interior-no-external-commitment">"Can X come to terms with their past?" → worldDelta on X unless a concrete reckoning is forced</example>
-  <example category="good" reason="arc-central + multi-season + irreversible">Will Jim and Pam's mutual attraction develop into a relationship despite Pam's engagement to Roy?</example>
-  <example category="good" reason="external-stake + multi-episode + irreversible">Will the Scranton branch survive corporate pressure to downsize or merge?</example>
+  <criterion id="arc-central">Resolving it moves the work's larger trajectory, not day-to-day texture.</criterion>
+  <criterion id="irreversible">Answering commits the work to a new state; recurring dynamics that reset every scene are local texture, not threads.</criterion>
+  <fallback>Failed candidate → capture as worldDelta on the relevant entity, not as a thread.</fallback>
+  <example category="bad" reason="recurring dynamic / trait verification / micro-question">"Will the rivals keep needling each other?" / "Can the manager keep up the self-image of a beloved boss?" / "Does the next paragraph add a fresh citation?"</example>
+  <example category="good" reason="arc-central + multi-scene + irreversible">"Will the central pair's mutual attraction develop into a relationship despite an existing commitment?" / "Does the proposed architecture outperform prior baselines on long-range tasks?" / "Can the unipolar moment be sustained against multipolar economic gravity?" / "Does the modelled epidemic reach herd-threshold before mitigation policy lifts under the declared transmission parameters?"</example>
 </thread-creation>
 
 <threads-as-prediction-markets>
-  <model>A thread is a named question with NAMED OUTCOMES. The market prices each outcome (via logits → softmax). Scenes emit evidence that shifts per-outcome logits; the reader's belief over "which outcome wins" evolves across the story.</model>
+  <model>A thread is a named question the work has committed to, with NAMED OUTCOMES. The market prices each outcome (via logits → softmax). Scenes emit evidence that shifts per-outcome logits; the reader's belief over "which outcome wins" evolves across the narrative.</model>
 
   <outcomes required="true">
     <range>2 to ~6 named possibilities covering the resolution space.</range>
@@ -131,8 +117,8 @@ Return JSON:
   <prior-probs encouraged="true">
     <shape>priorProbs: number[] aligned with outcomes[], in-world base rates a neutral observer would assign BEFORE any scene evidence. Must be positive and sum to ~1; the system renormalises and clamps to opening guardrails.</shape>
     <rule>Reason in-world: base rates for this kind of attempt in this world, the entity's visible starting position, common failure modes.</rule>
-    <prohibition>Do NOT weight for narrative / genre expectations (the protagonist will not prevail "because it's a revenge tale" — price as if you didn't know).</prohibition>
-    <example>A 15-year-old at a small-clan cultivation ceremony, four outcomes [succeeds fully, partial success, fails and dies, fails due to misuse] → priorProbs ≈ [0.10, 0.30, 0.40, 0.20]. NOT uniform, NOT success-weighted.</example>
+    <prohibition>Do NOT weight for narrative / genre / authorial expectations (a focal entity will not prevail "because it's a revenge tale" or "because the author is making this argument" — price as if you didn't know how the work resolves).</prohibition>
+    <example>A 15-year-old apprentice at a hazardous initiation rite where most fail, four outcomes [succeeds fully, partial success, fails and is gravely injured, fails due to misuse] → priorProbs ≈ [0.10, 0.30, 0.40, 0.20]. NOT uniform, NOT success-weighted.</example>
     <rule>Binary defaults [0.5, 0.5] only when truly symmetric. "Will X survive the gauntlet?" in a lethal gauntlet is NOT 50/50.</rule>
     <fallback>If genuinely indistinguishable, omit the field and the system uses uniform.</fallback>
   </prior-probs>
@@ -151,16 +137,16 @@ Return JSON:
       <market-principles>
 ${PROMPT_MARKET_PRINCIPLES}
       </market-principles>
-      <lexical-calibration scope="argumentative / non-fiction corpora">
+      <lexical-calibration>
         <rule name="rhetoric-not-probability">Hedge words cap the magnitude; word-count does not inflate it.</rule>
         <table name="hedge-to-magnitude">
           <row hedge="mentions / notes X">|e| 0, volumeDelta 0-1</row>
           <row hedge="leans / tilts toward X">|e| ≈ 1, posterior ~55-60%</row>
-          <row hedge="the story is X / structural">|e| ≈ 1-2, posterior ~60-70%</row>
-          <row hedge="commits / argues / proves X">|e| ≈ 2-3, posterior ~70-85%</row>
+          <row hedge="treats X as structural / load-bearing">|e| ≈ 1-2, posterior ~60-70%</row>
+          <row hedge="commits / argues / proves / shows X">|e| ≈ 2-3, posterior ~70-85%</row>
           <row hedge="X is inevitable / decisive">|e| ≈ 3-4, closure</row>
         </table>
-        <rule>An argue-then-back-off passage stays small-magnitude.</rule>
+        <rule>A passage that asserts then walks back stays small-magnitude.</rule>
         <rule name="distributional-vs-modal">Rare-event rhetoric ("tail risk has grown", "base rates no longer apply") shifts the TAIL outcome 5-15% up from prior base rates, NOT past 50%. A rare-event market at 5-10% becomes 15-25%, not 60-70%, on distributional claims. Only on-page events (detonation, declared test, announced succession) move the modal outcome — those come with |e| ≥ 3, logType payoff/twist. "Tail risk is the story" lifts the tail; the modal stays modal.</rule>
         <rule name="text-volume-not-probability">Authors detail the interesting outcome, not the likeliest one. Price by hedges and events, not by word-share per outcome.</rule>
       </lexical-calibration>
@@ -180,7 +166,7 @@ ${PROMPT_MARKET_PRINCIPLES}
   <field name="volumeDelta">+0..+2 attention change (how much the scene spotlighted this thread).</field>
   <field name="addOutcomes" frequency="rare">New outcome names when a scene structurally opens a possibility not previously in the market (a third contender arrives, an option no one had considered surfaces). Neutral prior (logit=0). Most scenes don't expand.</field>
   <field name="rationale">
-    <shape>ONE prose sentence grounded in what happens in the scene. Natural language — describe the event in a novel's margin voice.</shape>
+    <shape>ONE prose sentence grounded in what happens in the scene. Natural language — describe the event in a marginal annotation voice that fits the source register. For simulation works where a payoff or twist fires because the established rule set forces it under the current conditions, cite the rule explicitly in the rationale (e.g. "the load on node 7 crosses 1.2× rated capacity for two consecutive ticks, tripping the cascade as the propagation rule dictates"); rule-driven closures should read distinguishably from authorially-asserted ones.</shape>
     <prohibition>DO NOT quote outcome identifiers (they're technical names).</prohibition>
     <prohibition>DO NOT mention evidence numbers or logType.</prohibition>
     <invariant>Two good rationales on the SAME delta should read like two descriptions of the same moment, not two schema dumps.</invariant>
@@ -220,14 +206,13 @@ ${PROMPT_MARKET_PRINCIPLES}
 </relationship-deltas>
 
 <system-deltas>
-  <intent>REVEALED world rules, not character observations. 15-25 words, PRESENT TENSE.</intent>
-  <example register="fiction" category="good">Wizards cannot Apparate within Hogwarts grounds due to ancient protective enchantments.</example>
-  <example register="fiction" category="good">The One Ring corrupts its bearer over time, amplifying their desire for power.</example>
-  <example register="fiction" category="bad" reason="too-vague">Magic — describe HOW it works.</example>
-  <example register="non-fiction" category="good">Self-attention computes weighted sums where each position attends to all positions in the sequence.</example>
-  <example register="non-fiction" category="good">Transformers eliminate recurrence entirely, relying solely on attention mechanisms for sequence modeling.</example>
-  <example register="non-fiction" category="bad" reason="too-short">Transformer architecture — describe what it DOES.</example>
-  <coverage>Emit one 15-25-word node per genuinely new world-rule revealed. No count cap. Action scenes may reveal none; exposition/world-building scenes may reveal many. Match the source.</coverage>
+  <intent>REVEALED rules of how the world works, not entity observations. 15-25 words, PRESENT TENSE. Action / dialogue scenes may reveal none; exposition / world-building / mechanism-explaining / rule-stating scenes may reveal many. Match the source. In simulation works the rule mechanics are the substrate the work explores — extract every gate, threshold, propagation law, causal coupling, constraint, and modelled mechanism the source declares; under-extraction here loses the engine of consequence.</intent>
+  <example category="good">"Practitioners cannot move directly between certain warded grounds; ancient enchantments block translocation across the boundary."</example>
+  <example category="good">"The bearer of the cursed object is corrupted over time, amplifying desire for power."</example>
+  <example category="good">"Self-attention computes weighted sums where each position attends to all positions in the sequence."</example>
+  <example category="good" reason="rule-mechanic">"Once a node's load exceeds 1.2× rated capacity for two consecutive ticks, the node trips and shifts its load to neighbours."</example>
+  <example category="good" reason="rule-mechanic">"Cultivators at the foundation tier cannot cross to the golden-core tier without a heavenly tribulation cleared by personal channelling, not external aid."</example>
+  <example category="bad" reason="too vague / too short">"Magic" / "Transformer architecture" — name a label without describing what it DOES.</example>
   <field name="types">principle, system, concept, tension, event, structure, environment, convention, constraint</field>
   <field name="edges">enables, governs, opposes, extends, created_by, constrains, exist_within</field>
 </system-deltas>
@@ -238,24 +223,19 @@ ${PROMPT_MARKET_PRINCIPLES}
   <entity-class id="characters">
     <definition>Conscious beings with AGENCY IN THE SCENE.</definition>
     <test>Does this person ACT, SPEAK, DECIDE, or THINK within the scene? If they are only NAMED (cited, referenced, listed, footnoted) without acting, they are NOT a character — skip entirely.</test>
-    <example register="fiction" category="good">Harry Potter, Gandalf, Elizabeth Bennet — people with agency.</example>
-    <example register="fiction" category="good">Hedwig, Shadowfax — named animals with personality.</example>
-    <example register="non-fiction" category="good">"Einstein proposed relativity after observing X" — acting in the narrative.</example>
-    <example register="non-fiction" category="good">"the lead researcher configured the experiment" — someone performing an action.</example>
-    <example register="non-fiction" category="bad" reason="citation-reference">"Vaswani et al., 2017", "Brown et al., 2020", "(Misra and Maaten, 2020)" — names appear once as a pointer to prior work, with no agency in the current text. Skip.</example>
-    <example register="non-fiction" category="bad" reason="bibliography">Full author-title-venue tuples at the end of a paper. Skip entirely — these are a REFERENCE LIST, not a cast.</example>
-    <example register="non-fiction" category="bad" reason="repeated-citation">"Bordes et al., 2015", "Silver et al., 2021" — inline citations, even when repeated, if the author is only referenced (not depicted acting).</example>
-    <example register="non-fiction" category="bad" reason="collective-or-name-drop">"The scientific community", "reviewers", "prior work by X and Y" — collectives or one-line name-drops, not characters.</example>
+    <example category="good">A named figure who acts, speaks, or decides on the page — including non-human entities with agency (named animals, sentient objects, AGI). In simulation works this also covers the observer / analyst whose vantage tracks the modelled run, and named modelled agents (a faction, an institutional actor, a market participant, a modelled household, a unit on the board) that take decisions the rule set evaluates.</example>
+    <example category="bad" reason="citation-reference">"Vaswani et al., 2017", "Brown et al., 2020", "(Misra and Maaten, 2020)" — names appear as pointers to prior work, with no agency in the current text. Skip.</example>
+    <example category="bad" reason="bibliography">Full author-title-venue tuples in a reference list. Skip entirely — these are a REFERENCE LIST, not a cast.</example>
+    <example category="bad" reason="repeated-citation">Inline citations, even when repeated, if the author is only referenced (not depicted acting).</example>
+    <example category="bad" reason="collective-or-name-drop">"The scientific community", "reviewers", "prior work by X and Y" — collectives or one-line name-drops, not characters.</example>
     <edge-case test="delete-and-reread">Take the scene, delete the character. Does the scene still read the same? If yes, they are a reference/citation, not a character. Do not extract them, and do not invent a transient character for one-line name-drops.</edge-case>
     <field name="role" values="anchor | recurring | transient">Shapes downstream retrieval weight and narrative salience. NOT a worldDelta count target — emit as many 15-25-word nodes as the text genuinely reveals about the character. A transient walk-on with one dense reveal = one node; a recurring character whose interior is being laid bare across the scene = as many nodes as the reveals earn.</field>
   </entity-class>
 
   <entity-class id="locations">
-    <definition>PHYSICAL spatial areas you can STAND IN.</definition>
-    <example register="fiction" category="good">Hogwarts, the Shire, Pemberley — places you can walk into.</example>
-    <example register="fiction" category="bad" reason="abstract-domain">"The wizarding world", "Middle-earth politics" — system knowledge.</example>
-    <example register="non-fiction" category="good">Google's data center, Stanford lab, the conference room — physical places.</example>
-    <example register="non-fiction" category="bad" reason="abstract-domain">"The field of machine learning", "academia", "NeurIPS" — system knowledge.</example>
+    <definition>PHYSICAL spatial areas you can STAND IN — buildings, settlements, regions, named environments.</definition>
+    <example category="good">A building, lab, room, settlement, or named landscape — somewhere you could physically walk into.</example>
+    <example category="bad" reason="abstract-domain">A field of inquiry, a political sphere, a community of practice — these are system knowledge, not locations.</example>
     <field name="parentName">Nest locations.</field>
     <field name="tiedCharacterNames">Characters who BELONG (residents, members).</field>
     <field name="prominence" values="domain | place | margin">Shapes retrieval weight, NOT node count. Emit as many 15-25-word nodes as the text reveals about the location — history, rules, dangers, atmosphere, properties. A margin location with one atmospheric detail = one node; a domain being fully characterised for the first time = many.</field>
@@ -264,26 +244,23 @@ ${PROMPT_MARKET_PRINCIPLES}
   <entity-class id="artifacts">
     <definition>Things with UTILITY or ECONOMIC VALUE — objects that are USED, WIELDED, POSSESSED, CONSUMED, or DEPLOYED.</definition>
     <test>Does this artifact deliver a specific utility to someone in the scene? If no utility → not an artifact.</test>
-    <example register="fiction" category="good">A wand, the One Ring, a ship, a letter — objects wielded or possessed.</example>
-    <example register="fiction" category="good" significance="minor | notable">A diary entry, a newspaper clipping, a map, a prophecy scroll — in-text DOCUMENTS that deliver information the reader/characters consume (short-lived).</example>
-    <example register="fiction" category="bad" reason="concept">"Magic", "swordsmanship", "prophecy-as-concept" — system knowledge.</example>
-    <example register="non-fiction" category="good">GPT-4, TensorFlow, WMT dataset, P100 GPU — specific software/hardware/datasets actually USED in the work.</example>
-    <example register="non-fiction" category="good">Figure 3, Table 2, Equation 4, Algorithm 1 — in-text artefacts whose utility is delivering specific data/claims/procedures. Name them explicitly with their content ("Figure 3: Mode-1 perception-action episode", "Table 2: ablation results").</example>
-    <example register="non-fiction" category="bad" reason="technique-or-metric">"Transformer architecture", "attention mechanism", "BLEU score" — system knowledge.</example>
-    <example register="non-fiction" category="bad" reason="method-class-not-artifact">"JEPA", "H-JEPA", "GAN", "VAE", "VQ-VAE", "Transformers", "Boltzmann Machine", "Siamese Network", "Dyna architecture", "Memory Network system", "SimCLR", "MoCo", "BYOL", "BERT" — METHOD CLASSES / ARCHITECTURES / CONCEPTS. They belong in systemDeltas. An artifact would be a specific trained model, binary, checkpoint, or dataset someone uses.</example>
-    <example register="non-fiction" category="bad" reason="citation-reference">"Brown et al., 2020", "Silver et al., 2021", "Vaswani et al., 2017", "(Misra and Maaten, 2020)" — pointers into the bibliography; if the cited work introduces a concept being discussed, that concept belongs in systemDeltas.</example>
-    <example register="non-fiction" category="bad" reason="bibliography">Full author-title-venue tuples at the end of a paper. Skip — they carry no scene-level narrative utility.</example>
-    <example register="non-fiction" category="bad" reason="self-reference">The work being analysed itself (e.g., "A Path Towards Autonomous Machine Intelligence"). The paper is the text, not an artifact within it.</example>
-    <example register="non-fiction" category="bad" reason="collective">Groups or collections of people ("the authors", "reviewers", "prior work by X and Y"). Not artifacts.</example>
+    <example category="good">An object actually wielded, possessed, or consumed in the scene — a tool, weapon, vehicle, document, dataset, instrument, trained model checkpoint, GPU, etc. Name it with its content where useful ("Figure 3: ablation curve", "Table 2: BLEU scores").</example>
+    <example category="good" significance="minor | notable">In-text DOCUMENTS that deliver information the reader/characters consume — letters, diaries, newspaper clippings, maps, scrolls, embedded notes (short-lived).</example>
+    <example category="good" significance="key | notable" reason="scenario-input">In simulation works, scenario-input artifacts whose contents drive the rule machinery — a rule document, military doctrine, policy memo, model parameter sheet, statute, treaty text, scenario brief, transmission-parameter table. These deliver the engine of consequence; treat the artifact's worldDeltas as capturing the rule contents the work then operates under.</example>
+    <example category="bad" reason="concept">A concept, technique, principle, or named metric is system knowledge, not an artifact. An artifact is a specific instance USED in the scene; the abstract category goes in systemDeltas.</example>
+    <example category="bad" reason="method-class-not-artifact">Named method classes / architectures / frameworks (e.g. "Transformers", "GANs", "VAEs"). These are concepts, not artifacts; an artifact would be a specific trained model, binary, or dataset someone uses.</example>
+    <example category="bad" reason="citation-reference">Inline citations or bibliography entries. Pointers to other works, not artifacts within this one.</example>
+    <example category="bad" reason="self-reference">The work being analysed itself. The work is the text, not an artifact within it.</example>
+    <example category="bad" reason="collective">Groups or collections of people ("the authors", "reviewers", "prior work"). Not artifacts.</example>
     <field name="ownerName">character/location/null. For figures/tables/equations the owner is the author (or null). Documents have an owner (sender, writer).</field>
     <field name="significance" values="key | notable | minor">Shapes retrieval weight, NOT node count. Each worldDelta node is a standard 15-25-word claim; the number of nodes follows the content the artifact genuinely carries — no cap.</field>
     <subtype id="short-lived" examples="tables, figures, equations, algorithm listings, embedded letters/diaries/notes/maps">
       <invariant>The artifact's utility IS its content. worldDeltas MUST capture that content — what the table shows, what the figure depicts, what the equation computes, what the letter says. Do NOT promote the contents to systemDeltas unless the text itself generalises them into a rule.</invariant>
       <example category="good" type="single-claim-table">Ablation removes positional encoding and BLEU drops 2.3 points on EN-DE, showing positional signal is load-bearing.</example>
       <example category="good" type="single-claim-figure">Plots attention weights across layers: lower layers attend locally, upper layers attend globally across 200-token windows.</example>
-      <example category="good" type="letter">Contains Dumbledore's instructions to leave Harry with the Dursleys and a warning that Voldemort may return.</example>
+      <example category="good" type="letter">Contains the mentor's instructions to keep the child with the relatives until of age, and a warning that the threat may return.</example>
       <example category="good" type="lore-heavy-multi-node">
-        <node>A rank-6 Narrative-path Gu refused by Wisdom, Information, and Fate paths as hybrid refinement outside their doctrines.</node>
+        <node>A high-tier narrative artefact refused by the orthodox schools of Structure, Continuity, and Resolution as a hybrid refinement outside their doctrines.</node>
         <node>Appears as a palm-sized inkstone whose well is stirred by a black tide holding a mutating internal graph.</node>
         <node>Every entity fed in becomes a node; every claim becomes an edge; every scene deposits an ordered layer.</node>
         <node>Weighs three forces — System (rule deepening), World (persons' continuity), Fate (owed-thread resolution) — into Delivery.</node>
@@ -295,12 +272,12 @@ ${PROMPT_MARKET_PRINCIPLES}
         <node>Correction organ: six per-scene verdicts (keep, edit, merge, insert, cut, move), forks memory rather than overwriting.</node>
         <node>Each proposition embedded at a geometric depth; classified as Anchor, Seed, Close, or Texture by forward/backward weight.</node>
         <node>Local variants (near connections) distinguish from global variants (distant connections, foreshadow weight).</node>
-        <node>Refinement requires runed obsidian for System, spirit-beast tear-pearl for World, Heavenly Court loom-shard for Fate.</node>
-        <node>No orthodox Fate-path elder will sell the recipe; every extant Gu was refined outside the three paths' sanction.</node>
+        <node>Refinement requires three rare ingredients — one for each force channel — none of which the orthodox schools will release.</node>
+        <node>No orthodox elder will sell the recipe; every extant copy was refined outside the three schools' sanction.</node>
         <node>Measures but does not love; optimising purely for the grading curve produces locally correct, globally hollow works.</node>
       </example>
       <example category="bad" reason="no-contents">"Table 2 shows results"</example>
-      <example category="bad" reason="no-contents">"A letter from Dumbledore"</example>
+      <example category="bad" reason="no-contents">"A letter from the mentor"</example>
       <example category="bad" reason="under-extraction">Three thin nodes when fifteen dense ones are earned by a multi-organ artifact.</example>
       <example category="bad" reason="run-on-node">Jamming multiple distinct claims into one long run-on node — split along claim boundaries.</example>
     </subtype>
@@ -324,7 +301,7 @@ ${PROMPT_MARKET_PRINCIPLES}
 </distinctness>
 
 <minor-fields>
-  <field name="events">2-4 word tags naming discrete beats. Emit one per distinct beat the scene contains — no count cap.</field>
+  <field name="events">2-4 word tags naming discrete beats. Emit one per distinct beat the scene contains — no count cap. Rule-driven state changes (a tier crossing, a threshold breach, a cascade triggering, a policy lifting) are legitimate beats; tag them as the source frames them.</field>
   <field name="artifactUsages">
     <intent>When an artifact delivers utility. Every artifact referenced for what it DOES (not just mentioned by name) is a usage.</intent>
     <invariant>Every usage MUST have a character who used it.</invariant>
@@ -345,17 +322,12 @@ ${PROMPT_MARKET_PRINCIPLES}
   <example phrase="moments later">{value: 1, unit: "minute"}</example>
   <example phrase="that evening">{value: 6, unit: "hour"}</example>
   <special-case>{value: 0, unit: "minute"} marks a CONCURRENT scene — same moment as the prior scene, different POV / vantage / cutaway. Also use this for the very FIRST scene of the work (no prior scene to measure against).</special-case>
-  <rule>This is an ESTIMATE — read the prose for cues, then pick the most plausible value. The estimate is acceptable even when the prose is fuzzy ("some time later", "after a while"). Default to a small unit (minutes / hours) when the gap reads as same-scene-day, and to days/weeks when it reads as a chapter break with no specific cue.</rule>
+  <rule>This is an ESTIMATE — read the prose for cues, then pick the most plausible value. The estimate is acceptable even when the prose is fuzzy ("some time later", "after a while"). Default to a small unit (minutes / hours) when the gap reads as same-scene-day, and to days/weeks when it reads as an arc / section break with no specific cue.</rule>
   <rule>This is a RELATIVE delta only. There is no absolute calendar anchor. Do not assume a start date or attempt to compute wall-clock dates.</rule>
-  <rule register="non-fiction">timeDelta still REQUIRED but typically defaults to {value: 0, unit: "minute"} since paper sections are not chronological events. Use a non-zero value only when the section genuinely follows another in narrative time (e.g. a case study with explicit chronology).</rule>
+  <rule>When the source's sections are not chronological events (typical of expository / argumentative structures), default to {value: 0, unit: "minute"} and use a non-zero value only when one section genuinely follows another in narrative time.</rule>
 </time-delta>
 
-<variance-is-signal>
-  <invariant>Variance is signal. Quiet and climactic scenes look different.</invariant>
-  <example category="quiet">0 transitions, 1 continuity node, 0 system, 2 events = CORRECT.</example>
-  <example category="climactic">2 transitions, 5 nodes, 3 concepts, 5 events = CORRECT.</example>
-  <warning>If every scene has similar counts, you are extracting noise. The graph needs peaks and valleys.</warning>
-</variance-is-signal>`;
+`;
 
   return prompt + '\n' + fieldGuide;
 }

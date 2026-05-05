@@ -4,7 +4,7 @@
  * Phase 5 (finalization) — second-pass, summary-based re-scoring of prediction-
  * market evidence. The first pass (Phase 1 Structure) extracts threadDeltas
  * from each scene IN PARALLEL, so each chunk sees only its local prose and has
- * no knowledge of which outcome actually wins the market across the full story.
+ * no knowledge of which outcome actually wins the market across the full narrative.
  *
  * Symptom: once the market diverges late-arc, probabilities never reverse —
  * the monotonic local accumulation has no way of knowing a twist or payoff is
@@ -16,6 +16,9 @@
  * full canonical market and its observed resolutions. The LLM re-emits this
  * scene's threadDeltas with lifecycle awareness — honest seeds for the
  * winning outcome, deflated misdirection, decisive evidence at resolution.
+ * Register-neutral: the "winning outcome" is the resolution the narrative
+ * lands on, regardless of register — dramatic resolution in fiction, finding
+ * or breakthrough in non-fiction, rule-forced state arrival in simulation.
  */
 
 import {
@@ -24,7 +27,7 @@ import {
   PROMPT_MARKET_LOGTYPE_TABLE,
 } from '../core/market-calibration';
 
-export const FATE_REEXTRACT_SYSTEM = `You re-score prediction-market evidence for ONE scene with full knowledge of the story's actual arc — including which outcome each thread ultimately resolves to. The first pass scored each scene locally (blind to endings); your job is to refresh that scene's threadDeltas so the overall trajectory reflects the story's true shape. Return only valid JSON.`;
+export const FATE_REEXTRACT_SYSTEM = `You re-score prediction-market evidence for ONE scene with full knowledge of the narrative's actual arc — including which outcome each thread ultimately resolves to. The first pass scored each scene locally (blind to endings); your job is to refresh that scene's threadDeltas so the overall trajectory reflects the narrative's true shape. Return only valid JSON.`;
 
 export type FateReextractThread = {
   description: string;
@@ -33,14 +36,14 @@ export type FateReextractThread = {
    *  short / medium / long / epic. Undefined defaults to medium downstream. */
   horizon?: 'short' | 'medium' | 'long' | 'epic';
   /** Outcome with the largest net summed evidence across the full corpus.
-   *  Treat as the observed winner — the resolution the story lands on. */
+   *  Treat as the observed winner — the resolution the narrative lands on. */
   observedWinner: string;
   /** Approximate scene index where the winning outcome's largest committal
    *  evidence fired (a payoff or twist). Useful for detecting whether the
    *  current scene is the resolution itself, pre-resolution, or aftermath. */
   resolutionSceneIndex?: number;
   /** Total volume the thread accumulated across the corpus — surfaces how
-   *  much attention the story paid to it. High-volume threads deserve
+   *  much attention the narrative paid to it. High-volume threads deserve
    *  proportionally more decisive resolution evidence. */
   totalVolume?: number;
 };
@@ -108,7 +111,7 @@ export function buildFateReextractPrompt(opts: {
     <summary>${sceneSummary}</summary>
   </scene-context>
 
-  <canonical-markets hint="Full-story view — the resolutions the corpus actually lands on.">
+  <canonical-markets hint="Full-narrative view — the resolutions the corpus actually lands on.">
 ${marketBlock}
   </canonical-markets>
 
@@ -133,9 +136,9 @@ ${PROMPT_MARKET_LOGTYPE_TABLE}
   <task>Re-emit threadDeltas for THIS SCENE using lifecycle awareness. The first pass didn't know which outcome would win each thread; you do.</task>
 
   <hindsight-rules hint="This pass, not the first.">
-    <rule index="1" name="seeds-toward-winner">Scenes that set up, enable, or plant the eventual winning outcome deserve honest positive evidence — not pulses because "nothing decisive happened locally." A quiet setup scene that genuinely leans toward the winner should emit setup (+1) or small escalation (+1..+2), not evidence=0. Under-priced seeds are the main reason the first pass never reverses late.</rule>
+    <rule index="1" name="seeds-toward-winner">Scenes that set up, enable, or plant the eventual winning outcome deserve honest positive evidence — not pulses because "nothing decisive happened locally." A quiet setup scene that genuinely leans toward the winner should emit setup (+1) or small escalation (+1..+2), not evidence=0. Under-priced seeds are the main reason the first pass never reverses late. For rule-driven threads, "seeds" are the conditions, accumulating pressures, or earlier rule applications the rule set will eventually use to force the resolution; price them honestly when present.</rule>
     <rule index="2" name="misdirection-deflation">Scenes that locally LOOKED like they advanced a non-winning outcome should be priced conservatively in hindsight. Pulse or very small evidence; do NOT reward POV momentum that the arc contradicts.</rule>
-    <rule index="3" name="resolution-scenes">If THIS scene is at or near the thread's resolution index, the resolving events deserve decisive evidence (|e| ≥ 3, logType payoff or twist). The first pass often under-prices these because the resolving event is structurally small but narratively huge.</rule>
+    <rule index="3" name="resolution-scenes">If THIS scene is at or near the thread's resolution index, the resolving events deserve decisive evidence (|e| ≥ 3, logType payoff or twist). The first pass often under-prices these because the resolving event is structurally small but narratively decisive. For rule-driven threads the resolving event is the rule set forcing a state — a threshold breached, a gate triggered, an equilibrium reached; price it as the payoff it is.</rule>
     <rule index="4" name="twists-against-leaders">If the scene reverses what earlier evidence suggested, score it as a twist (|e| ≥ 3 on the newly-favoured outcome). Don't soften to preserve the local lead.</rule>
     <rule index="5" name="preserve-valid">If the first-pass delta was already lifecycle-consistent, keep it. Only rewrite where hindsight changes the read.</rule>
     <rule index="6" name="canonical-outcomes">Every update.outcome must match an entry from canonical-markets verbatim.</rule>

@@ -1,8 +1,8 @@
 import type { NarrativeState, StructureReview, SceneEval, SceneVerdict, Scene, Arc, Branch } from '@/types/narrative';
-import { resolveEntry, isScene, isWorldBuild, REASONING_BUDGETS } from '@/types/narrative';
+import { resolveEntry, isScene, isWorldBuild } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
 import { normalizeTimeDelta } from '@/lib/time-deltas';
-import { callGenerate } from './api';
+import { callGenerate, resolveReasoningBudget } from './api';
 import { parseJson } from './json';
 import { sanitizeScenes } from './scenes';
 import { GENERATE_MODEL, PROSE_CONCURRENCY, MAX_TOKENS_SMALL } from '@/lib/constants';
@@ -593,7 +593,7 @@ async function editScene(
     }, null, 2),
   });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
   const raw = await callGenerate(prompt, RECONSTRUCT_EDIT_SYSTEM, MAX_TOKENS_SMALL, 'editScene', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'editScene') as Partial<Scene>;
 
@@ -677,7 +677,7 @@ async function mergeScenes(
     sourceBlock,
   });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
   const raw = await callGenerate(prompt, RECONSTRUCT_MERGE_SYSTEM, MAX_TOKENS_SMALL, 'mergeScenes', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'mergeScenes') as Partial<Scene>;
 
@@ -720,7 +720,7 @@ async function insertScene(
     evaluation,
   });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
   const raw = await callGenerate(prompt, RECONSTRUCT_INSERT_SYSTEM, MAX_TOKENS_SMALL, 'insertScene', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'insertScene') as Partial<Scene>;
 

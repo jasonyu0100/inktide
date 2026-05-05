@@ -121,6 +121,7 @@ export function useBulkGenerate() {
           window.dispatchEvent(new CustomEvent('bulk:plan-start', { detail: { sceneId } }));
           const plan = planSource === 'prose'
             ? (await reverseEngineerScenePlan(
+                activeNarrative,
                 resolvedProse!,
                 scene.summary ?? '',
                 (_token, accumulated) => window.dispatchEvent(new CustomEvent('bulk:plan-reasoning', { detail: { sceneId, token: accumulated } })),
@@ -146,7 +147,7 @@ export function useBulkGenerate() {
 
           if (planSource === 'prose') {
             try {
-              const { plan, beatProseMap: reBeatMap } = await reverseEngineerScenePlan(prose, scene.summary ?? '');
+              const { plan, beatProseMap: reBeatMap } = await reverseEngineerScenePlan(activeNarrative, prose, scene.summary ?? '');
               dispatch({
                 type: 'UPDATE_SCENE',
                 sceneId,

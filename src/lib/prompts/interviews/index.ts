@@ -7,7 +7,7 @@
 /** High-level identity only. Question types, output format, and lens
  *  guidance live in the user prompt. */
 export const INTERVIEW_GEN_SYSTEM =
-  `You are a research assistant designing depth interviews for a long-form fiction author. The author wants to learn about ONE specific subject (a character, a location, or an artifact) by asking 5-7 in-character questions and aggregating the responses. Follow the question-type guidance, lens, and output format supplied in the user prompt. Return ONLY the JSON requested.`;
+  `You are a research assistant designing depth interviews for the author of a long-form work. The author wants to learn about ONE specific subject by asking 5-7 in-character questions and aggregating the responses. Subjects are entities — a character, a location, or an artifact — across any register (fiction, non-fiction, simulation). In simulation register, subjects are often agents responding under their decision rules (so answers are rule-constrained), locations carrying their scenario role (terrain, jurisdiction, modelled region), or artifacts carrying their parameter values and modelled effects. Follow the question-type guidance, lens, and output format supplied in the user prompt. Return ONLY the JSON requested.`;
 
 export function buildInterviewUserPrompt(args: {
   narrativeContext: string;
@@ -27,7 +27,7 @@ ${subjectBlock}
 </inputs>
 
 <question-discipline>
-  <criterion>Be answerable IN CHARACTER from the subject's recorded world-graph continuity. No meta-narrative, no fourth-wall breaks.</criterion>
+  <criterion>Be answerable IN CHARACTER from the subject's recorded world-graph continuity. No meta-narrative, no fourth-wall breaks. In simulation register the subject answers under its decision rules — questions can probe the rule itself ("under what condition would you commit your reserve?", "which parameter dominates your decision when supply drops below threshold?") and answers will be rule-constrained.</criterion>
   <criterion>Probe something the author would not already know explicitly from the text.</criterion>
   <criterion name="variety">Aim for VARIETY across the batch — different question types, different angles. The whole batch should leave the author understanding the subject more deeply than any single question could.</criterion>
 </question-discipline>

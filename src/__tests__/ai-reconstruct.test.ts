@@ -4,6 +4,7 @@ import type { NarrativeState, Scene, Branch, StructureReview, WorldBuild } from 
 // Mock all AI dependencies
 vi.mock('@/lib/ai/api', () => ({
   callGenerate: vi.fn(),
+  resolveReasoningBudget: vi.fn(() => 0),
   SYSTEM_PROMPT: 'Mock system prompt',
 }));
 vi.mock('@/lib/ai/context', () => ({

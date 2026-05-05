@@ -72,13 +72,6 @@ export const API_STREAM_TIMEOUT_MS = 15 * 60 * 1000;
 /** Age threshold (ms) for marking stale pending API logs as timed out — 20 minutes */
 export const API_LOG_STALE_THRESHOLD_MS = 20 * 60 * 1000;
 
-// ── AI Reasoning ────────────────────────────────────────────────────────────
-
-/** Default reasoning budget (thinking tokens) applied to all LLM calls.
- *  Corresponds to REASONING_BUDGETS['low'] in narrative.ts.
- *  Story settings can override this per-story. */
-export const DEFAULT_REASONING_BUDGET = 2048;
-
 // ── AI Context ───────────────────────────────────────────────────────────────
 
 /** Rolling window size for force computation & normalization */

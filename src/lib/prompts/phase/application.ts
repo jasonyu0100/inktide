@@ -42,7 +42,7 @@ export type PhaseGraphScope =
  * specific guidance lives in the application block, not here.
  */
 export function buildPhaseGraphDataBlock(graph: PhaseGraph): string {
-  return `<phase-graph hint="HIGH-LEVEL META MACHINERY of this world — the structural underpinnings of its economy, political dynamics, magic system, cultural conventions, institutional agents, foundational landmarks, and meta-narrative tropes. NOT situational state (that's CRG/scene). Inherit the machinery; let it trickle down so your output carries meaningful weight.">
+  return `<phase-graph hint="HIGH-LEVEL META MACHINERY of this work — the structural underpinnings of its economy or material conditions, institutional and political dynamics, the rule-system or methodological framework it runs on, cultural conventions, structural agents, foundational landmarks, and structural patterns. NOT situational state (that's CRG/scene). Inherit the machinery; let it trickle down so your output carries meaningful weight.">
   <summary>${graph.summary}</summary>
   <sequential-path>
 ${buildSequentialPath({ nodes: graph.nodes, edges: graph.edges })}
@@ -83,7 +83,7 @@ ${SCOPE_USAGE_BLOCK[scope]}
 
 const SCOPE_USAGE_BLOCK: Record<PhaseGraphScope, string> = {
   expand: `  <usage hint="World expansion materialises new pieces inside the active machinery.">
-    <rule>New characters / locations / artifacts inherit the active phase. They obey active rules, defer to active agents, and slot into active conventions — not generic-fantasy defaults.</rule>
+    <rule>New characters / locations / artifacts inherit the active phase. They obey active rules, defer to active agents, and slot into active conventions — not generic register defaults.</rule>
     <rule>New threads operationalise an active attractor or pressure. A new thread that doesn't pull toward an attractor or compound a pressure should justify its existence in its description.</rule>
     <rule>New system nodes extend the phase rules and conventions consistently. Edges should connect to existing system ids that the phase graph references — wiring the expansion INTO the phase machinery, not floating beside it.</rule>
     <rule>If the directive demands a piece that contradicts an active phase rule, comply — but emit a system delta that explicitly supersedes the rule, so the contradiction is registered, not laundered.</rule>

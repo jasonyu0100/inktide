@@ -14,8 +14,6 @@ import {
   // AI Models
   DEFAULT_MODEL,
   DEFAULT_PRICING,
-  // AI Reasoning
-  DEFAULT_REASONING_BUDGET,
   // AI Temperature
   DEFAULT_TEMPERATURE,
   DENSE_ARC_THRESHOLD,
@@ -132,12 +130,6 @@ describe("AI Timeout Constants", () => {
   });
   it("API_LOG_STALE_THRESHOLD_MS is longer than API_STREAM_TIMEOUT_MS", () => {
     expect(API_LOG_STALE_THRESHOLD_MS).toBeGreaterThan(API_STREAM_TIMEOUT_MS);
-  });
-});
-describe("AI Reasoning Constants", () => {
-  it("DEFAULT_REASONING_BUDGET is positive", () => {
-    expect(DEFAULT_REASONING_BUDGET).toBeGreaterThan(0);
-    expect(Number.isInteger(DEFAULT_REASONING_BUDGET)).toBe(true);
   });
 });
 describe("AI Context Constants", () => {

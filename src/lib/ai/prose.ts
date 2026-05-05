@@ -1,6 +1,5 @@
 import type { NarrativeState, Scene, ProseFormat } from '@/types/narrative';
-import { REASONING_BUDGETS } from '@/types/narrative';
-import { callGenerate, callGenerateStream } from './api';
+import { callGenerate, callGenerateStream, resolveReasoningBudget } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
 import { parseJson } from './json';
 import { sceneContext, buildProseProfile } from './context';
@@ -172,7 +171,7 @@ export async function rewriteSceneProse(
     toneCue: narrative.worldSummary,
   });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
   let prose: string;
   if (onToken) {
     const rawStream = await callGenerateStream(prompt, systemPrompt, onToken, MAX_TOKENS_DEFAULT, 'rewriteSceneProse', WRITING_MODEL, reasoningBudget);

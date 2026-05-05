@@ -4,6 +4,7 @@ import type { NarrativeState, Scene, Arc, Thread, Character, Location, BeatPlan 
 vi.mock('@/lib/ai/api', () => ({
   callGenerate: vi.fn(),
   callGenerateStream: vi.fn(),
+  resolveReasoningBudget: vi.fn(() => 0),
   SYSTEM_PROMPT: 'Test system prompt',
 }));
 import {
@@ -516,7 +517,7 @@ describe('evaluatePlanQuality', () => {
     };
     await reviewPlanQuality(narrative, ['S-001'], 'main');
     const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
-    expect(promptArg).toContain('<character-knowledge>');
+    expect(promptArg).toContain('<entity-knowledge>');
     expect(promptArg).toContain('Alice');
     expect(promptArg).toContain('Knows the secret');
   });

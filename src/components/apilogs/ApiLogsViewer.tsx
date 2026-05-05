@@ -1,9 +1,28 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 import { calculateApiCost, calculateTotalCost } from '@/lib/api-logger';
 import type { ApiLogEntry } from '@/types/narrative';
+
+/** Re-renders once per second while any entry is still pending, so the
+ *  "running for Xs" indicator ticks live without spinning a timer when
+ *  every call has already settled. */
+function useLiveClock(active: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [active]);
+  return now;
+}
+
+function entryDurationMs(entry: ApiLogEntry, now: number): number | null {
+  if (entry.durationMs != null) return entry.durationMs;
+  if (entry.status === 'pending') return Math.max(0, now - entry.timestamp);
+  return null;
+}
 
 /**
  * Unified API Logs viewer. The series (topbar) and analysis-page modals
@@ -29,11 +48,13 @@ export function ApiLogsViewer({ onClose, logs, title, headerActions, emptyMessag
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = selectedId ? logs.find((l) => l.id === selectedId) ?? null : null;
   const totalCost = calculateTotalCost(logs);
+  const hasPending = logs.some((l) => l.status === 'pending');
+  const now = useLiveClock(hasPending);
 
   return (
     <Modal onClose={onClose} size="2xl" maxHeight="80vh">
       {selected ? (
-        <LogDetail entry={selected} onBack={() => setSelectedId(null)} />
+        <LogDetail entry={selected} onBack={() => setSelectedId(null)} now={now} />
       ) : (
         <>
           <ModalHeader onClose={onClose}>
@@ -57,7 +78,7 @@ export function ApiLogsViewer({ onClose, logs, title, headerActions, emptyMessag
             </div>
           </ModalHeader>
           <ModalBody className="p-0">
-            {logs.length === 0 ? <EmptyState message={emptyMessage} /> : <LogList logs={logs} onSelect={setSelectedId} />}
+            {logs.length === 0 ? <EmptyState message={emptyMessage} /> : <LogList logs={logs} onSelect={setSelectedId} now={now} />}
           </ModalBody>
         </>
       )}
@@ -79,11 +100,11 @@ function EmptyState({ message }: { message?: string }) {
   );
 }
 
-function LogList({ logs, onSelect }: { logs: ApiLogEntry[]; onSelect: (id: string) => void }) {
+function LogList({ logs, onSelect, now }: { logs: ApiLogEntry[]; onSelect: (id: string) => void; now: number }) {
   return (
     <div className="divide-y divide-white/5">
       {[...logs].reverse().map((entry) => (
-        <LogListRow key={entry.id} entry={entry} onSelect={() => onSelect(entry.id)} />
+        <LogListRow key={entry.id} entry={entry} onSelect={() => onSelect(entry.id)} now={now} />
       ))}
     </div>
   );
@@ -102,10 +123,12 @@ function StatusDot({ status }: { status: ApiLogEntry['status'] }) {
   );
 }
 
-function LogListRow({ entry, onSelect }: { entry: ApiLogEntry; onSelect: () => void }) {
+function LogListRow({ entry, onSelect, now }: { entry: ApiLogEntry; onSelect: () => void; now: number }) {
   const cost = calculateApiCost(entry);
   const modelLabel = entry.model?.split('/').pop() ?? '—';
   const isReplicate = entry.model?.startsWith('replicate/');
+  const duration = entryDurationMs(entry, now);
+  const isRunning = entry.status === 'pending';
 
   return (
     <button
@@ -131,12 +154,20 @@ function LogListRow({ entry, onSelect }: { entry: ApiLogEntry; onSelect: () => v
         )}
       </div>
       <div className="text-right shrink-0 flex flex-col items-end gap-0.5">
-        <span className={`text-[11px] font-mono tabular-nums ${cost > 0 ? 'text-emerald-400/90' : 'text-text-dim/40'}`}>
-          {formatCost(cost, 'row')}
-        </span>
-        <span className="text-[9px] text-text-dim/60 tabular-nums">
-          {entry.durationMs != null ? `${formatDuration(entry.durationMs)} · ${formatTime(entry.timestamp)}` : formatTime(entry.timestamp)}
-        </span>
+        <div className="flex items-baseline gap-2">
+          <span
+            className={`text-[10px] font-mono tabular-nums ${
+              isRunning ? 'text-amber-400/90' : duration != null ? 'text-text-secondary' : 'text-text-dim/40'
+            }`}
+            title={isRunning ? 'Elapsed (still running)' : 'API call duration'}
+          >
+            {duration != null ? formatDuration(duration) : '—'}
+          </span>
+          <span className={`text-[11px] font-mono tabular-nums ${cost > 0 ? 'text-emerald-400/90' : 'text-text-dim/40'}`}>
+            {formatCost(cost, 'row')}
+          </span>
+        </div>
+        <span className="text-[9px] text-text-dim/60 tabular-nums">{formatTime(entry.timestamp)}</span>
       </div>
     </button>
   );
@@ -144,11 +175,13 @@ function LogListRow({ entry, onSelect }: { entry: ApiLogEntry; onSelect: () => v
 
 type Tab = 'system' | 'prompt' | 'response' | 'reasoning';
 
-function LogDetail({ entry, onBack }: { entry: ApiLogEntry; onBack: () => void }) {
+function LogDetail({ entry, onBack, now }: { entry: ApiLogEntry; onBack: () => void; now: number }) {
   const hasSystem = !!entry.systemPromptPreview;
   const hasReasoning = !!entry.reasoningContent;
   const [tab, setTab] = useState<Tab>(hasSystem ? 'system' : 'prompt');
   const cost = calculateApiCost(entry);
+  const duration = entryDurationMs(entry, now);
+  const durationLabel = entry.status === 'pending' ? 'running' : 'duration';
 
   return (
     <div className="flex flex-col h-full">
@@ -182,7 +215,12 @@ function LogDetail({ entry, onBack }: { entry: ApiLogEntry; onBack: () => void }
         <MetaPill label="out" value={formatTokens(entry.responseTokens)} />
         {entry.reasoningTokens != null && <MetaPill label="reasoning" value={formatTokens(entry.reasoningTokens)} />}
         <MetaPill label="cost" value={formatCost(cost, 'detail')} highlight={cost > 0} />
-        <MetaPill label="duration" value={entry.durationMs != null ? formatDuration(entry.durationMs) : '—'} />
+        <MetaPill
+          label={durationLabel}
+          value={duration != null ? formatDuration(duration) : '—'}
+          highlight={entry.status === 'pending'}
+          tone="pending"
+        />
         <span className="ml-auto tabular-nums">{formatTime(entry.timestamp)}</span>
       </div>
 
@@ -255,11 +293,22 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
-function MetaPill({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function MetaPill({
+  label,
+  value,
+  highlight,
+  tone = 'success',
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+  tone?: 'success' | 'pending';
+}) {
+  const highlightColor = tone === 'pending' ? 'text-amber-400/90' : 'text-emerald-400/90';
   return (
     <span className="inline-flex items-baseline gap-1">
       <span className="text-text-dim/50 uppercase tracking-wider text-[9px]">{label}</span>
-      <span className={`tabular-nums font-mono ${highlight ? 'text-emerald-400/90' : 'text-text-secondary'}`}>{value}</span>
+      <span className={`tabular-nums font-mono ${highlight ? highlightColor : 'text-text-secondary'}`}>{value}</span>
     </span>
   );
 }

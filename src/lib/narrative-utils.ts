@@ -1160,7 +1160,7 @@ function gaussianSmooth(values: number[], sigma: number): number[] {
  * filtering flat plateaus. Valley detection is symmetric.
  *
  * Calibrated against subjective peak/valley identification across 4 published
- * works (HP, 1984, Gatsby, Reverend Insanity) with 89/101 alignment.
+ * works (HP, 1984, Gatsby, Lord of the Rings) with 89/101 alignment.
  */
 function detectPeaksAndValleys(
   values: number[],
@@ -1769,7 +1769,7 @@ export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
 //   Sketch:    < 20 scenes  (short story, one-act)
 //   Novella:   20–50 scenes (Romeo & Juliet 24, Great Gatsby 44)
 //   Novel:     50–120 scenes (1984 75, HP books 89–110, Tale of Two Cities 100)
-//   Epic:      120–300 scenes (Reverend Insanity 133 — partial, first volume)
+//   Epic:      120–300 scenes (Lord of the Rings ~150, A Game of Thrones ~145)
 //   Serial:    300+ scenes (full web serials, multi-volume sagas)
 
 export interface NarrativeScale {

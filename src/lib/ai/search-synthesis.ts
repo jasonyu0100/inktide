@@ -8,7 +8,7 @@
  * similarity to the query (supplementary thematic context).
  */
 
-import { callGenerateStream } from './api';
+import { callGenerateStream, resolveReasoningBudget } from './api';
 import { ANALYSIS_MODEL } from '../constants';
 import { logInfo, logError } from '../system-logger';
 import { buildSearchSynthesisPrompt, SEARCH_SYNTHESIS_SYSTEM } from '@/lib/prompts/search';
@@ -187,7 +187,7 @@ export async function synthesizeSearchResults(
       2048,
       'synthesizeSearchResults',
       ANALYSIS_MODEL,
-      undefined,
+      resolveReasoningBudget(narrative),
       undefined,
       0.3,
     );

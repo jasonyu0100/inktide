@@ -136,6 +136,8 @@ function createAutoConfig(overrides: Partial<AutoConfig> = {}): AutoConfig {
     narrativeConstraints: "",
     characterRotationEnabled: true,
     minScenesBetweenCharacterFocus: 5,
+    mode: "extended",
+    operations: ["reasoning-graph", "scenes"],
     ...overrides,
   };
 }
@@ -1211,7 +1213,7 @@ describe("buildPlanDirective", () => {
         mkNode({
           id: "PK1",
           type: "peak",
-          label: "Fang Yuan claims the Stone",
+          label: "Harry claims the Stone",
           arcIndex: 1,
           sceneCount: 6,
           forceMode: "fate-dominant",
@@ -1222,7 +1224,7 @@ describe("buildPlanDirective", () => {
     );
     const directive = buildPlanDirective(emptyNarrative(), plan, 1);
     expect(directive).toContain("Arc 1 of 1");
-    expect(directive).toContain("Fang Yuan claims the Stone");
+    expect(directive).toContain("Harry claims the Stone");
     expect(directive).toContain("Force Mode: fate-dominant");
     expect(directive).toContain("Target Scenes: 6");
   });

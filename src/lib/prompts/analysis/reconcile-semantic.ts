@@ -24,38 +24,38 @@ ${[...allSysConcepts].map((c, i) => `    <item index="${i + 1}">${c.replace(/&/g
 <instructions>
   <task>Reconcile threads and system knowledge concepts extracted independently from different scenes. These are propositions, not proper names — preserve distinct nuances. Only merge when two items are genuine restatements of the same proposition.</task>
 
-  <guiding-principle>DEFAULT IS TO KEEP SEPARATE. Threads and knowledge concepts are deliberately fine-grained. A typical story has dozens of distinct threads and system concepts — squashing them loses narrative texture. Only merge when you would be embarrassed to present both items in a final analysis because they say the exact same thing.</guiding-principle>
+  <guiding-principle>DEFAULT IS TO KEEP SEPARATE. Threads and knowledge concepts are deliberately fine-grained. A typical narrative has dozens of distinct threads and system concepts — squashing them loses narrative texture. Only merge when you would be embarrassed to present both items in a final analysis because they say the exact same thing.</guiding-principle>
 
   <merge-test>If I resolved the canonical form, would every variant also be resolved as a natural consequence? If there's any distinguishing element (different participants, different stakes, different scope, different mechanism), the answer is NO — keep separate.</merge-test>
 
   <merging-guidance category="threads">
     <merge>
-      <example>"Who is trying to steal the Stone?" + "The mystery of who wants the Sorcerer's Stone" — identical question, different wording.</example>
-      <example>"Snape's antagonism toward Harry" + "Snape's hostility toward Harry" — same relational tension.</example>
-      <example>"Will Harry survive Voldemort?" + "Harry's survival against Voldemort" — same question.</example>
+      <example>Two threads expressing the IDENTICAL question with different wording — same participants, scope, stakes.</example>
+      <example>Two relational-tension threads naming the same dynamic between the same parties (e.g. "X's antagonism toward Y" + "X's hostility toward Y").</example>
+      <example>An interrogative form and its noun-phrase form of the same question.</example>
     </merge>
     <keep-separate hint="Any of these distinctions is enough.">
-      <example reason="different participants">"Harry's conflict with Snape" vs "Harry's conflict with Malfoy"</example>
-      <example reason="different scope">"Harry's fear of Voldemort" vs "The wizarding world's fear of Voldemort"</example>
-      <example reason="different stakes">"Harry learns he is a wizard" vs "Harry adjusts to Hogwarts life"</example>
-      <example reason="different antagonists">"Harry vs Voldemort" vs "Harry vs the Dursleys"</example>
-      <example reason="different phases">"Discovering the Stone is hidden" vs "Reaching the Stone"</example>
-      <example reason="distinct mysteries">"Who opened the Chamber?" vs "Who is the Heir of Slytherin?"</example>
-      <example reason="distinct internal arcs">"Snape's loyalty to Dumbledore" vs "Dumbledore's trust in Snape"</example>
+      <example reason="different participants">A's conflict with B vs A's conflict with C — different counterparties.</example>
+      <example reason="different scope">A single entity's stake on a question vs a collective's stake on the same question.</example>
+      <example reason="different stakes">A discovery question vs an adjustment question on the same subject.</example>
+      <example reason="different phases">A "discover X is hidden" thread vs a "reach X" thread on the same object.</example>
+      <example reason="distinct unknowns">Two "who did Y?" inquiries that share a topic but ask about different agents or different events.</example>
+      <example reason="distinct claims">Two questions about the same subject probing different predicates (e.g. "does X scale?" vs "does X generalise?").</example>
+      <example reason="distinct directional arcs">"X's loyalty to Y" vs "Y's trust in X" — different perspective, different load-bearing question.</example>
     </keep-separate>
   </merging-guidance>
 
   <merging-guidance category="system-knowledge">
     <merge>
-      <example>"Magic requires a wand to channel" + "Wands are required to cast spells" — same rule.</example>
-      <example>"The house point system rewards behavior" + "Houses earn and lose points based on student conduct" — same mechanism.</example>
+      <example>Two formulations of the same operational rule with different surface phrasing.</example>
+      <example>Two descriptions of the same institutional / mechanical / mathematical procedure with no distinguishing predicate.</example>
     </merge>
     <keep-separate>
-      <example reason="different mechanisms">"Unforgivable Curses are illegal" vs "Dark magic is dangerous" — one is a legal rule, the other a physical principle.</example>
-      <example reason="related but distinct">"Hogwarts has four houses" vs "The Sorting Hat assigns students".</example>
-      <example reason="parent / child">"Magic exists" vs "Spells require incantations".</example>
-      <example reason="different predicates">"World models enable planning" vs "World models enable reasoning".</example>
-      <example reason="same topic, different claims">"AI systems require large datasets" vs "AI systems are unreliable without supervision".</example>
+      <example reason="different mechanisms">A legal / normative rule on a topic vs a physical / mathematical principle on the same topic.</example>
+      <example reason="related but distinct">A structural fact ("system has N components") vs a procedural rule operating within it.</example>
+      <example reason="parent / child">A general rule vs a specific instance / consequence of it.</example>
+      <example reason="different predicates">"X enables A" vs "X enables B" — same subject, materially different consequence claim.</example>
+      <example reason="same topic, different claims">Two claims about the same system with different content.</example>
     </keep-separate>
   </merging-guidance>
 

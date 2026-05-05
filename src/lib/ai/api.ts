@@ -1,6 +1,14 @@
 import { apiHeaders } from '@/lib/api-headers';
-import { DEFAULT_MODEL, DEFAULT_REASONING_BUDGET, API_TIMEOUT_MS, API_STREAM_TIMEOUT_MS } from '@/lib/constants';
+import { DEFAULT_MODEL, API_TIMEOUT_MS, API_STREAM_TIMEOUT_MS } from '@/lib/constants';
 import { FatalApiError, isFatalStatus } from '@/lib/ai/errors';
+import { REASONING_BUDGETS, type NarrativeState } from '@/types/narrative';
+
+/** Resolve a story's reasoning budget (thinking tokens) from its settings.
+ *  Returns the canonical number (including 0 for "none") so callers pass
+ *  the user's intent through unchanged. */
+export function resolveReasoningBudget(narrative: NarrativeState | undefined | null): number {
+  return REASONING_BUDGETS[narrative?.storySettings?.reasoningLevel ?? 'low'];
+}
 
 export async function callGenerateStream(
   prompt: string,
@@ -26,7 +34,7 @@ export async function callGenerateStream(
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({ prompt, systemPrompt, stream: true, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), reasoningBudget: reasoningBudget ?? DEFAULT_REASONING_BUDGET, ...(temperature !== undefined ? { temperature } : {}) }),
+      body: JSON.stringify({ prompt, systemPrompt, stream: true, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), ...(reasoningBudget !== undefined ? { reasoningBudget } : {}), ...(temperature !== undefined ? { temperature } : {}) }),
       signal: controller.signal,
     });
     if (!res.ok) {
@@ -129,7 +137,7 @@ export async function callGenerate(prompt: string, systemPrompt: string, maxToke
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), reasoningBudget: reasoningBudget ?? DEFAULT_REASONING_BUDGET, ...(jsonMode ? { jsonMode: true } : {}), ...(temperature !== undefined ? { temperature } : {}) }),
+      body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), ...(reasoningBudget !== undefined ? { reasoningBudget } : {}), ...(jsonMode ? { jsonMode: true } : {}), ...(temperature !== undefined ? { temperature } : {}) }),
       signal: controller.signal,
     });
     if (!res.ok) {

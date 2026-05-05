@@ -82,8 +82,8 @@ describe("graphViewLabel", () => {
   });
 
   it("overrides with the entity name when drilled into an inner-world view", () => {
-    const label = graphViewLabel("spatial", "Fang Yuan");
-    expect(label.full).toBe("Fang Yuan · Inner World");
+    const label = graphViewLabel("spatial", "Harry Potter");
+    expect(label.full).toBe("Harry Potter · Inner World");
     expect(label.scope).toBe("Entity");
     expect(label.domain).toBe("Inner World");
   });

@@ -12,11 +12,11 @@ export function buildGameTheorySystemPrompt(): string {
 
 /** Detailed analysis guide — appended to the scene context in the user prompt. */
 const GAME_THEORY_GUIDE = `<doctrine>
-  <principle name="evaluator-not-predictor">Characters often act against local strategic interest — they trade stake for identity, short-term for long-term, cooperation for arc. That is a feature of narrative. NEVER warp stake deltas to "justify" what happened. Score each cell as if it were the realized outcome — honestly, against that player's interests. The author picking a dominated cell is exactly the information the downstream analysis wants.</principle>
+  <principle name="evaluator-not-predictor">Agents often act against local strategic interest — they trade stake for identity, short-term for long-term, cooperation for arc, narrow win for institutional position. That is a feature of narrative (and of real-world strategic play). NEVER warp stake deltas to "justify" what happened. Score each cell as if it were the realized outcome — honestly, against that player's interests. The author / source picking a dominated cell is exactly the information the downstream analysis wants.</principle>
 </doctrine>
 
 <scope hint="Include beats where two+ agentic parties make choices that meaningfully affect each other.">
-  <include>Subtle beats: loaded silences, glances, quiet negotiations, anticipated reactions from absent parties, power-imbalanced games where the weaker side still has choices, moral decisions landing on another person.</include>
+  <include>Subtle beats: loaded silences, glances, quiet negotiations, anticipated reactions from absent parties, power-imbalanced games where the weaker side still has choices, moral decisions landing on another person. Simulation-register beats also qualify when the modelled agents (factions, market actors, treaty signatories, modelled cohorts, cultivation rivals) make choices the rule set forces consequences on — a tariff retaliation, a commitment to mobilise, a containment policy, a cultivation duel under stated rules.</include>
   <exclude>Internal monologue, pure atmosphere/exposition, solo action against a passive world.</exclude>
   <when-in-doubt>INCLUDE — stake deltas can say "near-trivial" via small magnitudes rather than omission. But if a beat has no counterparty you can name and no actions you can score, skip it rather than fabricate. Empty games array is valid output.</when-in-doubt>
 </scope>
@@ -149,7 +149,7 @@ const GAME_THEORY_GUIDE = `<doctrine>
   </group>
   <selection-rule>Pick the axis that names what SHIFTS, not the surface topic. If the beat shifts the relationship between the players, the relationship shift is the axis — not the thing they happen to be talking about.</selection-rule>
   <sinks hint="Three axes are sinks the model defaults to without thinking — always run the counter-check before picking them.">
-    <sink name="disclosure" hint="Whenever a beat is 'one character tells another something', FIRST ask:">
+    <sink name="disclosure" hint="Whenever a beat is 'one party tells another something', FIRST ask:">
       <counter>Is it about lowering defenses? → trust.</counter>
       <counter>Does it elevate / diminish rank? → status.</counter>
       <counter>Does it create / discharge a debt? → obligation.</counter>
@@ -166,7 +166,7 @@ const GAME_THEORY_GUIDE = `<doctrine>
   <option size="2x3">One player has a third meaningful option (e.g., "deflect" alongside reveal/conceal).</option>
   <option size="3x3">Genuine three-way choices on both sides.</option>
   <rule>Do not pad menus with straw actions just to fill cells. If only 2 actions per side were really live, it's a 2×2.</rule>
-  <rule>Do not collapse genuinely distinct options into one label. "Sorting Hat sends to Gryffindor" and "Sorting Hat sends to Slytherin" are TWO actions, not one.</rule>
+  <rule>Do not collapse genuinely distinct options into one label. "panel rules in plaintiff's favour" and "panel rules in defendant's favour" are TWO actions, not one.</rule>
 </grid-cardinality>
 
 <stake-delta-scoring hint='stakeDeltaA answers: "If this outcome were the one that happened, how much does it advance or harm A''s stated interests in this arc?"'>
@@ -179,25 +179,25 @@ const GAME_THEORY_GUIDE = `<doctrine>
   <key>Score as if the cell were the realized outcome. Do not bias toward making the realized cell look maximal. The evaluator's value comes from honest cross-cell comparison — the author picking a dominated cell is exactly the information downstream analysis wants to surface.</key>
 </stake-delta-scoring>
 
-<example title="Harry (C-01) and Hagrid (C-02) on the Hogwarts letter">
+<example title="Recipient (C-01) and Messenger (C-02) delivering a sealed summons in front of the recipient's household">
   <classification-walkthrough>
     <step name="scope">Two strategic agents, no mechanism override. Proceed.</step>
     <step name="mechanism-override">No timing/binding form dominates. Proceed.</step>
     <step name="info-x-pref">
-      Q-INFO: ASYMMETRIC (Hagrid knows the letter's content; Harry doesn't).
-      Q-PREF: preferences are aligned-with-asymmetry — both gain from the Dursleys learning, but Hagrid has control over how revelation happens.
+      Q-INFO: ASYMMETRIC (the messenger knows the summons's contents; the recipient does not).
+      Q-PREF: preferences are aligned-with-asymmetry — both gain from the household learning, but the messenger controls how revelation happens.
       ASYMMETRIC + informed party reveals through a costly action → signaling.
     </step>
-    <step name="axis">The decision is about what gets shown vs. hidden to the Dursleys — pure reveal-vs-conceal. → disclosure.</step>
+    <step name="axis">The decision is about what gets shown vs. hidden to the household — pure reveal-vs-conceal. → disclosure.</step>
   </classification-walkthrough>
   <output-shape>{
   "beatIndex": 4,
-  "beatExcerpt": "Hagrid hands Harry the letter; Harry reads it in front of the Dursleys.",
+  "beatExcerpt": "The messenger hands the recipient the summons; the recipient reads it in front of the household.",
   "gameType": "signaling",
   "actionAxis": "disclosure",
 
   "playerAId": "C-01",
-  "playerAName": "Harry Potter",
+  "playerAName": "Recipient",
   "playerAActions": [
     { "name": "reads aloud" },
     { "name": "reads silently" },
@@ -205,7 +205,7 @@ const GAME_THEORY_GUIDE = `<doctrine>
   ],
 
   "playerBId": "C-02",
-  "playerBName": "Rubeus Hagrid",
+  "playerBName": "Messenger",
   "playerBActions": [
     { "name": "narrates the contents" },
     { "name": "waits silently" }
@@ -213,29 +213,29 @@ const GAME_THEORY_GUIDE = `<doctrine>
 
   "outcomes": [
     { "aActionName": "reads aloud", "bActionName": "narrates the contents",
-      "description": "Harry's voice and Hagrid's overlap; Dursleys hear every line",
+      "description": "Recipient's voice and messenger's overlap; household hears every line",
       "stakeDeltaA": 2, "stakeDeltaB": 3 },
     { "aActionName": "reads aloud", "bActionName": "waits silently",
-      "description": "Harry voices the letter himself; Dursleys hear it from him directly",
+      "description": "Recipient voices the summons themself; household hears it from them directly",
       "stakeDeltaA": 3, "stakeDeltaB": 1 },
     { "aActionName": "reads silently", "bActionName": "narrates the contents",
-      "description": "Hagrid reveals everything; Harry loses framing control but learns",
+      "description": "Messenger reveals everything; recipient loses framing control but learns",
       "stakeDeltaA": 1, "stakeDeltaB": 4 },
     { "aActionName": "reads silently", "bActionName": "waits silently",
-      "description": "Harry absorbs alone; Dursleys stay in the dark for now",
+      "description": "Recipient absorbs alone; household stays in the dark for now",
       "stakeDeltaA": 4, "stakeDeltaB": 0 },
     { "aActionName": "refuses to open", "bActionName": "narrates the contents",
-      "description": "Hagrid forces the reveal; Harry looks passive but escapes fallout",
+      "description": "Messenger forces the reveal; recipient looks passive but escapes fallout",
       "stakeDeltaA": 0, "stakeDeltaB": 2 },
     { "aActionName": "refuses to open", "bActionName": "waits silently",
-      "description": "Stalemate — letter undelivered, Dursleys win the day",
+      "description": "Stalemate — summons undelivered, household holds the day",
       "stakeDeltaA": -3, "stakeDeltaB": -3 }
   ],
 
   "realizedAAction": "reads silently",
   "realizedBAction": "narrates the contents",
 
-  "rationale": "The author hands framing to Hagrid because the letter's power needs a witness bigger than Harry — making this beat a signaling moment to the Dursleys, not a private revelation."
+  "rationale": "The author hands framing to the messenger because the summons's weight needs a witness larger than the recipient alone — making this beat a signaling moment to the household, not a private revelation."
 }</output-shape>
 </example>
 

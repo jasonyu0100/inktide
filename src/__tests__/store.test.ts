@@ -77,6 +77,8 @@ describe('store reducer', () => {
         narrativeConstraints: '',
         characterRotationEnabled: true,
         minScenesBetweenCharacterFocus: 3,
+        mode: 'extended',
+        operations: ['reasoning-graph', 'scenes'],
       },
       analysisJobs: [],
       viewState: {

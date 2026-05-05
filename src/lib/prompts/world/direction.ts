@@ -1,13 +1,18 @@
 /**
- * Arc-direction and story-direction prompts — generated when the user asks
- * for a one-arc next-step suggestion or a multi-arc showrunner trajectory.
+ * Arc-direction and narrative-direction prompts — generated when the user asks
+ * for a one-arc next-step suggestion or a multi-arc trajectory across the
+ * whole narrative. Register-agnostic: works for fiction, non-fiction (memoir,
+ * essay, reportage, research), and simulation (rule-driven modelling of
+ * real-life events) alike. In simulation register, "direction" is set by
+ * initial conditions and the trajectories the rule set forces, not by
+ * authorial pull — surface those constraints rather than overriding them.
  */
 
 export const ARC_DIRECTION_SYSTEM =
-  'You are a story editor proposing the next arc for a serialized narrative. Read the full context and recommend a tight, compelling direction grounded in unresolved threads, character tensions, and accumulated momentum. Use entity NAMES, never raw IDs. Return ONLY valid JSON matching the schema in the user prompt.';
+  'You are an editor proposing the next arc for a long-form narrative. Read the full context and recommend a tight, compelling direction grounded in unresolved threads, entity tensions, and accumulated momentum. Use entity NAMES, never raw IDs. Return ONLY valid JSON matching the schema in the user prompt.';
 
-export const STORY_DIRECTION_SYSTEM =
-  'You are a showrunner planning a multi-arc trajectory. Read the full narrative state and propose a high-level story direction — the macro-vision a writers\' room would follow for the next season. Use entity NAMES, never raw IDs. Return ONLY valid JSON matching the schema in the user prompt.';
+export const NARRATIVE_DIRECTION_SYSTEM =
+  'You are an editor planning a multi-arc trajectory. Read the full narrative state and propose a high-level direction — the macro-vision that should guide the next several arcs. Use entity NAMES, never raw IDs. Return ONLY valid JSON matching the schema in the user prompt.';
 
 export function buildSuggestArcDirectionPrompt(args: { narrativeContext: string }): string {
   return `<inputs>
@@ -20,12 +25,13 @@ ${args.narrativeContext}
   <step name="analyze">Based on the full scene history, suggest the most compelling direction for the NEXT arc.</step>
   <consider>
     <factor>Unresolved thread markets, their probability distributions, and which outcomes are contested vs. saturating.</factor>
-    <factor>Character tensions and relationship dynamics.</factor>
-    <factor>Narrative momentum — what has been building?</factor>
-    <factor>What would create the most significant development?</factor>
+    <factor>Entity tensions and relationship dynamics — including, where the narrative is rule-driven, the modelled state of agents under the rule set and the trajectories the rules are forcing.</factor>
+    <factor>Narrative momentum — what has been building (dramatic, evidentiary, argumentative, or rule-driven)?</factor>
+    <factor>What would create the most significant development the source's own logic supports?</factor>
     <factor>How many scenes this arc needs to land properly (don't rush — quiet arcs need fewer, epic arcs need more).</factor>
   </consider>
-  <rule name="naming">Use character NAMES, location NAMES, and thread DESCRIPTIONS in the direction and suggestion — never raw IDs.</rule>
+  <rule name="naming">Use entity NAMES (characters, locations, artifacts) and thread DESCRIPTIONS in the direction and suggestion — never raw IDs.</rule>
+  <rule name="rule-driven-honesty" hint="Simulation register only — informs framing without inventing register markers when the work is fiction or non-fiction.">If the narrative is rule-driven (a stated rule set governs consequences), respect what the rules force. Do not "rescue" a thread the model has condemned through authorial pull; recoveries must be earned by initial-condition shifts, rule changes, or agents finding new positions inside the existing rules. Surface the rule-driven trajectory honestly even when it is bleak.</rule>
 </instructions>
 
 <output-format>
@@ -41,7 +47,7 @@ suggestedSceneCount must be between 1 and 8.
 }
 
 export function buildSuggestAutoDirectionPrompt(args: { narrativeContext: string }): string {
-  return `<role>Showrunner planning the long-term trajectory of this story.</role>
+  return `<role>Editor planning the long-term trajectory of this narrative.</role>
 
 <inputs>
   <narrative-context>
@@ -50,17 +56,17 @@ ${args.narrativeContext}
 </inputs>
 
 <instructions>
-  <step name="big-picture">Analyze the full narrative state — characters, threads, knowledge graphs, relationships, and scene history — and suggest a high-level STORY DIRECTION that should guide the next several arcs.</step>
+  <step name="big-picture">Analyze the full narrative state — entities, threads, knowledge graphs, relationships, and scene history — and suggest a high-level NARRATIVE DIRECTION that should guide the next several arcs.</step>
   <consider>
-    <factor>What is the central open question the story is building toward?</factor>
-    <factor>Which character arcs have the most untapped potential?</factor>
-    <factor>What thematic tensions could be deepened or brought into conflict?</factor>
-    <factor>Where should alliances shift, secrets surface, or power dynamics change?</factor>
-    <factor>What is the most satisfying macro-trajectory from where the story stands now?</factor>
+    <factor>What is the central open question the narrative is building toward (dramatic resolution, argumentative finding, or the rule-driven outcome the modelled system is heading toward)?</factor>
+    <factor>Which entity arcs have the most untapped potential — including agents whose modelled state under the rule set is approaching a decisive threshold?</factor>
+    <factor>What tensions could be deepened or brought into conflict — thematic, evidentiary, or between competing rule-driven trajectories?</factor>
+    <factor>Where should alliances shift, secrets surface, power dynamics change, or rule-state thresholds tip?</factor>
+    <factor>What is the most coherent macro-trajectory from where the narrative stands now, given its own register's logic of consequence?</factor>
   </consider>
-  <rule name="scope">Do NOT suggest a single scene or arc. Describe the overarching direction the story should move in — the kind of guidance a showrunner gives a writers' room for the next season.</rule>
-  <rule name="naming">Use character NAMES, location NAMES, and thread DESCRIPTIONS — never raw IDs.</rule>
+  <rule name="scope">Do NOT suggest a single scene or arc. Describe the overarching direction the narrative should move in — macro-level guidance, not a per-scene plan.</rule>
+  <rule name="naming">Use entity NAMES (characters, locations, artifacts) and thread DESCRIPTIONS — never raw IDs.</rule>
 </instructions>
 
-<output-format>Return JSON: { "direction": "2-4 sentences describing the big-picture story direction" }</output-format>`;
+<output-format>Return JSON: { "direction": "2-4 sentences describing the big-picture narrative direction" }</output-format>`;
 }

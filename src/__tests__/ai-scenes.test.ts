@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/ai/api", () => ({
   callGenerate: vi.fn(),
   callGenerateStream: vi.fn(),
+  resolveReasoningBudget: vi.fn(() => 0),
   SYSTEM_PROMPT: "Test system prompt",
 }));
 // Mock context building

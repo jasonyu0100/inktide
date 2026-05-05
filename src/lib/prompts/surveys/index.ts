@@ -75,7 +75,7 @@ Speak with the focused awareness of an instrument — your function, your histor
  *  question-shape rules, scope rules, and output format live in the user
  *  prompt. */
 export const SURVEY_GEN_SYSTEM =
-  `You are a research assistant helping a long-form fiction author probe their world through ONE sharp survey question at a time. You will read the full narrative continuity and propose a SINGLE question the author should pose to every character / location / artifact in the world. Follow the question-shape rules, question types, scope guidance, and output format supplied in the user prompt. Return ONLY the JSON requested.`;
+  `You are a research assistant helping the author of a long-form work probe their narrative through ONE sharp survey question at a time. You will read the full narrative continuity and propose a SINGLE question the author should pose to every character / location / artifact in the world. Works span fiction, non-fiction, and simulation; in simulation register, surveys can interrogate agents about their decision rules (forcing the rule itself to surface), locations about their scenario role (terrain, jurisdiction, modelled region), and artifacts about their parameter values and modelled effects. Follow the question-shape rules, question types, scope guidance, and output format supplied in the user prompt. Return ONLY the JSON requested.`;
 
 /** Build the user prompt for the proposal generator. The optional category
  *  tilts the question toward a specific lens; "General" picks the
@@ -96,7 +96,7 @@ ${args.narrativeContext}
   <criterion>Probes something not already explicit — knowledge asymmetries, divergent beliefs, hidden tensions, predictions, perceptions of trust / power / threat / loyalty.</criterion>
   <criterion>Is answerable IN CHARACTER. The respondent will answer privately from their world graph. No meta-narrative, no fourth-wall breaks.</criterion>
   <criterion name="signal">Questions every respondent would answer the same way are useless; questions that split the cast are gold.</criterion>
-  <principle name="asymmetry-is-your-weapon">"Estimate the protagonist's age" reveals who has met them. "Do you trust the merchant?" reveals who has been burned. "Rank these three threats" reveals priorities.</principle>
+  <principle name="asymmetry-is-your-weapon">An estimate question reveals who has direct knowledge. A trust question reveals who has been burned. A forced rank reveals priorities.</principle>
 </question-shape>
 
 <question-types hint="Pick the right TYPE for the shape of insight wanted.">
@@ -108,9 +108,11 @@ ${args.narrativeContext}
 </question-types>
 
 <scope hint="Who the question should be asked of. A well-scoped question reveals more than a carelessly-broad one.">
-  <example>"Do you trust the high priest?" — makes sense across all characters.</example>
-  <example>"How many li is it to the capital?" — makes sense only to characters who might know.</example>
-  <example>"Have we been visited by a dragon here?" — makes sense across locations, not characters.</example>
+  <example>A trust or stance question — makes sense across all characters.</example>
+  <example>A specific knowledge question — makes sense only to characters who might know.</example>
+  <example>An event-witnessed question — makes sense across locations, not characters.</example>
+  <example>A decision-rule question (simulation) — makes sense across agent-typed characters; reveals priorities and threshold behaviour.</example>
+  <example>A scenario-role question (simulation) — makes sense across locations, surfacing terrain / jurisdiction / modelled-region differences.</example>
   <rule>Pick the narrowest scope that still generates useful variance. Do NOT ask locations or artifacts when the question only makes sense to people. Do NOT ask transient characters about matters only anchors would know.</rule>
 </scope>
 

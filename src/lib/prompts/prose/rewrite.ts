@@ -59,7 +59,7 @@ export function buildRewriteUserPrompt(args: {
     ? `\n<format-rules>\n${formatRules.trim()}\n</format-rules>`
     : '';
   const toneBlock = toneCue?.trim()
-    ? `\n<tone hint="Match the genre and register of the world.">${toneCue.trim()}</tone>`
+    ? `\n<tone hint="Match the register and tone of the source work.">${toneCue.trim()}</tone>`
     : '';
 
   return `<inputs>
@@ -77,11 +77,11 @@ ${analysis}
 
 <instructions>
   <step name="address-every-point">Rewrite the prose to FULLY ADDRESS every point in the analysis. The rewrite is not a polish pass — it is a structural edit guided by the analysis.
-    <example>If the analysis says a character should leave, they must leave in the prose.</example>
-    <example>If it says an event should be removed, remove it entirely.</example>
-    <example>If it says a detail should be added, add it concretely.</example>
+    <example>If the analysis says a participant should exit (a character leaving / a witness being dismissed / a citation being dropped), they must exit in the prose.</example>
+    <example>If it says an event or claim should be removed, remove it entirely.</example>
+    <example>If it says a detail or piece of evidence should be added, add it concretely.</example>
   </step>
-  <step name="preserve-rest">Preserve narrative deliveries, events, and plot points that the analysis does NOT ask you to change. Let the scene be as long or short as its content demands — say more in fewer words rather than padding to reach a length.</step>${hasExpandedContext ? '\n  <step name="cross-scene-continuity">You have been given the FULL PROSE of neighboring scenes. Use this to ensure continuity — character state, spatial positions, injuries, emotional beats, and knowledge must flow consistently across scene boundaries. Do not repeat beats that already occurred in preceding scenes, and set up what following scenes expect.</step>' : ''}
+  <step name="preserve-rest">Preserve content the analysis does NOT ask you to change — events, claims, deliveries, evidence. Let the scene be as long or short as its content demands — say more in fewer words rather than padding to reach a length.</step>${hasExpandedContext ? '\n  <step name="cross-scene-continuity">You have been given the FULL PROSE of neighboring scenes. Use this to ensure continuity — character state, spatial positions, injuries, emotional beats, and knowledge must flow consistently across scene boundaries. Do not repeat beats that already occurred in preceding scenes, and set up what following scenes expect.</step>' : ''}
 </instructions>
 
 <output-format>
@@ -90,7 +90,7 @@ ${streaming ? 'Write the full rewritten prose directly — no JSON, no markdown,
 }
 
 export const REWRITE_CHANGELOG_SYSTEM =
-  'You are a literary editor. Return ONLY valid JSON with changelog as a string.';
+  'You are an editor. Return ONLY valid JSON with changelog as a string.';
 
 export function buildRewriteChangelogPrompt(args: { analysis: string }): string {
   return `<inputs>

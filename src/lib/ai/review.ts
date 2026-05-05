@@ -1,6 +1,6 @@
 import type { NarrativeState, StructureReview, ProseEvaluation, ProseSceneEval, PlanEvaluation, PlanSceneEval, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
-import { resolveEntry, isScene, REASONING_BUDGETS } from '@/types/narrative';
-import { callGenerate, callGenerateStream } from './api';
+import { resolveEntry, isScene } from '@/types/narrative';
+import { callGenerate, callGenerateStream, resolveReasoningBudget } from './api';
 import { parseJson } from './json';
 import { ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { logInfo } from '@/lib/system-logger';
@@ -19,7 +19,8 @@ import {
  *
  * Produces a per-scene verdict (ok / edit / merge / cut / insert / move) and an overall
  * critique covering structure, pacing, repetition, entity arcs (character arcs in fiction;
- * argument arcs in essay/research), and theme.
+ * argument arcs in non-fiction such as essay / reportage / research; agent or rule-system
+ * arcs in simulation works modelling real-life events from a stated rule set), and theme.
  * Designed to be cheap — no prose, no deltas, just summaries + arc names.
  */
 export async function reviewBranch(
@@ -103,7 +104,7 @@ ${guidance.trim()}`
   });
 
   const maxTokens = MAX_TOKENS_DEFAULT;
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
   const raw = onReasoning
     ? await callGenerateStream(prompt, BRANCH_REVIEW_SYSTEM, () => {}, maxTokens, 'evaluateBranch', ANALYSIS_MODEL, reasoningBudget, onReasoning, ANALYSIS_TEMPERATURE)
     : await callGenerate(prompt, BRANCH_REVIEW_SYSTEM, maxTokens, 'evaluateBranch', ANALYSIS_MODEL, reasoningBudget, true, ANALYSIS_TEMPERATURE);
@@ -239,7 +240,7 @@ ${profile.rules?.length ? `Rules:\n${profile.rules.map((r) => `  - ${r}`).join('
     guidance,
   });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
   const raw = onReasoning
     ? await callGenerateStream(prompt, PROSE_REVIEW_SYSTEM, () => {}, MAX_TOKENS_DEFAULT, 'evaluateProseQuality', ANALYSIS_MODEL, reasoningBudget, onReasoning, ANALYSIS_TEMPERATURE)
     : await callGenerate(prompt, PROSE_REVIEW_SYSTEM, MAX_TOKENS_DEFAULT, 'evaluateProseQuality', ANALYSIS_MODEL, reasoningBudget, true, ANALYSIS_TEMPERATURE);
@@ -351,7 +352,7 @@ export async function reviewPlanQuality(
     guidance,
   });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
   const raw = onReasoning
     ? await callGenerateStream(prompt, PLAN_REVIEW_SYSTEM, () => {}, MAX_TOKENS_DEFAULT, 'evaluatePlanQuality', ANALYSIS_MODEL, reasoningBudget, onReasoning, ANALYSIS_TEMPERATURE)
     : await callGenerate(prompt, PLAN_REVIEW_SYSTEM, MAX_TOKENS_DEFAULT, 'evaluatePlanQuality', ANALYSIS_MODEL, reasoningBudget, true, ANALYSIS_TEMPERATURE);

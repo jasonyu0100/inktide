@@ -191,6 +191,7 @@ export function ScenePlanView({
         let beatProseMap: BeatProseMap | undefined;
         if (canReverseEngineer) {
           const result = await reverseEngineerScenePlan(
+            narrative,
             resolvedProse!,
             scene.summary ?? '',
             (_token, accumulated) => setReasoning(accumulated),

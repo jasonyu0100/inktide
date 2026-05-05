@@ -105,7 +105,7 @@ export async function generatePhaseGraph(
     nodeCountMax,
   });
 
-  const reasoningBudget = REASONING_BUDGETS[reasoningLevel ?? narrative.storySettings?.reasoningLevel ?? "low"] || undefined;
+  const reasoningBudget = REASONING_BUDGETS[reasoningLevel ?? narrative.storySettings?.reasoningLevel ?? "low"];
 
   const raw = onReasoning
     ? await callGenerateStream(

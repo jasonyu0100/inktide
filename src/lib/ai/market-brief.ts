@@ -21,7 +21,7 @@
  */
 
 import type { NarrativeState } from '@/types/narrative';
-import { REASONING_BUDGETS, isScene } from '@/types/narrative';
+import { isScene } from '@/types/narrative';
 import { MAX_TOKENS_DEFAULT } from '@/lib/constants';
 import {
   buildPortfolioRows,
@@ -34,7 +34,7 @@ import { getMarketMargin } from '@/lib/narrative-utils';
 import { THREAD_CATEGORY_LABEL } from '@/lib/thread-category';
 import { getStoryPhase } from '@/lib/auto-engine';
 import { getActivePhaseGraph } from '@/lib/phase-graph';
-import { callGenerate, callGenerateStream } from './api';
+import { callGenerate, callGenerateStream, resolveReasoningBudget } from './api';
 import { parseJson } from './json';
 import { MARKET_BRIEFING_SYSTEM, buildMarketBriefingPrompt } from '@/lib/prompts/briefing';
 import {
@@ -107,7 +107,7 @@ export async function generateMarketBriefing(
     phaseGraphSummary,
   });
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = resolveReasoningBudget(narrative);
   const raw = onReasoning
     ? await callGenerateStream(
         prompt,

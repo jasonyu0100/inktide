@@ -1,7 +1,9 @@
 /**
  * Delta Guidelines Prompt — XML block injected into user prompts that emit
  * structural deltas. Field shapes + emission discipline. Force formulas and
- * floors live in forces.ts — this file doesn't restate them.
+ * floors live in forces.ts; market discipline (evidence scale, logtype table,
+ * principles, closure, abandonment) lives in market-calibration.ts and
+ * thread-lifecycle.ts — this file doesn't restate them.
  */
 
 import { FORCE_BANDS, fmtBand } from '@/lib/narrative-utils';
@@ -9,7 +11,7 @@ import { FORCE_BANDS, fmtBand } from '@/lib/narrative-utils';
 const W = FORCE_BANDS.world;
 const S = FORCE_BANDS.system;
 
-export const PROMPT_DELTAS = `<deltas hint="Inputs to force formulas. Earn from prose; never invent. Under-tagging is the dominant failure.">
+export const PROMPT_DELTAS = `<deltas hint="Inputs to force formulas. Earn from prose; never invent. Under-tagging is the dominant failure. Register-neutral: the same delta shapes carry fiction, non-fiction, and simulation. In simulation register, system deltas are higher-density and often DRIVE the world deltas the scene records (a propagation law fires → modelled state updates); thread deltas often log rule-state shifts (a parameter threshold crossed, a gate tripped, an objective met under the model's rules) rather than dramatic turns.">
   <node-content>15-25 words, PRESENT TENSE, specific and concrete.</node-content>
 
   <density-tiers hint="Above the per-scene floor in forces.ts.">
@@ -19,58 +21,37 @@ export const PROMPT_DELTAS = `<deltas hint="Inputs to force formulas. Earn from 
     <tier name="theory-or-lore-dump">6-10 world, 6-12 system.</tier>
   </density-tiers>
 
-  <initialization-floor hint="Zero-node entities / empty threads are invalid.">
+  <initialization-floor>
     <rule>Every new character / location / artifact must have ≥1 node in its world.nodes at creation.</rule>
     <rule>Every new thread must declare ≥2 named outcomes and open with a threadDelta carrying evidence on at least one outcome (logType "setup").</rule>
   </initialization-floor>
 
-  <thread-deltas hint="Threads are PREDICTION MARKETS over named outcomes.">
+  <thread-deltas hint="Field shapes and multi-outcome update patterns. Market-discipline blocks (principles, evidence scale, logtype, closure, abandonment) carry the rest.">
     <question-shape>
-      <example type="bad" reason="too plain to carry an arc">"Will Bob succeed?"</example>
-      <example type="good" register="fiction" shape="binary">"Can Ayesha clear her grandfather's name before the tribunal ends?" → outcomes: ["yes", "no"].</example>
-      <example type="good" register="fiction" shape="multi">"Who claims the throne?" → outcomes: ["Stark", "Lannister", "Targaryen", "nobody"].</example>
-      <example type="good" register="argument">"Does the proposed mechanism explain anomalies the prior model cannot?" → outcomes: ["yes", "no"].</example>
-      <note>Picaresque / ironic / open-inquiry forms may use a deliberately simple recurring question as their spine — register must earn it.</note>
+      A compelling question can carry an arc (binary or multi-outcome). Dramatic, evidentiary, argumentative, and rule-driven questions are all valid — outcomes are concrete states the work can adjudicate. Examples: "Can Ayesha clear her grandfather's name before the tribunal ends?" → ["yes", "no"]. "Which faction claims the southern province?" → ["Tahir house", "Konoe clan", "merchant guilds", "nobody"]. "Does the replication study confirm, refute, or partially support the original finding?" → ["confirms", "refutes", "partial"]. "Does the modelled epidemic cross the regional containment threshold before the policy intervention takes effect?" → ["contained", "breaches threshold", "delayed breach"]. Picaresque / ironic / open-inquiry forms may use a deliberately simple recurring question — register must earn it.
     </question-shape>
 
     <fields>
-      <field name="updates[]">per-outcome { outcome: string, evidence: number in [-4, +4] — decimals encouraged (e.g. +1.5, +2.7, −0.8); rounded to one decimal place }.</field>
+      <field name="updates[]">per-outcome { outcome: string, evidence: number in [-4, +4]; decimals encouraged (e.g. +1.5, −0.8); rounded to 1dp }.</field>
       <field name="logType">one of { pulse, transition, setup, escalation, payoff, twist, callback, resistance, stall }.</field>
-      <field name="volumeDelta">integer — change to attention on this thread (typically 0..+2, negative only when deliberately quieted).</field>
-      <field name="rationale">ONE prose sentence grounded in the scene. Describe what HAPPENED in natural language — what the reader witnesses and what it implies for the thread's question. DO NOT quote outcome identifiers (they're technical names like "yes_with_great_cost"), DO NOT reference logType or evidence numbers. Write as if annotating a novel's margin, not a database column.</field>
-      <field name="addOutcomes[]" rare="true" optional="true">names of NEW outcomes to add to the market mid-story.</field>
+      <field name="volumeDelta">integer change to attention (typically 0..+2; negative only when deliberately quieted).</field>
+      <field name="rationale">ONE prose sentence grounded in the scene — what HAPPENED in natural language, what the reader witnesses and what it implies for the question. Don't quote outcome identifiers (technical names like "yes_with_great_cost"); don't reference logType or evidence numbers. Margin annotation, not database column.</field>
+      <field name="addOutcomes[]" rare="true">names of NEW outcomes added mid-narrative when a scene genuinely opens a new possibility.</field>
     </fields>
 
-    <outcome-expansion hint="Reserved for scenes that GENUINELY open new possibilities.">
-      <when>A reveal introduces a third contender, a new faction enters the field, a character realises an option no one had considered.</when>
-      <mechanic>New outcomes join the market at neutral prior (logit=0 — equally likely as the current best outcome before this scene's evidence). Then same-scene evidence shifts the new outcome's position.</mechanic>
-      <example type="do">"A third cousin's claim to the throne surfaces during the audit" → addOutcomes: ["cousin"]; updates: [{outcome:"cousin", evidence:+2}].</example>
-      <example type="dont">"Harry suspects Snape might be the thief" — that's evidence on an existing outcome, not a new one.</example>
-      <discipline>Most arcs open 0 outcomes. Arcs that open 1 do so once or twice total. Opening 2+ in one scene is a sign of overloading the market.</discipline>
+    <outcome-expansion hint="Reserved for scenes that GENUINELY open new possibilities — a third contender, a new faction, a previously-unconsidered option.">
+      New outcomes join at neutral prior (logit=0); same-scene evidence then shifts the new outcome. Most arcs open 0 outcomes; opening 1 once or twice total is normal; opening 2+ in one scene signals overloading. Example: "A third cousin's claim to the throne surfaces" → addOutcomes: ["cousin"]; updates: [{outcome:"cousin", evidence:+2}]. NOT for "the apprentice now suspects the elder of the theft" — that's evidence on an existing outcome.
     </outcome-expansion>
 
-    <evidence-scale hint="Real number, decimals allowed for calibrated partial nudges; matches game-theory stake deltas.">
-      <band magnitude="±0..1">pulse / minor shift.</band>
-      <band magnitude="±1..2">setup / resistance.</band>
-      <band magnitude="±2..3">escalation / twist.</band>
-      <band magnitude="±3..4">payoff / reversal (closes the market).</band>
-      <discipline>Most scenes emit |evidence| ≤ 2. +4 is reserved for THE biggest moment so far on a thread — check the trajectory.</discipline>
-      <discipline>logType must AGREE with evidence magnitude (setup at +0..+1, escalation at +2..+3, payoff at +3..+4, twist at ±3 against prior trend).</discipline>
-      <discipline name="evidence-vs-volume">Does the scene shift BELIEF (evidence) or ATTENTION (volumeDelta)? A pulse has volumeDelta=+1 and evidence=0.</discipline>
-      <discipline name="correlation">One reveal can move multiple threads; each rationale cites its specific driving sentence.</discipline>
-    </evidence-scale>
-
-    <multi-outcome-updates hint="When a market has 3+ outcomes, a single scene often moves several of them in different directions and by different magnitudes. Treat each outcome as a separate lever, weighted by how much the scene's evidence actually implies about that outcome.">
-      <pattern name="reveal-suppresses-rivals">A decisive reveal for one outcome usually SUPPRESSES its rivals. Example on {Stark, Lannister, Targaryen}: news that a Stark heir was secretly raised = updates: [{Stark, +3}, {Lannister, −1}, {Targaryen, 0}]. The rival that was actively contending gets squeezed; the unrelated option barely moves.</pattern>
-      <pattern name="lockstep-spectrum">Related outcomes on a spectrum can move in LOCKSTEP at different magnitudes. Example on {fails, partial, succeeds, triumphant}: protagonist clears the first test but reveals a weakness → updates: [{partial, +2}, {succeeds, +1}, {triumphant, −1}, {fails, −1}]. Partial rises most; clean success rises a little; the ceiling and the floor both shrink.</pattern>
-      <pattern name="absence-vs-evidence-against">Absence of evidence on an outcome is not the same as evidence against it. If the scene simply doesn't touch an option, omit it from updates (no entry ≠ evidence=0 — pass-through preserves its relative standing when the rival moves).</pattern>
-      <pattern name="zero-sum-discipline">Treat evidence as a zero-sum pull within the market only when the scene genuinely forces a trade-off. Otherwise let shifts be independent; softmax renormalises anyway.</pattern>
-      <two-outcome-markets>Mirror evidence by default (e.g. {yes+2, no-1} for a clear but not decisive shift). Pure one-sided nudges (e.g. {yes+1} alone) imply the rival is unchanged — legitimate for ambient reinforcement.</two-outcome-markets>
+    <multi-outcome-updates hint="When a market has 3+ outcomes, a single scene often moves several in different directions and magnitudes. Treat each outcome as a separate lever.">
+      <pattern name="reveal-suppresses-rivals">A decisive reveal for one outcome usually SUPPRESSES its rivals. {Okonkwo, Nwoye, the colonial agent}: news of a hidden alliance with Okonkwo = updates: [{Okonkwo, +3}, {Nwoye, −1}, {the colonial agent, 0}]. Active rival gets squeezed; unrelated option barely moves.</pattern>
+      <pattern name="lockstep-spectrum">Related outcomes on a spectrum can move LOCKSTEP at different magnitudes. {fails, partial, succeeds, triumphant}: central agent clears the test but reveals a weakness → [{partial, +2}, {succeeds, +1}, {triumphant, −1}, {fails, −1}].</pattern>
+      <pattern name="absence-vs-evidence-against">Absence of evidence on an outcome is not evidence against it. If the scene doesn't touch an option, omit it from updates — pass-through preserves its relative standing when the rival moves.</pattern>
+      <pattern name="zero-sum-discipline">Treat evidence as zero-sum within the market only when the scene genuinely forces a trade-off. Otherwise let shifts be independent; softmax renormalises.</pattern>
+      <two-outcome-markets>Mirror evidence by default ({yes+2, no−1} for a clear but not decisive shift). One-sided nudges ({yes+1} alone) imply the rival is unchanged — legitimate for ambient reinforcement.</two-outcome-markets>
     </multi-outcome-updates>
 
-    <closure>Market auto-closes when margin ≥ τ_effective AND logType is payoff/twist with |evidence| ≥ 3. τ_effective scales with accumulated volume — high-attention threads demand proportionally more decisive resolutions.</closure>
-    <abandonment>Volume decays per scene untouched; thread leaves focus when volume &lt; floor. Reopen via volumeDelta ≥ 2.</abandonment>
-    <density>2–6 threads per scene. Focus-window threads have priority. Don't emit zero-evidence zero-volume entries.</density>
+    <density>2–6 threads per scene; focus-window threads first. Don't emit zero-evidence zero-volume entries.</density>
   </thread-deltas>
 
   <world-deltas hint="Entity's PRESENT-TENSE facts.">
@@ -79,27 +60,22 @@ export const PROMPT_DELTAS = `<deltas hint="Inputs to force formulas. Earn from 
       <type kind="locations">new history, properties, dangers, rules, atmospheric facts.</type>
       <type kind="artifacts">new capabilities, limitations, states demonstrated through use.</type>
     </by-entity-type>
-    <example type="good" register="fiction">"Harry has a lightning-bolt scar from surviving the killing curse."</example>
-    <example type="good" register="non-fiction">"The force grading formula is calibrated so published works score 85-92 on a 100-point curve."</example>
-    <example type="bad" reason="events belong in thread log">"Harry discovered..." / "The authors realised..."</example>
+    <example type="good">"Akira carries a hand-shaped burn mark from the night her household fell." / "The force grading formula is calibrated so published works score 85-92 on a 100-point curve." — present-tense facts, specific.</example>
+    <example type="bad" reason="events belong in thread log">"Akira discovered..." / "The authors realised..."</example>
     <rule name="node-order">Order matters (auto-chains).</rule>
 
     <tag-richly hint="Entities are SPONGES: rich prose supports many nodes per entity; sparse prose supports few. No per-entity cap.">
-      <density-guide>A reflective POV character alone often carries 4-6 nodes (belief/state/goal/capability/secret shifts). A location re-entered in a dense scene carries 2-3 new properties. A quiet pass-through carries one. UNDER-tagging a rich summary is the failure.</density-guide>
-      <discipline name="agency-over-orbit">"Meng Song suspects Fang Yuan is hiding something" (agency) beats "Meng Song is impressed" (orbit).</discipline>
-      <discipline name="off-screen">Off-screen deltas are valid when news / rumour / faction intelligence would realistically reach them. Across an arc the cast evolves alongside the POV, not waiting on them.</discipline>
-      <discipline name="no-padding">Participants who were unchanged get nothing. Don't pad.</discipline>
+      <density-guide>A reflective POV alone often carries 4-6 nodes — shifts in belief, state, goal, capability, position, method, uncertainty, secret, or commitment. A location or institution re-entered in a dense scene carries 2-3 new properties. A quiet pass-through carries one. Under-tagging a rich summary is the failure.</density-guide>
+      <discipline name="agency-over-orbit">A node carrying agency ("the elder suspects the apprentice is hiding something", "the reviewer suspects the dataset is mis-sampled") beats one that only records orbit ("the elder is impressed", "the reviewer is impressed").</discipline>
+      <discipline name="off-stage">Off-stage deltas are valid when news, rumour, faction intelligence, or cited-elsewhere finding would realistically reach them. Across an arc the entity set evolves alongside the POV, not waiting on it.</discipline>
+      <discipline name="no-padding">Participants who were unchanged get nothing.</discipline>
     </tag-richly>
   </world-deltas>
 
-  <system-deltas hint="How the WORLD / DOMAIN WORKS. Rules, principles, mechanisms — not things, not events.">
-    <example type="good" register="fiction">"Magic near underage wizards is attributed to them regardless of caster."</example>
-    <example type="good" register="fiction">"Cross-check protocols in major sects require concurrence from three elders to ratify a hostile identification."</example>
-    <example type="good" register="non-fiction">"Delivery is computed as the equal-weighted mean of z-score-normalised force values."</example>
-    <example type="bad" reason="too vague">"Magic"</example>
-    <example type="bad" reason="specific not general">"Fang Yuan's plan"</example>
-    <example type="bad" reason="event not rule">"They met in the chamber"</example>
-    <directive>NAME the implicit mechanic — a cross-check bypassed surfaces the cross-check structure; an artifact humming surfaces its behaviour class; a deduction surfaces the pattern detected. Never emit \`systemDeltas: {}\`.</directive>
+  <system-deltas hint="How the WORLD / DOMAIN WORKS. Rules, principles, mechanisms, gates, propagation laws, causal couplings, constraints — not things, not events. In rule-driven works (simulation, modelled scenarios) these ARE the substrate of consequence; treat rule-mechanic content as legitimate and weighty system substance.">
+    <example type="good">"Spirit-marks near uninitiated apprentices are attributed to them regardless of source." / "Cross-check protocols at the tribunal require concurrence from three department heads to ratify a hostile identification." / "Delivery is computed as the equal-weighted mean of z-score-normalised force values." / "Infection rate doubles whenever cross-region travel exceeds the dampening threshold." / "Reinforcements arrive on a six-turn delay once a province falls below 20% supply." / "A central bank that cuts rates while inflation expectations are unanchored loses credibility on a one-meeting lag." / "Cultivation tier gates require concurrent mastery of breath-circulation and meridian alignment." — general rules, not things or events.</example>
+    <example type="bad" reason="too vague / specific not general / event not rule">"The art" / "Akira's plan" / "They met in the chamber"</example>
+    <directive>NAME the implicit mechanic — a cross-check bypassed surfaces the cross-check structure; an artifact resonating surfaces its behaviour class; a deduction surfaces the pattern detected; a modelled threshold crossed surfaces the propagation law; a tier gate triggered surfaces the gate condition. Never emit \`systemDeltas: {}\`.</directive>
     <types>principle | system | concept | tension | constraint.</types>
     <edges>enables | governs | opposes | extends | constrains.</edges>
   </system-deltas>

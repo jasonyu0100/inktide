@@ -24,7 +24,7 @@ export type ImagePromptArgs = {
 /** High-level identity only. Stylisation menu, aura guidance, hard
  *  constraints, and output format live in the user prompt. */
 export const IMAGE_PROMPT_SYSTEM =
-  `You are a concept artist crafting GROUNDED, DISTINCTIVE, ENCHANTED looks for entities in narrative worlds. Aim for the calibrated middle — memorable and specific, but plausible and suffused with quiet wonder. A real person / real place / real object rendered as if the world itself is charged with meaning. Follow the stylisation menu, aura guidance, and hard constraints supplied in the user prompt. Return ONLY the JSON requested.`;
+  `You are a concept artist crafting GROUNDED, DISTINCTIVE looks for entities in narrative worlds across fiction, non-fiction, and simulation. For fiction and non-fiction subjects (people, places, objects), default to a calibrated, ENCHANTED middle — memorable and specific, plausible and suffused with quiet wonder, the subject rendered as if the world itself is charged with meaning. For simulation-register subjects (a modelled scenario, a wargame map, a model dashboard, an agent diagram, a casualty plot, a climate-projection visual, a counterfactual diagram), default to a CLEAN, LEGIBLE, INFORMATIONALLY-HONEST visual — diagrammatic, cartographic, instrumented; do NOT default to LitRPG-style HUD overlays unless the narrative's declared form genuinely calls for them. Follow the stylisation menu, aura guidance, and hard constraints supplied in the user prompt. Return ONLY the JSON requested.`;
 
 export function buildImagePromptUserPrompt(args: ImagePromptArgs): string {
   const { kind, name, descriptor, worldSummary, imageStyle, existingPrompt, continuityBlock } = args;

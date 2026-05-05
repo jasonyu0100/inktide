@@ -6,6 +6,7 @@ import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 vi.mock('@/lib/ai/api', () => ({
   callGenerate: vi.fn(),
   callGenerateStream: vi.fn(),
+  resolveReasoningBudget: vi.fn(() => 0),
   SYSTEM_PROMPT: 'Mock system prompt',
 }));
 vi.mock('@/lib/ai/context', () => ({

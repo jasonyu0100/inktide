@@ -154,8 +154,8 @@ Return JSON with this exact shape — and ONLY this object. Do not touch worldDe
     {
       "threadDescription": "exact canonical description from canonical-markets",
       "logType": "pulse|setup|escalation|payoff|twist|resistance|stall|callback|transition",
-      "updates": [{"outcome": "exact canonical outcome", "evidence": -4..+4}],
-      "volumeDelta": 0..3,
+      "updates": [{"outcome": "exact canonical outcome", "evidence": 1.5}],
+      "volumeDelta": 1,
       "addOutcomes": ["optional — new outcome names if the scene structurally opens a possibility that's not in the market"],
       "rationale": "15-25 words grounded in the scene summary — the specific event that moved this thread"
     }

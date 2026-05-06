@@ -105,15 +105,32 @@ shifts where weight lives:
   modelled rules force the closure under the given conditions. Threads frame
   as "will the modelled system reach state X under conditions Y?" with
   outcomes that are concrete states of the rule set.
-- **POV is observer or agent.** The vantage tracks events under the rules —
-  a scenario actor, an analyst running the model, a participant whose choices
-  feed the rule machinery. Inner world includes the agent's modelled state
-  under the rules.
-- **Diegetic overlay is optional.** When a simulation work surfaces its rule
-  state directly (HUD, status sheet, finding log, dashboard, stat block, tier
-  gate), use the `simulation` ProseFormat for rendering — the overlay is
-  *narrative content*. A simulation work can also render in plain prose with
-  the rule machinery worked through dialogue, action, and narration.
+- **POV is INSIDE the modelled events.** The vantage is a participant the
+  rules act on — a candidate, a voter, a general, a minister, a cultivator,
+  a researcher whose work IS the subject. NOT a meta-observer running the
+  simulation from outside. For a 2024-US-politics premise the POV is Trump,
+  Webb, a campaign strategist, a swing-state voter — never "Dr. Vásquez at
+  the Simulation Core watching the dashboard." The system internally treats
+  the work as rule-governed; that machinery is implementation, not in-world
+  scenery.
+- **Simulation ≠ meta-narrative — critical.** The simulation register means
+  the work is *governed by* a rule set, not that the work is *about* someone
+  running a simulation. Don't invent a research institute, simulation core,
+  forecasting laboratory, modeller persona, hidden-parameter dampener, or
+  analyst-watches-dashboard meta-frame **unless the premise explicitly asks
+  for one** ("a story about an institute that simulates elections" — yes;
+  "the 2024 US election" — no). The rules act on the modelled world's actual
+  inhabitants; modellers do not appear unless the premise puts them there.
+- **Diegetic overlay is real to the characters, or it doesn't appear.** Use
+  the `simulation` ProseFormat (HUD, status sheet, log, dashboard, stat
+  block, tier gate) ONLY when the modelled world *itself* contains these
+  artifacts as in-world objects — a LitRPG character literally sees their
+  stats, a wargame general literally reads a turn report, a cultivator
+  literally crosses a tier gate, an in-world epidemiologist publishes a
+  bulletin. NOT when an out-of-frame researcher reads dashboards about the
+  story. A simulation-register work can equally render in plain prose with
+  the rule machinery worked through dialogue, action, and narration — that
+  is the default.
 - **Avoid as default.** When register markers are needed, do not default to a
   single subgenre. Span historical counterfactual / economic-policy /
   political-wargame / scientific-process / social-dynamics / agent-based /

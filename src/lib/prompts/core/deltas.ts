@@ -32,23 +32,23 @@ export const PROMPT_DELTAS = `<deltas hint="Inputs to force formulas. Earn from 
     </question-shape>
 
     <fields>
-      <field name="updates[]">per-outcome { outcome: string, evidence: number in [-4, +4]; decimals encouraged (e.g. +1.5, −0.8); rounded to 1dp }.</field>
+      <field name="updates[]">per-outcome { outcome: string, evidence: number in [-4, 4]; decimals encouraged (e.g. 1.5 or -0.8); rounded to 1dp }.</field>
       <field name="logType">one of { pulse, transition, setup, escalation, payoff, twist, callback, resistance, stall }.</field>
-      <field name="volumeDelta">integer change to attention (typically 0..+2; negative only when deliberately quieted).</field>
+      <field name="volumeDelta">integer change to attention in [0, 2] (negative only when deliberately quieted).</field>
       <field name="rationale">ONE prose sentence grounded in the scene — what HAPPENED in natural language, what the reader witnesses and what it implies for the question. Don't quote outcome identifiers (technical names like "yes_with_great_cost"); don't reference logType or evidence numbers. Margin annotation, not database column.</field>
       <field name="addOutcomes[]" rare="true">names of NEW outcomes added mid-narrative when a scene genuinely opens a new possibility.</field>
     </fields>
 
     <outcome-expansion hint="Reserved for scenes that GENUINELY open new possibilities — a third contender, a new faction, a previously-unconsidered option.">
-      New outcomes join at neutral prior (logit=0); same-scene evidence then shifts the new outcome. Most arcs open 0 outcomes; opening 1 once or twice total is normal; opening 2+ in one scene signals overloading. Example: "A third cousin's claim to the throne surfaces" → addOutcomes: ["cousin"]; updates: [{outcome:"cousin", evidence:+2}]. NOT for "the apprentice now suspects the elder of the theft" — that's evidence on an existing outcome.
+      New outcomes join at neutral prior (logit=0); same-scene evidence then shifts the new outcome. Most arcs open 0 outcomes; opening 1 once or twice total is normal; opening 2+ in one scene signals overloading. Example: "A third cousin's claim to the throne surfaces" → addOutcomes: ["cousin"]; updates: [{outcome:"cousin", evidence:2}]. NOT for "the apprentice now suspects the elder of the theft" — that's evidence on an existing outcome.
     </outcome-expansion>
 
     <multi-outcome-updates hint="When a market has 3+ outcomes, a single scene often moves several in different directions and magnitudes. Treat each outcome as a separate lever.">
-      <pattern name="reveal-suppresses-rivals">A decisive reveal for one outcome usually SUPPRESSES its rivals. {Okonkwo, Nwoye, the colonial agent}: news of a hidden alliance with Okonkwo = updates: [{Okonkwo, +3}, {Nwoye, −1}, {the colonial agent, 0}]. Active rival gets squeezed; unrelated option barely moves.</pattern>
-      <pattern name="lockstep-spectrum">Related outcomes on a spectrum can move LOCKSTEP at different magnitudes. {fails, partial, succeeds, triumphant}: central agent clears the test but reveals a weakness → [{partial, +2}, {succeeds, +1}, {triumphant, −1}, {fails, −1}].</pattern>
+      <pattern name="reveal-suppresses-rivals">A decisive reveal for one outcome usually SUPPRESSES its rivals. {Okonkwo, Nwoye, the colonial agent}: news of a hidden alliance with Okonkwo = updates: [{Okonkwo, +3}, {Nwoye, -1}, {the colonial agent, 0}]. Active rival gets squeezed; unrelated option barely moves.</pattern>
+      <pattern name="lockstep-spectrum">Related outcomes on a spectrum can move LOCKSTEP at different magnitudes. {fails, partial, succeeds, triumphant}: central agent clears the test but reveals a weakness → [{partial, +2}, {succeeds, +1}, {triumphant, -1}, {fails, -1}].</pattern>
       <pattern name="absence-vs-evidence-against">Absence of evidence on an outcome is not evidence against it. If the scene doesn't touch an option, omit it from updates — pass-through preserves its relative standing when the rival moves.</pattern>
       <pattern name="zero-sum-discipline">Treat evidence as zero-sum within the market only when the scene genuinely forces a trade-off. Otherwise let shifts be independent; softmax renormalises.</pattern>
-      <two-outcome-markets>Mirror evidence by default ({yes+2, no−1} for a clear but not decisive shift). One-sided nudges ({yes+1} alone) imply the rival is unchanged — legitimate for ambient reinforcement.</two-outcome-markets>
+      <two-outcome-markets>Mirror evidence by default ({yes+2, no-1} for a clear but not decisive shift). One-sided nudges ({yes+1} alone) imply the rival is unchanged — legitimate for ambient reinforcement.</two-outcome-markets>
     </multi-outcome-updates>
 
     <density>2–6 threads per scene; focus-window threads first. Don't emit zero-evidence zero-volume entries.</density>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useRef, useState } from "react";
 import { IconEye, IconLocationPin } from "@/components/icons";
 import { getEffectivePovId } from "@/lib/narrative-utils";
 import { useStore } from "@/lib/store";
@@ -10,9 +11,46 @@ import {
 } from "@/lib/time-deltas";
 import { resolveEntry, type Scene } from "@/types/narrative";
 
+const MIN_HEIGHT = 80;
+const MAX_HEIGHT = 800;
+const DEFAULT_HEIGHT = 180;
+
 export default function NarrativePanel() {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
+  const [height, setHeight] = useState(DEFAULT_HEIGHT);
+  const startY = useRef(0);
+  const startH = useRef(0);
+
+  const onResizeMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      startY.current = e.clientY;
+      startH.current = height;
+
+      const onMouseMove = (ev: MouseEvent) => {
+        const delta = startY.current - ev.clientY;
+        const next = Math.max(
+          MIN_HEIGHT,
+          Math.min(MAX_HEIGHT, startH.current + delta),
+        );
+        setHeight(next);
+      };
+
+      const onMouseUp = () => {
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+
+      document.body.style.cursor = "row-resize";
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [height],
+  );
 
   if (!narrative) return null;
 
@@ -43,11 +81,24 @@ export default function NarrativePanel() {
     }
   }
 
+  const containerClass =
+    "relative shrink-0 glass-panel border-t border-border overflow-y-auto px-4 py-3";
+  const containerStyle = { height };
+
+  const resizeHandle = (
+    <div
+      className="absolute top-0 left-0 right-0 h-1 cursor-row-resize hover:bg-violet-300/15 active:bg-violet-300/25 transition-colors z-10"
+      onMouseDown={onResizeMouseDown}
+      title="Drag to resize"
+    />
+  );
+
   // World build commit view
   if (entry.kind === "world_build") {
     const m = entry.expansionManifest;
     return (
-      <div className="h-[180px] shrink-0 glass-panel border-t border-border overflow-y-auto px-4 py-3">
+      <div className={containerClass} style={containerStyle}>
+        {resizeHandle}
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
             {positionLabel || "World Expansion"}
@@ -147,9 +198,10 @@ export default function NarrativePanel() {
   const showTimeDelta = sceneIdx > 0 && scene.timeDelta != null;
 
   return (
-    <div className="h-[180px] shrink-0 glass-panel border-t border-border overflow-y-auto px-4 py-3">
+    <div className={containerClass} style={containerStyle}>
+      {resizeHandle}
       <div className="flex items-baseline justify-between gap-2 mb-2">
-        <div className="flex items-baseline gap-2 min-w-0">
+        <div className="flex items-baseline gap-2 min-w-0 flex-1">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded">
             {positionLabel}
           </span>

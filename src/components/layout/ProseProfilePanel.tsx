@@ -155,7 +155,7 @@ const PROSE_PROFILE_TEMPLATE = `Analyze the prose sample below and fill in this 
   "stance": "[FILL: narrator distance — e.g. 'close third', 'omniscient', 'deep first', 'distant third']",
   "tense": "[FILL: grammatical tense — e.g. 'past', 'present', 'mixed']",
   "sentenceRhythm": "[FILL: structural cadence — e.g. 'varied with short punches', 'long flowing periods', 'staccato', 'balanced']",
-  "interiority": "[FILL: depth into character thoughts — e.g. 'deep immersion', 'surface observations', 'occasional glimpses', 'none']",
+  "interiority": "[FILL: what the POV's interior is made of — character thoughts ('deep immersion', 'surface observations'), reasoning/evidentiary framing ('analytical', 'evidentiary'), or modelled state under a rule set ('state-tracked'); whichever the source actually does]",
   "dialogueWeight": "[FILL: proportion of dialogue — e.g. 'dialogue-heavy', 'balanced', 'narration-dominant', 'sparse']",
   "devices": [
     "[FILL: rhetorical/narrative devices — e.g. 'repetition for emphasis', 'sentence fragments', 'free indirect discourse', 'unreliable narrator']"

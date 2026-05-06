@@ -16,26 +16,18 @@ import type { NarrativeState, Thread } from '@/types/narrative';
 import { NARRATOR_AGENT_ID } from '@/types/narrative';
 import { THREAD_LIFECYCLE_DOC } from '@/lib/ai/context';
 import {
-  ENTITY_LOG_CONTEXT_LIMIT,
   MARKET_NEAR_CLOSED_MIN,
   MARKET_TAU_CLOSE,
 } from '@/lib/constants';
 import {
-  getMarketBelief,
   getMarketMargin,
   getMarketProbs,
   isNearClosed,
   isThreadAbandoned,
   isThreadClosed,
-  normalizedEntropy,
   scenesSinceTouched,
 } from '@/lib/narrative-utils';
-import {
-  classifyThreadCategory,
-  computeRecentLogitEnergy,
-  THREAD_CATEGORY_GUIDANCE,
-  formatThreadGuidance,
-} from '@/lib/thread-category';
+import { classifyThreadCategory, THREAD_CATEGORY_GUIDANCE, type ThreadCategory } from '@/lib/thread-category';
 import {
   PROMPT_MARKET_PRINCIPLES,
   PROMPT_PORTFOLIO_PRINCIPLES,
@@ -87,10 +79,19 @@ ${PROMPT_MARKET_LOGTYPE_TABLE}
 }
 
 /**
- * Build a prediction-market portfolio report for the LLM.
- * Surfaces current logits, probability distribution, volume, volatility, and
- * recency for each thread so generation sees where belief is contested and
- * where it's saturating.
+ * Surface the active-thread portfolio so the model can target action by
+ * category without re-emitting per-thread state (already in narrative-context).
+ *
+ * The block has three parts:
+ *   1. <market-portfolio> — buckets active threads by category, IDs only.
+ *      The model reads each thread's lean/p/margin/vol/volatility/log from
+ *      the <threads> block in narrative-context.
+ *   2. <thread-action-guide> — what to DO for each category, sourced from
+ *      THREAD_CATEGORY_GUIDANCE (single source of truth).
+ *   3. <engagement-and-realism> — per-arc minimums and failure-mode catalogue.
+ *      Fate scores reward information gain × attention, so a portfolio that
+ *      only escalates leaders generates near-zero fate. This directive
+ *      explicitly demands twists / resistance / payoffs across the arc.
  */
 export function buildThreadHealthPrompt(
   narrative: NarrativeState,
@@ -98,76 +99,59 @@ export function buildThreadHealthPrompt(
   currentIndex: number,
 ): string {
   const allThreads = Object.values(narrative.threads);
-  const closed = allThreads.filter(isThreadClosed);
-  const abandoned = allThreads.filter(isThreadAbandoned);
-  const active = allThreads.filter((t) => !isThreadClosed(t) && !isThreadAbandoned(t));
-
   if (allThreads.length === 0) return '';
 
+  const closed = allThreads.filter(isThreadClosed).length;
+  const abandoned = allThreads.filter(isThreadAbandoned).length;
+  const activeThreads = allThreads.filter((t) => !isThreadClosed(t) && !isThreadAbandoned(t));
   const totalArcs = Object.keys(narrative.arcs).length || 1;
 
-  const lines: string[] = [
-    `THREAD MARKETS — ${active.length} active, ${closed.length} closed, ${abandoned.length} abandoned, ${totalArcs} arcs elapsed`,
-    '',
-  ];
-
-  // Sort active threads by volume descending — high-attention threads first.
-  const sorted = active
-    .map((t) => ({
-      t,
-      belief: getMarketBelief(t),
-      probs: getMarketProbs(t),
-      nearClosed: isNearClosed(t),
-      silent: scenesSinceTouched(t, resolvedKeys, currentIndex),
-    }))
-    .sort((a, b) => (b.belief?.volume ?? 0) - (a.belief?.volume ?? 0));
-
-  for (const { t, belief, probs, silent } of sorted) {
-    const vol = belief?.volume ?? 0;
-    const volatility = belief?.volatility ?? 0;
-    const uncertainty = normalizedEntropy(probs);
-    const { topIdx } = getMarketMargin(t);
-    const topProb = probs[topIdx] ?? 0;
-    const topOutcome = t.outcomes[topIdx] ?? '?';
-
-    // Canonical category — same vocabulary the UI and narrativeContext use.
-    // Drives self-fulfilling prophecy behaviour in aggregate while leaving
-    // room for deliberate uncertainty spikes.
+  // Bucket active threads by category. IDs only — full state lives on the
+  // narrative-context <thread> tags.
+  const buckets = new Map<ThreadCategory, string[]>();
+  for (const t of activeThreads) {
+    const silent = scenesSinceTouched(t, resolvedKeys, currentIndex);
     const category = classifyThreadCategory(t, { scenesSinceTouch: silent });
-    const energy = computeRecentLogitEnergy(t);
-    const signal = formatThreadGuidance(THREAD_CATEGORY_GUIDANCE[category], topOutcome, topProb);
-
-    lines.push(`"${t.description}" [${t.id}] — ${signal}`);
-    const outcomeLines = t.outcomes.map((o, i) => {
-      const p = probs[i] ?? 0;
-      return `  • ${o}: ${(p * 100).toFixed(0)}%`;
-    });
-    lines.push(...outcomeLines);
-    lines.push(`  vol=${vol.toFixed(1)}, volatility=${volatility.toFixed(2)}, energy=${energy.toFixed(2)}, uncertainty=${uncertainty.toFixed(2)}, silent=${silent === Infinity ? '∞' : silent}`);
-
-    // Recent log nodes.
-    const logNodes = Object.values(t.threadLog?.nodes ?? {});
-    const recentNodes = logNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
-    if (recentNodes.length > 0) {
-      lines.push(`  log: ${recentNodes.map((n) => `[${n.type}] ${n.content.slice(0, 60)}`).join(' | ')}`);
-    }
-
-    if (t.dependents.length > 0) {
-      const depDescs = t.dependents.map((depId) => narrative.threads[depId]).filter(Boolean).map((dep) => `[${dep.id}]`);
-      if (depDescs.length > 0) lines.push(`  ↔ Converges: ${depDescs.join(', ')}`);
-    }
-    lines.push('');
+    const list = buckets.get(category) ?? [];
+    list.push(t.id);
+    buckets.set(category, list);
   }
+  const bucketLines = Object.keys(THREAD_CATEGORY_GUIDANCE)
+    .filter((cat) => buckets.has(cat as ThreadCategory))
+    .map((cat) => `  <bucket category="${cat}" threads="${buckets.get(cat as ThreadCategory)!.join(', ')}" />`)
+    .join('\n');
 
-  if (closed.length > 0) {
-    lines.push(`Closed (${closed.length}): ${closed.map((t) => `[${t.id}] "${t.description.slice(0, 40)}" → ${t.outcomes[t.closeOutcome ?? 0] ?? '?'}`).join(' | ')}`);
-    lines.push('');
-  }
-  if (abandoned.length > 0) {
-    lines.push(`Abandoned (${abandoned.length}): ${abandoned.map((t) => `[${t.id}]`).join(' ')} — available for reopening via volumeDelta ≥ 2`);
-  }
+  const actions = Object.entries(THREAD_CATEGORY_GUIDANCE)
+    .map(([cat, guidance]) => `  <action category="${cat}">${guidance}</action>`)
+    .join('\n');
 
-  return lines.join('\n');
+  return `<market-portfolio active="${activeThreads.length}" closed="${closed}" abandoned="${abandoned}" arcs="${totalArcs}" hint="Active threads grouped by category. Each thread's full market state — lean, p-lean, margin, vol, volatility, energy, silent, log — lives on its <thread> tag in narrative-context; this block surfaces grouping only.">
+${bucketLines}
+</market-portfolio>
+
+<thread-action-guide hint="What each category demands of the next scene. {lean} = the thread's lean attribute; {p} = its p-lean attribute. Apply per-thread by reading the category attribute from narrative-context.">
+${actions}
+</thread-action-guide>
+
+<engagement-and-realism hint="Fate = information gain × attention. A scene that only escalates the leader of every market is calibrationally clean but generates near-zero fate — the markets already priced that move. Force the portfolio to MOVE in ways an honest observer would update on.">
+  <per-arc-minimums hint="Across the scenes this prompt is generating, not within a single scene.">
+    <minimum>≥1 scene carries a payoff (|e|≥3, logType=payoff) OR twist (logType=twist against prior trend) on a high-volume market. Twists against committed leaders contribute the largest fate per scene.</minimum>
+    <minimum>≥1 scene carries resistance (logType=resistance, e=−1..−2) on a rising committed market — the leading agent meets cost they did not choose. A portfolio where every committed market only escalates is a progress bar, not a story.</minimum>
+    <minimum>Saturating markets either close in this arc (payoff or twist with |e|≥3 + margin clearance) or take a meaningful resistance / twist. 3+ scenes of silence on a saturating market is portfolio decay — close it, twist it, or actively maintain it.</minimum>
+    <minimum>Dormant markets either re-engage (volumeDelta ≥ +2 with new evidence) or accept attrition. Don't pulse them just to keep them on the board.</minimum>
+  </per-arc-minimums>
+  <register-grounding hint="The MECHANISM of reversal differs by register; the requirement that markets actually reverse does not.">
+    <register kind="fiction-or-non-fiction">Reversals come from the central agent meeting adversaries, evidence, institutional friction, or reality they did not control. Costs hit the protagonist on-page; rivals act on their own agenda; investigations turn up what the inquirer didn't expect. Authorial sympathy does NOT price as evidence — only realised on-page events do.</register>
+    <register kind="simulation">Reversals come from the rule set firing in non-obvious ways — a threshold crossed, a feedback loop tripping, a propagation law cascading, a counterfactual closing a previously-open path. The "twist" is the model producing a state the optimistic projection didn't predict; the "resistance" is a rule pushing back on a trajectory the agent was banking on. The author does not author surprises — the rules do.</register>
+  </register-grounding>
+  <failure-modes hint="Each generates technically-clean emissions and zero fate. Audit before emission.">
+    <mode name="progress-bar-portfolio">Every outcome in every market is a variant of agent-success. Symptom: no outcome the central agent would pay to prevent. Fix: ensure each high-volume market has a contested outcome with adversarial weight.</mode>
+    <mode name="all-leaders-winning">Every committed market is moving toward its leader, scene after scene. Symptom: no resistance / twist logTypes in the arc. Fix: pick at least one committed market and force a setback, a complication, or a reveal that reframes the question.</mode>
+    <mode name="no-cost-ledger">Liabilities are mentioned in prose (debts, injuries, suspicions, structural pressure) but never priced into a market whose lean is the thing the agent is trying to prevent. Symptom: costs evaporate scene-to-scene. Fix: open or maintain a cost-ledger market and emit evidence on it whenever the cost compounds.</mode>
+    <mode name="phantom-accumulation">Repeatedly emitting +1..+2 evidence on an already-saturated leader. Symptom: the market is already priced; the next emission can't move it. Fix: switch to payoff (closes), twist (reverses), or pulse — never phantom-pile a saturated market.</mode>
+    <mode name="rhetorical-evidence">Pricing on what the prose ASSERTS rather than what an outside observer would infer. Symptom: |e|≥2 on scenes whose content reads consistent with multiple outcomes. Fix: |e| ≤ 1 unless the scene only makes sense under the target outcome.</mode>
+  </failure-modes>
+</engagement-and-realism>`;
 }
 
 /**

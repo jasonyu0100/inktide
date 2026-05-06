@@ -15,13 +15,8 @@ export type GenerateScenesPromptArgs = {
   inputBlocks: string;
   arcId: string;
   povRestrictedHint: string;
-  /** Pre-built force-band line for "typical" scenes. */
-  worldTypicalBand: string;
-  worldClimaxBand: string;
-  worldQuietBand: string;
-  systemTypicalBand: string;
-  systemClimaxBand: string;
-  systemQuietBand: string;
+  /** Whether a pacing sequence was provided (decides priority entry visibility). */
+  hasPacingSequence: boolean;
   /** Pre-built modular prompt blocks shared across scene generation paths. */
   sharedRulesBlock: string;
 };
@@ -31,26 +26,25 @@ export function buildGenerateScenesPrompt(args: GenerateScenesPromptArgs): strin
     inputBlocks,
     arcId,
     povRestrictedHint,
-    worldTypicalBand,
-    worldClimaxBand,
-    worldQuietBand,
-    systemTypicalBand,
-    systemClimaxBand,
-    systemQuietBand,
+    hasPacingSequence,
     sharedRulesBlock,
   } = args;
+
+  const priorities = [
+    `  <priority rank="1">BRIEF — reasoning graph (CRG) / coordination-plan directive / direction. Scenes execute the brief.</priority>`,
+    `  <priority rank="2">ARC SETTINGS — force preference / reasoning mode / network bias the CRG was built under. Scenes inherit the engine tilt.</priority>`,
+    `  <priority rank="3">WORLD-BUILD FOCUS — recently-introduced entities and latent threads this arc must activate. Bring them on-screen.</priority>`,
+    hasPacingSequence ? `  <priority rank="4">PACING SEQUENCE — per-scene mode + force band targets.</priority>` : '',
+    `  ${phaseGraphPriorityEntry(5, "scene-structure")}`,
+    `  <priority rank="6">NARRATIVE CONTEXT — characters, threads, system knowledge, recent history.</priority>`,
+  ].filter(Boolean).join('\n');
 
   return `<inputs>
 ${inputBlocks}
 </inputs>
 
 <integration-hierarchy hint="Priority order when inputs conflict.">
-  <priority rank="1">BRIEF — reasoning graph (CRG) / coordination-plan directive / direction. Scenes execute the brief.</priority>
-  <priority rank="2">ARC SETTINGS — force preference / reasoning mode / network bias the CRG was built under. Scenes inherit the engine tilt.</priority>
-  <priority rank="3">WORLD-BUILD FOCUS — recently-introduced entities and latent threads this arc must activate. Bring them on-screen.</priority>
-  <priority rank="4">PACING SEQUENCE — per-scene mode + force band targets.</priority>
-  ${phaseGraphPriorityEntry(5, "scene-structure")}
-  <priority rank="6">NARRATIVE CONTEXT — characters, threads, system knowledge, recent history.</priority>
+${priorities}
 </integration-hierarchy>
 
 <summary-discipline>The summary IS the delta budget. Write the summary so every intended delta has a source sentence — every entity-change, rule-surfacing, thread-move, and off-screen-affected party traceable to a sentence. Use NAMES not IDs. Under-tagging is the dominant failure mode.</summary-discipline>
@@ -104,24 +98,21 @@ Return JSON with this exact structure.
 
   <rule name="time-delta">Gap from prior scene as estimate ({value: int≥0, unit}). Relative only — no absolute calendar. "that evening" → 3 hours; "next morning" → 1 day; "three years later" → 3 years; {value:0, unit:"minute"} = simultaneous/concurrent (also use for the first scene).</rule>
 
-  <rule name="tag-richly-discipline">
-    <floor>≥6 world nodes across ≥3 entities, ≥1 system node per scene. Never emit \`systemDeltas: {}\`. One threadDelta per thread per scene; transitions move ONE step forward.</floor>
-    <profile mode="typical">${worldTypicalBand} world, ${systemTypicalBand} system, 2-4 thread pulses (0-1 transitions).</profile>
-    <profile mode="climax">${worldClimaxBand} world, ${systemClimaxBand} system, 1-2 transitions.</profile>
-    <profile mode="quiet">${worldQuietBand} world, ${systemQuietBand} system, 0-1 pulses.</profile>
+  <rule name="tag-richly-discipline" hint="Floors and per-tier density bands live in force-standards / deltas; this rule adds scene-shape-specific guidance.">
+    <thread-step>One threadDelta per thread per scene; transitions move ONE step forward.</thread-step>
     <profile mode="reflective-pov" hint="Solo-POV scenes, mostly thinking/planning.">POV is STILL the most-changed entity — expect 4-6 nodes on POV alone (belief/state/goal/capability/secret), plus 2-3 on adjacent entities (location witnessed, artifact handled, off-screen party affected). A reflective scene with only one POV delta is broken.</profile>
     <directive>AGENCY over ORBIT. OFF-SCREEN deltas are valid (news/rumour/intelligence). REUSE existing node IDs — only NEW concepts count toward floors.</directive>
   </rule>
 
-  <worked-example name="thin-vs-rich" hint="Same summary; the difference is extraction discipline.">
+  <worked-example name="thin-vs-rich" hint="Same summary; the difference is extraction discipline. IDs below are schematic — substitute the actual entities your narrative provides.">
     <summary>The investigator combined fragments from the archive viewing with the residue signature on the recovered instrument. The reading revealed the surveillance was embedded within the refinement of every instrument at the maker's workshop — overturning the prior model and demanding a new counter-strategy.</summary>
     <rich target="8 world across 5 entities + 2 system">
 worldDeltas: [
-  {entityId: C-01, nodes: [belief "the surveillance embeds inside instrument-core refinement", state "prior external-monitoring model is overturned", goal "shift to proactive counter-surveillance strategy", capability "can compose multi-source archival corpora"]},
-  {entityId: A-04, nodes: [capability "the archive resolves composite records into multi-layered revelations"]},
-  {entityId: A-18, nodes: [trait "the recovered instrument carries the surveillance signature embedded at refinement"]},
-  {entityId: A-17, nodes: [trait "the residue traces carry monitoring data readable through the archive"]},
-  {entityId: L-03, nodes: [history "the safehouse served as the analysis site"]}
+  {POV-character, nodes: [belief "the surveillance embeds inside instrument-core refinement", state "prior external-monitoring model is overturned", goal "shift to proactive counter-surveillance strategy", capability "can compose multi-source archival corpora"]},
+  {archive-artifact, nodes: [capability "the archive resolves composite records into multi-layered revelations"]},
+  {recovered-instrument, nodes: [trait "carries the surveillance signature embedded at refinement"]},
+  {residue-evidence, nodes: [trait "the residue traces carry monitoring data readable through the archive"]},
+  {safehouse-location, nodes: [history "served as the analysis site"]}
 ]
 systemDeltas: { addedNodes: [principle "the authority's surveillance operates by embedding monitoring within instrument-core refinement", concept "the archive resolves record corpora into patterned revelations"], addedEdges: [governs(principle, concept)] }
 threadDeltas: [one transition + optional pulse on the surveillance-inquiry thread]

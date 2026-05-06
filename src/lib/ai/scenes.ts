@@ -1,6 +1,6 @@
 import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatPlan, BeatProse, BeatProseMap, Proposition, ThreadLogNodeType, SystemNode, Thread, Artifact, Character, Location as LocationEntity, LocationProminence } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATOR_AGENT_ID } from '@/types/narrative';
-import { isThreadAbandoned, isThreadClosed, clampEvidence, FORCE_BANDS, fmtBand } from '@/lib/narrative-utils';
+import { isThreadAbandoned, isThreadClosed, clampEvidence } from '@/lib/narrative-utils';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { newNarratorBelief } from '@/lib/thread-log';
 import { normalizeTimeDelta } from '@/lib/time-deltas';
@@ -357,12 +357,7 @@ ${threads ? `  <threads-to-activate>\n${threads}\n  </threads-to-activate>` : ''
     inputBlocks: inputBlocks.join('\n'),
     arcId,
     povRestrictedHint,
-    worldTypicalBand: fmtBand(FORCE_BANDS.world.typical),
-    worldClimaxBand: fmtBand(FORCE_BANDS.world.climax, true),
-    worldQuietBand: fmtBand(FORCE_BANDS.world.quiet),
-    systemTypicalBand: fmtBand(FORCE_BANDS.system.typical),
-    systemClimaxBand: fmtBand(FORCE_BANDS.system.climax),
-    systemQuietBand: fmtBand(FORCE_BANDS.system.quiet),
+    hasPacingSequence: !!sequencePrompt,
     sharedRulesBlock,
   });
 

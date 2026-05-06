@@ -122,8 +122,17 @@ shifts where weight lives:
 
 ## 5. Cultural palette defaults
 
-Prompts that invoke naming, setting, or cultural reference **must not default
-to Anglo/Celtic/Greek**. The codebase lists the supported palettes in
+Prompts that invoke naming, setting, or cultural reference **must not
+reflexively default to Anglo/Celtic/Greek when the premise points
+elsewhere**. The failure mode is generating Mughal-court entities with
+Anglo-Saxon names, or a Lagos-set story populated by Greek surnames. When
+the premise IS genuinely Western (US politics, European history, an
+English-language memoir, a Silicon Valley setting), Western names —
+including diasporic names that fit the actual demographics — are correct;
+the rule is against unconditional defaulting, not against Western names per
+se.
+
+The codebase lists the supported palettes in
 [src/lib/ai/world.ts](../ai/world.ts) under NAMING. Any new prompt that touches
 naming or culture should either (a) defer to the narrative's own palette, or
 (b) enumerate a diverse list (East Asian, South Asian, Middle Eastern, African,
